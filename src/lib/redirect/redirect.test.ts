@@ -12,33 +12,51 @@ describe("Redirect utilities re-exports", () => {
   describe("isValidRedirectUrl", () => {
     it("should accept relative paths", () => {
       expect(isValidRedirectUrl("/dashboard", allowedDomains)).toBe(true);
-      expect(isValidRedirectUrl("/settings/profile", allowedDomains)).toBe(true);
+      expect(isValidRedirectUrl("/settings/profile", allowedDomains)).toBe(
+        true
+      );
     });
 
     it("should reject external URLs not in allowed domains", () => {
-      expect(isValidRedirectUrl("https://evil.com", allowedDomains)).toBe(false);
-      expect(isValidRedirectUrl("http://malicious.site", allowedDomains)).toBe(false);
+      expect(isValidRedirectUrl("https://evil.com", allowedDomains)).toBe(
+        false
+      );
+      expect(isValidRedirectUrl("http://malicious.site", allowedDomains)).toBe(
+        false
+      );
     });
 
     it("should reject javascript: protocol", () => {
-      expect(isValidRedirectUrl("javascript:alert(1)", allowedDomains)).toBe(false);
+      expect(isValidRedirectUrl("javascript:alert(1)", allowedDomains)).toBe(
+        false
+      );
     });
 
     it("should reject data: protocol", () => {
-      expect(isValidRedirectUrl("data:text/html,<script>", allowedDomains)).toBe(false);
+      expect(
+        isValidRedirectUrl("data:text/html,<script>", allowedDomains)
+      ).toBe(false);
     });
 
     it("should accept allowed domains", () => {
-      expect(isValidRedirectUrl("https://xynes.com/dashboard", allowedDomains)).toBe(true);
-      expect(isValidRedirectUrl("https://cms.xynes.com", allowedDomains)).toBe(true);
+      expect(
+        isValidRedirectUrl("https://xynes.com/dashboard", allowedDomains)
+      ).toBe(true);
+      expect(isValidRedirectUrl("https://cms.xynes.com", allowedDomains)).toBe(
+        true
+      );
     });
 
     it("should accept localhost with correct port", () => {
-      expect(isValidRedirectUrl("http://localhost:3000/app", allowedDomains)).toBe(true);
+      expect(
+        isValidRedirectUrl("http://localhost:3000/app", allowedDomains)
+      ).toBe(true);
     });
 
     it("should reject localhost with wrong port", () => {
-      expect(isValidRedirectUrl("http://localhost:4000/app", allowedDomains)).toBe(false);
+      expect(
+        isValidRedirectUrl("http://localhost:4000/app", allowedDomains)
+      ).toBe(false);
     });
   });
 
@@ -46,29 +64,57 @@ describe("Redirect utilities re-exports", () => {
     const defaultUrl = "/";
 
     it("should return valid relative URLs as-is", () => {
-      expect(getSafeRedirectUrl("/dashboard", defaultUrl, allowedDomains)).toBe("/dashboard");
-      expect(getSafeRedirectUrl("/workspace/123", defaultUrl, allowedDomains)).toBe("/workspace/123");
+      expect(getSafeRedirectUrl("/dashboard", defaultUrl, allowedDomains)).toBe(
+        "/dashboard"
+      );
+      expect(
+        getSafeRedirectUrl("/workspace/123", defaultUrl, allowedDomains)
+      ).toBe("/workspace/123");
     });
 
     it("should return fallback for invalid external URLs", () => {
-      expect(getSafeRedirectUrl("https://evil.com", defaultUrl, allowedDomains)).toBe(defaultUrl);
-      expect(getSafeRedirectUrl("javascript:alert(1)", defaultUrl, allowedDomains)).toBe(defaultUrl);
+      expect(
+        getSafeRedirectUrl("https://evil.com", defaultUrl, allowedDomains)
+      ).toBe(defaultUrl);
+      expect(
+        getSafeRedirectUrl("javascript:alert(1)", defaultUrl, allowedDomains)
+      ).toBe(defaultUrl);
     });
 
     it("should use custom fallback when provided", () => {
-      expect(getSafeRedirectUrl("https://evil.com", "/home", allowedDomains)).toBe("/home");
+      expect(
+        getSafeRedirectUrl("https://evil.com", "/home", allowedDomains)
+      ).toBe("/home");
     });
 
     it("should return default for null/undefined/empty input", () => {
-      expect(getSafeRedirectUrl(null as unknown as string, defaultUrl, allowedDomains)).toBe(defaultUrl);
-      expect(getSafeRedirectUrl(undefined as unknown as string, defaultUrl, allowedDomains)).toBe(defaultUrl);
-      expect(getSafeRedirectUrl("", defaultUrl, allowedDomains)).toBe(defaultUrl);
+      expect(
+        getSafeRedirectUrl(
+          null as unknown as string,
+          defaultUrl,
+          allowedDomains
+        )
+      ).toBe(defaultUrl);
+      expect(
+        getSafeRedirectUrl(
+          undefined as unknown as string,
+          defaultUrl,
+          allowedDomains
+        )
+      ).toBe(defaultUrl);
+      expect(getSafeRedirectUrl("", defaultUrl, allowedDomains)).toBe(
+        defaultUrl
+      );
     });
 
     it("should accept allowed domain URLs", () => {
-      expect(getSafeRedirectUrl("https://cms.xynes.com/dashboard", defaultUrl, allowedDomains)).toBe(
-        "https://cms.xynes.com/dashboard"
-      );
+      expect(
+        getSafeRedirectUrl(
+          "https://cms.xynes.com/dashboard",
+          defaultUrl,
+          allowedDomains
+        )
+      ).toBe("https://cms.xynes.com/dashboard");
     });
   });
 
