@@ -19,7 +19,7 @@
     "@xynes/auth-sdk": "link:../xynes-auth-sdk",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
-    "next": "^15.0.0",
+    "next": "15.0.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.0",

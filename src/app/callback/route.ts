@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { getSafeRedirectUrl, getAllowedRedirectDomains } from "@/lib/redirect";
 
 export async function GET(request: Request) {

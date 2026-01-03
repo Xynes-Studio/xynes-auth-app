@@ -10,7 +10,7 @@ import {
   PASSWORD_STRENGTH_CONFIG,
 } from "@/lib/validation";
 import { normalizeAuthError, type AuthError } from "@/lib/errors";
-import { createBrowserClient } from "@/lib/supabase";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 
 interface SignupFormProps {
   onSuccess?: (needsEmailVerification: boolean) => void;
@@ -170,7 +170,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
               </div>
               <div className="h-1.5 w-full rounded-full bg-gray-200">
                 <div
-                  className={`h-full rounded-full transition-all duration-300 ${strengthConfig.bgColor}`}
+                  className={`h-full rounded-full transition-all duration-300 ${strengthConfig.color}`}
                   style={{ width: `${strengthConfig.percentage}%` }}
                 />
               </div>

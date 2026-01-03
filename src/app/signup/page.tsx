@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card } from "@lumia-ui/components";
 import { Alert } from "@lumia-ui/components";
 import { SignupForm } from "@/components/SignupForm";
 
-export default function SignupPage() {
+function SignupContent() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect") || undefined;
   const [emailSent, setEmailSent] = useState(false);
@@ -75,5 +75,33 @@ export default function SignupPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function SignupLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md p-8">
+        <div className="space-y-6 animate-pulse">
+          <div className="text-center">
+            <div className="h-8 bg-gray-200 rounded w-48 mx-auto" />
+            <div className="mt-2 h-4 bg-gray-200 rounded w-36 mx-auto" />
+          </div>
+          <div className="space-y-4">
+            <div className="h-10 bg-gray-200 rounded" />
+            <div className="h-10 bg-gray-200 rounded" />
+            <div className="h-10 bg-gray-200 rounded" />
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupLoading />}>
+      <SignupContent />
+    </Suspense>
   );
 }
