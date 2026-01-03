@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  normalizeAuthError,
-  isRetryableError,
-  getErrorMessage,
-} from "./index";
+import { normalizeAuthError, isRetryableError, getErrorMessage } from "./index";
 
 describe("Error utilities re-exports", () => {
   describe("normalizeAuthError", () => {
@@ -11,20 +7,26 @@ describe("Error utilities re-exports", () => {
       const error = new Error("Invalid login credentials");
       const result = normalizeAuthError(error);
       expect(result.code).toBe("invalid_credentials");
-      expect(result.message).toBe("Invalid email or password. Please try again.");
+      expect(result.message).toBe(
+        "Invalid email or password. Please try again."
+      );
     });
 
     it("should return user-friendly message for string errors", () => {
       // SDK normalizes all errors to user-friendly messages
       const result = normalizeAuthError("Something went wrong");
       expect(result.code).toBe("unknown_error");
-      expect(result.message).toBe("An unexpected error occurred. Please try again.");
+      expect(result.message).toBe(
+        "An unexpected error occurred. Please try again."
+      );
     });
 
     it("should handle unknown errors", () => {
       const result = normalizeAuthError(null);
       expect(result.code).toBe("unknown_error");
-      expect(result.message).toBe("An unexpected error occurred. Please try again.");
+      expect(result.message).toBe(
+        "An unexpected error occurred. Please try again."
+      );
     });
 
     it("should normalize AuthError objects by code", () => {
@@ -35,11 +37,16 @@ describe("Error utilities re-exports", () => {
       };
       const result = normalizeAuthError(authError);
       expect(result.code).toBe("email_not_verified");
-      expect(result.message).toBe("Please verify your email before signing in.");
+      expect(result.message).toBe(
+        "Please verify your email before signing in."
+      );
     });
 
     it("should handle user_already_exists error", () => {
-      const error = { code: "user_already_exists", message: "User already registered" };
+      const error = {
+        code: "user_already_exists",
+        message: "User already registered",
+      };
       const result = normalizeAuthError(error);
       expect(result.code).toBe("email_already_exists");
     });
@@ -76,24 +83,34 @@ describe("Error utilities re-exports", () => {
   describe("getErrorMessage", () => {
     // getErrorMessage takes an AuthErrorCode, not an arbitrary error
     it("should return message for invalid_credentials code", () => {
-      expect(getErrorMessage("invalid_credentials")).toBe("Invalid email or password. Please try again.");
+      expect(getErrorMessage("invalid_credentials")).toBe(
+        "Invalid email or password. Please try again."
+      );
     });
 
     it("should return message for email_not_verified code", () => {
-      expect(getErrorMessage("email_not_verified")).toBe("Please verify your email before signing in.");
+      expect(getErrorMessage("email_not_verified")).toBe(
+        "Please verify your email before signing in."
+      );
     });
 
     it("should return message for network_error code", () => {
-      expect(getErrorMessage("network_error")).toBe("Unable to connect. Please check your internet connection.");
+      expect(getErrorMessage("network_error")).toBe(
+        "Unable to connect. Please check your internet connection."
+      );
     });
 
     it("should return message for unknown_error code", () => {
-      expect(getErrorMessage("unknown_error")).toBe("An unexpected error occurred. Please try again.");
+      expect(getErrorMessage("unknown_error")).toBe(
+        "An unexpected error occurred. Please try again."
+      );
     });
 
     it("should return fallback for unrecognized codes", () => {
       // @ts-expect-error - testing invalid code
-      expect(getErrorMessage("not_a_real_code")).toBe("An unexpected error occurred. Please try again.");
+      expect(getErrorMessage("not_a_real_code")).toBe(
+        "An unexpected error occurred. Please try again."
+      );
     });
   });
 });
