@@ -4,11 +4,11 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/callback',
+        source: "/callback",
         headers: [
           {
-            key: 'Access-Control-Allow-Origin',
-            value: '*',
+            key: "Access-Control-Allow-Origin",
+            value: "*",
           },
         ],
       },

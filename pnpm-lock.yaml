@@ -11,12 +11,21 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.69.0(react@19.2.3))
+      '@lumia-ui/components':
+        specifier: link:../lumia-ds/packages/components
+        version: link:../lumia-ds/packages/components
+      '@lumia-ui/forms':
+        specifier: link:../lumia-ds/packages/forms
+        version: link:../lumia-ds/packages/forms
       '@supabase/ssr':
         specifier: ^0.8.0
         version: 0.8.0(@supabase/supabase-js@2.89.0)
       '@supabase/supabase-js':
         specifier: ^2.89.0
         version: 2.89.0
+      '@xynes/auth-sdk':
+        specifier: link:../xynes-auth-sdk
+        version: link:../xynes-auth-sdk
       next:
         specifier: ^15.0.0
         version: 15.5.9(@babel/core@7.28.5)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
