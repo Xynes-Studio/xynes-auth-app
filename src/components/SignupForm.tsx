@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useState, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useState, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   signupFormSchema,
   type SignupFormData,
   getPasswordStrength,
   PASSWORD_STRENGTH_CONFIG,
-} from '@/lib/validation';
-import { normalizeAuthError, type AuthError } from '@/lib/errors';
-import { createBrowserClient } from '@/lib/supabase';
+} from "@/lib/validation";
+import { normalizeAuthError, type AuthError } from "@/lib/errors";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
 
 interface SignupFormProps {
   onSuccess?: (needsEmailVerification: boolean) => void;
@@ -20,7 +20,7 @@ interface SignupFormProps {
 export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
-  const [passwordValue, setPasswordValue] = useState('');
+  const [passwordValue, setPasswordValue] = useState("");
 
   const {
     register,
@@ -28,7 +28,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupFormSchema),
-    mode: 'onBlur',
+    mode: "onBlur",
   });
 
   const passwordStrength = getPasswordStrength(passwordValue);
@@ -41,15 +41,19 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
 
       try {
         const supabase = createBrowserClient();
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: data.email,
-          password: data.password,
-          options: {
-            emailRedirectTo: redirectUrl
-              ? `${window.location.origin}/callback?redirect=${encodeURIComponent(redirectUrl)}`
-              : `${window.location.origin}/callback`,
-          },
-        });
+        const { data: authData, error: authError } = await supabase.auth.signUp(
+          {
+            email: data.email,
+            password: data.password,
+            options: {
+              emailRedirectTo: redirectUrl
+                ? `${
+                    window.location.origin
+                  }/callback?redirect=${encodeURIComponent(redirectUrl)}`
+                : `${window.location.origin}/callback`,
+            },
+          }
+        );
 
         if (authError) {
           const normalizedError = normalizeAuthError(authError);
@@ -71,7 +75,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
   );
 
   const handleOAuthSignup = useCallback(
-    async (provider: 'google' | 'github') => {
+    async (provider: "google" | "github") => {
       setIsLoading(true);
       setError(null);
 
@@ -81,7 +85,9 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
           provider,
           options: {
             redirectTo: redirectUrl
-              ? `${window.location.origin}/callback?redirect=${encodeURIComponent(redirectUrl)}`
+              ? `${
+                  window.location.origin
+                }/callback?redirect=${encodeURIComponent(redirectUrl)}`
               : `${window.location.origin}/callback`,
           },
         });
@@ -111,7 +117,10 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
 
       <form onSubmit={handleSubmit(handleSignup)} className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="email" className="block text-sm font-medium text-gray-900">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-900"
+          >
             Email
           </label>
           <input
@@ -120,9 +129,9 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
             placeholder="you@example.com"
             autoComplete="email"
             className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-              errors.email ? 'border-red-500' : 'border-gray-300'
+              errors.email ? "border-red-500" : "border-gray-300"
             }`}
-            {...register('email')}
+            {...register("email")}
           />
           {errors.email && (
             <p className="text-sm text-red-600">{errors.email.message}</p>
@@ -130,7 +139,10 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="password" className="block text-sm font-medium text-gray-900">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-900"
+          >
             Password
           </label>
           <input
@@ -139,9 +151,9 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
             placeholder="Create a strong password"
             autoComplete="new-password"
             className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-              errors.password ? 'border-red-500' : 'border-gray-300'
+              errors.password ? "border-red-500" : "border-gray-300"
             }`}
-            {...register('password', {
+            {...register("password", {
               onChange: (e) => setPasswordValue(e.target.value),
             })}
           />
@@ -152,11 +164,13 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
             <div className="space-y-1">
               <div className="flex justify-between text-xs">
                 <span className="text-gray-500">Password strength</span>
-                <span className={strengthConfig.color}>{strengthConfig.label}</span>
+                <span className={strengthConfig.color}>
+                  {strengthConfig.label}
+                </span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-gray-200">
                 <div
-                  className={`h-full rounded-full transition-all duration-300 ${strengthConfig.bgColor}`}
+                  className={`h-full rounded-full transition-all duration-300 ${strengthConfig.color}`}
                   style={{ width: `${strengthConfig.percentage}%` }}
                 />
               </div>
@@ -165,7 +179,10 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-900">
+          <label
+            htmlFor="confirmPassword"
+            className="block text-sm font-medium text-gray-900"
+          >
             Confirm Password
           </label>
           <input
@@ -174,12 +191,14 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
             placeholder="Confirm your password"
             autoComplete="new-password"
             className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-              errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+              errors.confirmPassword ? "border-red-500" : "border-gray-300"
             }`}
-            {...register('confirmPassword')}
+            {...register("confirmPassword")}
           />
           {errors.confirmPassword && (
-            <p className="text-sm text-red-600">{errors.confirmPassword.message}</p>
+            <p className="text-sm text-red-600">
+              {errors.confirmPassword.message}
+            </p>
           )}
         </div>
 
@@ -188,7 +207,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
           disabled={isLoading}
           className="w-full rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isLoading ? 'Creating account...' : 'Create account'}
+          {isLoading ? "Creating account..." : "Create account"}
         </button>
       </form>
 
@@ -204,7 +223,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
       <div className="grid grid-cols-2 gap-4">
         <button
           type="button"
-          onClick={() => handleOAuthSignup('google')}
+          onClick={() => handleOAuthSignup("google")}
           disabled={isLoading}
           className="flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
         >
@@ -231,7 +250,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
 
         <button
           type="button"
-          onClick={() => handleOAuthSignup('github')}
+          onClick={() => handleOAuthSignup("github")}
           disabled={isLoading}
           className="flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
         >
@@ -243,8 +262,11 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
       </div>
 
       <p className="text-center text-sm text-gray-500">
-        Already have an account?{' '}
-        <a href="/login" className="font-medium text-primary-600 hover:underline">
+        Already have an account?{" "}
+        <a
+          href="/login"
+          className="font-medium text-primary-600 hover:underline"
+        >
           Sign in
         </a>
       </p>

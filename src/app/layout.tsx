@@ -1,9 +1,9 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'Xynes Auth',
-  description: 'Authentication for Xynes platform',
+  title: "Xynes Auth",
+  description: "Authentication for Xynes platform",
 };
 
 export default function RootLayout({
@@ -13,9 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-background antialiased">
-        {children}
-      </body>
+      <body className="min-h-screen bg-background antialiased">{children}</body>
     </html>
   );
 }
