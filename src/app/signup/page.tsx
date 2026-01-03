@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Card } from '@lumia-ui/components';
-import { Alert } from '@lumia-ui/components';
-import { SignupForm } from '@/components/SignupForm';
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Card } from "@lumia-ui/components";
+import { Alert } from "@lumia-ui/components";
+import { SignupForm } from "@/components/SignupForm";
 
 export default function SignupPage() {
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || undefined;
+  const redirectUrl = searchParams.get("redirect") || undefined;
   const [emailSent, setEmailSent] = useState(false);
 
   const handleSuccess = (needsEmailVerification: boolean) => {
@@ -16,7 +16,7 @@ export default function SignupPage() {
       setEmailSent(true);
     } else {
       // If no email verification needed, redirect immediately
-      window.location.href = redirectUrl || '/onboarding';
+      window.location.href = redirectUrl || "/onboarding";
     }
   };
 
@@ -40,10 +40,12 @@ export default function SignupPage() {
                 />
               </svg>
             </div>
-            <h1 className="text-2xl font-semibold text-foreground">Check your email</h1>
+            <h1 className="text-2xl font-semibold text-foreground">
+              Check your email
+            </h1>
             <p className="text-muted-foreground">
-              We&apos;ve sent you a verification link. Please check your email to complete your
-              registration.
+              We&apos;ve sent you a verification link. Please check your email
+              to complete your registration.
             </p>
             <Alert
               variant="info"
@@ -61,7 +63,9 @@ export default function SignupPage() {
       <Card className="w-full max-w-md p-8">
         <div className="space-y-6">
           <div className="text-center">
-            <h1 className="text-2xl font-semibold text-foreground">Create your account</h1>
+            <h1 className="text-2xl font-semibold text-foreground">
+              Create your account
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Get started with Xynes today
             </p>
