@@ -131,7 +131,10 @@ export function getAllowedRedirectDomains(): string[] {
   // Add custom allowed domains from environment variable
   const customDomains = process.env.NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS;
   if (customDomains) {
-    const parsed = customDomains.split(",").map((d) => d.trim()).filter(Boolean);
+    const parsed = customDomains
+      .split(",")
+      .map((d) => d.trim())
+      .filter(Boolean);
     domains.push(...parsed);
   }
 
