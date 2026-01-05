@@ -120,6 +120,45 @@ describe("OAuthButtons", () => {
       });
     });
   });
+
+  describe("feature flags", () => {
+    it("shows only Google button when GitHub is disabled", () => {
+      render(<OAuthButtons featureFlags={{ enableGitHub: false }} />);
+      
+      expect(screen.getByRole("button", { name: /google/i })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /github/i })).not.toBeInTheDocument();
+    });
+
+    it("shows only GitHub button when Google is disabled", () => {
+      render(<OAuthButtons featureFlags={{ enableGoogle: false }} />);
+      
+      expect(screen.queryByRole("button", { name: /google/i })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /github/i })).toBeInTheDocument();
+    });
+
+    it("renders nothing when all providers are disabled", () => {
+      const { container } = render(
+        <OAuthButtons featureFlags={{ enableGoogle: false, enableGitHub: false }} />
+      );
+      
+      expect(container.firstChild).toBeNull();
+    });
+
+    it("shows both buttons when all providers are enabled", () => {
+      render(<OAuthButtons featureFlags={{ enableGoogle: true, enableGitHub: true }} />);
+      
+      expect(screen.getByRole("button", { name: /google/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /github/i })).toBeInTheDocument();
+    });
+
+    it("uses single column layout when only one provider", () => {
+      render(<OAuthButtons featureFlags={{ enableGitHub: false }} />);
+      
+      const container = screen.getByRole("button", { name: /google/i }).parentElement;
+      expect(container).toHaveClass("flex");
+      expect(container).toHaveClass("justify-center");
+    });
+  });
 });
 
 describe("OAUTH_PROVIDERS", () => {
