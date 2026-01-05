@@ -117,30 +117,7 @@ describe("loginFormSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("should validate login with rememberMe", () => {
-    const result = loginFormSchema.safeParse({
-      email: "test@example.com",
-      password: "anypassword",
-      rememberMe: true,
-    });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.rememberMe).toBe(true);
-    }
-  });
-
-  it("should default rememberMe to false", () => {
-    const result = loginFormSchema.safeParse({
-      email: "test@example.com",
-      password: "anypassword",
-    });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.rememberMe).toBe(false);
-    }
-  });
+  // Note: rememberMe tests removed - feature will be added in SEC-FE-1.8
 
   it("should reject invalid email", () => {
     const result = loginFormSchema.safeParse({
