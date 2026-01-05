@@ -24,14 +24,6 @@ describe("OAuth Error Utilities", () => {
   });
 
   describe("getOAuthErrorMessage", () => {
-    it("should return provider description when provided", () => {
-      const result = getOAuthErrorMessage(
-        "access_denied",
-        "User cancelled the login"
-      );
-      expect(result).toBe("User cancelled the login");
-    });
-
     it("should return mapped message for known error codes", () => {
       const result = getOAuthErrorMessage("access_denied");
       expect(result).toBe(OAUTH_ERROR_MESSAGES.access_denied);
@@ -40,16 +32,6 @@ describe("OAuth Error Utilities", () => {
     it("should return generic message for unknown error codes", () => {
       const result = getOAuthErrorMessage("unknown_error");
       expect(result).toContain("Something went wrong");
-    });
-
-    it("should handle null error description", () => {
-      const result = getOAuthErrorMessage("server_error", null);
-      expect(result).toBe(OAUTH_ERROR_MESSAGES.server_error);
-    });
-
-    it("should handle empty error description", () => {
-      const result = getOAuthErrorMessage("server_error", "");
-      expect(result).toBe(OAUTH_ERROR_MESSAGES.server_error);
     });
 
     it("should return correct message for each error type", () => {
@@ -64,6 +46,15 @@ describe("OAuth Error Utilities", () => {
       expect(getOAuthErrorMessage("temporarily_unavailable")).toContain(
         "unavailable"
       );
+      expect(getOAuthErrorMessage("server_error")).toContain("server");
+    });
+
+    it("should never expose provider-supplied descriptions (XSS prevention)", () => {
+      // getOAuthErrorMessage only accepts errorCode, no description parameter
+      // This ensures we never pass through potentially malicious provider text
+      const result = getOAuthErrorMessage("access_denied");
+      expect(result).toBe(OAUTH_ERROR_MESSAGES.access_denied);
+      expect(result).not.toContain("<script>");
     });
   });
 });

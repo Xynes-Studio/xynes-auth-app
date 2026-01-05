@@ -31,21 +31,17 @@ export const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 
 /**
  * Gets a user-friendly error message for an OAuth error code.
+ * 
+ * Returns predefined, safe error messages based on standard OAuth 2.0 error codes.
+ * Provider-supplied error descriptions are intentionally NOT accepted to prevent
+ * XSS attacks from malicious or compromised OAuth providers.
  *
- * @param errorCode - The OAuth error code from the URL
- * @param errorDescription - Optional error description from the provider
- * @returns A user-friendly error message
+ * @param errorCode - The OAuth error code from the URL (e.g., 'access_denied', 'server_error')
+ * @returns A user-friendly, safe error message
  */
-export function getOAuthErrorMessage(
-  errorCode: string,
-  errorDescription?: string | null
-): string {
-  // If provider gave a description, use it
-  if (errorDescription) {
-    return errorDescription;
-  }
-
+export function getOAuthErrorMessage(errorCode: string): string {
   // Use mapped message or generic fallback
+  // Never use provider-supplied descriptions to prevent XSS
   return (
     OAUTH_ERROR_MESSAGES[errorCode] ||
     "Something went wrong during authentication. Please try again."
