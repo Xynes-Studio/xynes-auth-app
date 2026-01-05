@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getOAuthErrorMessage,
   OAUTH_ERROR_MESSAGES,
-} from "./oauth-errors";
+} from "./errors";
 
 describe("OAuth Error Utilities", () => {
   describe("OAUTH_ERROR_MESSAGES", () => {

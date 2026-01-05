@@ -13,3 +13,8 @@ export {
   DEFAULT_EXISTING_USER_REDIRECT,
   type BootstrapResponse,
 } from "./callback-utils";
+
+export {
+  getOAuthErrorMessage,
+  OAUTH_ERROR_MESSAGES,
+} from "./errors";
