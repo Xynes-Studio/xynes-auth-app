@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 import { GET } from "./route";
-import {
-  bootstrapUser,
-  determineRedirectUrl,
-} from "@/lib/oauth/callback-utils";
+
+/**
+ * OAuth Callback Route Integration Tests (Tier 2)
+ *
+ * Tests the route handler integration with Supabase and bootstrap.
+ * Pure function unit tests are in lib/oauth/callback-utils.test.ts (Tier 1).
+ *
+ * @see ADR-001 Testing Standards
+ */
 
 // Mock fetch for bootstrap API call
 const mockFetch = vi.fn();
@@ -66,128 +71,6 @@ describe("OAuth Callback Route", () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ workspaces: [] }),
-    });
-  });
-
-  describe("bootstrapUser", () => {
-    it("should return success with hasWorkspaces false for new user", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ workspaces: [] }),
-      });
-
-      const result = await bootstrapUser("test-token");
-
-      expect(result).toEqual({
-        success: true,
-        isNewUser: true,
-        hasWorkspaces: false,
-      });
-    });
-
-    it("should return success with hasWorkspaces true for existing user", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            workspaces: [{ id: "ws-1", name: "My Workspace" }],
-          }),
-      });
-
-      const result = await bootstrapUser("test-token");
-
-      expect(result).toEqual({
-        success: true,
-        isNewUser: false,
-        hasWorkspaces: true,
-      });
-    });
-
-    it("should return failure state when API returns error", async () => {
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 500,
-      });
-
-      const result = await bootstrapUser("test-token");
-
-      expect(result).toEqual({
-        success: false,
-        isNewUser: true,
-        hasWorkspaces: false,
-      });
-    });
-
-    it("should return failure state when network error occurs", async () => {
-      mockFetch.mockRejectedValue(new Error("Network error"));
-
-      const result = await bootstrapUser("test-token");
-
-      expect(result).toEqual({
-        success: false,
-        isNewUser: true,
-        hasWorkspaces: false,
-      });
-    });
-
-    it("should handle missing workspaces array in response", async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ user: { id: "123" } }),
-      });
-
-      const result = await bootstrapUser("test-token");
-
-      expect(result).toEqual({
-        success: true,
-        isNewUser: true,
-        hasWorkspaces: false,
-      });
-    });
-  });
-
-  describe("determineRedirectUrl", () => {
-    const allowedDomains = ["xynes.com", "localhost:3000"];
-
-    it("should return onboarding for new user without redirect param", () => {
-      const result = determineRedirectUrl(
-        null,
-        { success: true, isNewUser: true, hasWorkspaces: false },
-        allowedDomains
-      );
-
-      expect(result).toBe("/onboarding");
-    });
-
-    it("should return workspaces for existing user without redirect param", () => {
-      const result = determineRedirectUrl(
-        null,
-        { success: true, isNewUser: false, hasWorkspaces: true },
-        allowedDomains
-      );
-
-      expect(result).toBe("/workspaces");
-    });
-
-    it("should use redirect param when provided", () => {
-      const result = determineRedirectUrl(
-        "/dashboard",
-        { success: true, isNewUser: true, hasWorkspaces: false },
-        allowedDomains
-      );
-
-      expect(result).toBe("/dashboard");
-    });
-
-    it("should fall back to default when redirect is invalid", () => {
-      const result = determineRedirectUrl(
-        "https://evil.com",
-        { success: true, isNewUser: true, hasWorkspaces: false },
-        allowedDomains
-      );
-
-      // Falls back to default (onboarding for new user)
-      expect(result).toBe("/onboarding");
     });
   });
 
