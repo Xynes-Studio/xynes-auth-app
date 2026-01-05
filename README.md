@@ -44,6 +44,20 @@ This is a Next.js 15 application that serves as the centralized authentication h
 - [x] `useOAuthProviders()` hook usage
 - [x] Test utilities for provider mocking
 
+### Story 4: OAuth Callback Handler (AUTH-FE-1.6) ✅
+
+- [x] `/callback` route extracts tokens from URL
+- [x] Supabase session established from OAuth tokens
+- [x] `GET /me` called to bootstrap user in accounts service
+- [x] Smart redirect logic based on user state:
+  - New user (no workspaces) → `/onboarding`
+  - Existing user (has workspaces) → `/workspaces`
+  - Custom `?redirect=` param → validated external URL
+- [x] OAuth provider error handling (access_denied, invalid_request, etc.)
+- [x] User-friendly error messages on login page
+- [x] Pure function extraction for testability (ADR-001 compliant)
+- [x] 91.4% test coverage
+
 ## Getting Started
 
 ### Prerequisites
@@ -105,6 +119,9 @@ src/
 │   ├── login/             # Login flow
 │   │   ├── page.tsx       # Login page with OAuth & email
 │   │   └── page.test.tsx  # Page integration tests
+│   ├── callback/          # OAuth callback handling
+│   │   ├── route.ts       # OAuth callback route handler
+│   │   └── route.test.ts  # Route integration tests (Tier 2)
 │   ├── providers.tsx      # App-level providers (FeatureFlagsProvider)
 │   └── layout.tsx         # Root layout
 ├── components/            # React components
@@ -119,6 +136,12 @@ src/
 │       └── index.test.tsx       # UI component tests
 ├── lib/                   # Utilities and configuration
 │   ├── supabase/          # Supabase client setup
+│   ├── oauth/             # OAuth utilities (Tier 1 pure functions)
+│   │   ├── callback-utils.ts    # Bootstrap & redirect logic
+│   │   ├── callback-utils.test.ts # Unit tests
+│   │   ├── errors.ts            # OAuth error messages
+│   │   ├── errors.test.ts       # Unit tests
+│   │   └── index.ts             # Barrel exports
 │   ├── validation/        # Re-exports from @xynes/auth-sdk
 │   ├── errors/            # Re-exports from @xynes/auth-sdk
 │   └── redirect/          # Re-exports from @xynes/auth-sdk
@@ -224,8 +247,9 @@ describe("LoginForm", () => {
 | LoginForm.tsx | 99%+ |
 | lib/validation | 100% |
 | lib/errors | 100% |
-| lib/redirect | 100% |
-| **Overall** | **90.52%** |
+| lib/redirect | 74.32% |
+| lib/oauth | 98.66% |
+| **Overall** | **91.4%** |
 
 ## OAuth Configuration
 
