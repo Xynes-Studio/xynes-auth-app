@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { OAuthButtons, OAUTH_PROVIDERS, AuthDivider, AuthErrorAlert } from "./index";
+import {
+  OAuthButtons,
+  OAUTH_PROVIDERS,
+  AuthDivider,
+  AuthErrorAlert,
+} from "./index";
 import type { AuthError } from "@/lib/errors";
 
 // Mock Supabase client
@@ -36,14 +41,18 @@ describe("OAuthButtons", () => {
   describe("rendering", () => {
     it("renders Google and GitHub buttons", () => {
       render(<OAuthButtons />);
-      
-      expect(screen.getByRole("button", { name: /google/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /github/i })).toBeInTheDocument();
+
+      expect(
+        screen.getByRole("button", { name: /google/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /github/i })
+      ).toBeInTheDocument();
     });
 
     it("renders buttons as disabled when disabled prop is true", () => {
       render(<OAuthButtons disabled />);
-      
+
       expect(screen.getByRole("button", { name: /google/i })).toBeDisabled();
       expect(screen.getByRole("button", { name: /github/i })).toBeDisabled();
     });
@@ -52,9 +61,9 @@ describe("OAuthButtons", () => {
   describe("OAuth flow", () => {
     it("calls signInWithOAuth with google provider when Google button clicked", async () => {
       render(<OAuthButtons />);
-      
+
       fireEvent.click(screen.getByRole("button", { name: /google/i }));
-      
+
       await waitFor(() => {
         expect(mockSignInWithOAuth).toHaveBeenCalledWith({
           provider: "google",
@@ -67,9 +76,9 @@ describe("OAuthButtons", () => {
 
     it("calls signInWithOAuth with github provider when GitHub button clicked", async () => {
       render(<OAuthButtons />);
-      
+
       fireEvent.click(screen.getByRole("button", { name: /github/i }));
-      
+
       await waitFor(() => {
         expect(mockSignInWithOAuth).toHaveBeenCalledWith({
           provider: "github",
@@ -82,9 +91,9 @@ describe("OAuthButtons", () => {
 
     it("includes redirect URL in OAuth options when provided", async () => {
       render(<OAuthButtons redirectUrl="/dashboard" />);
-      
+
       fireEvent.click(screen.getByRole("button", { name: /google/i }));
-      
+
       await waitFor(() => {
         expect(mockSignInWithOAuth).toHaveBeenCalledWith({
           provider: "google",
@@ -99,10 +108,10 @@ describe("OAuthButtons", () => {
       const mockError = { message: "OAuth failed" };
       mockSignInWithOAuth.mockResolvedValue({ data: {}, error: mockError });
       const onError = vi.fn();
-      
+
       render(<OAuthButtons onError={onError} />);
       fireEvent.click(screen.getByRole("button", { name: /google/i }));
-      
+
       await waitFor(() => {
         expect(onError).toHaveBeenCalled();
       });
@@ -110,10 +119,10 @@ describe("OAuthButtons", () => {
 
     it("calls onLoadingChange callback during OAuth flow", async () => {
       const onLoadingChange = vi.fn();
-      
+
       render(<OAuthButtons onLoadingChange={onLoadingChange} />);
       fireEvent.click(screen.getByRole("button", { name: /google/i }));
-      
+
       await waitFor(() => {
         expect(onLoadingChange).toHaveBeenCalledWith(true);
         expect(onLoadingChange).toHaveBeenCalledWith(false);
@@ -123,38 +132,52 @@ describe("OAuthButtons", () => {
 
   describe("feature flags", () => {
     it("shows only Google button when GitHub is disabled", () => {
-      render(<OAuthButtons featureFlags={{ enableGitHub: false }} />);
-      
-      expect(screen.getByRole("button", { name: /google/i })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /github/i })).not.toBeInTheDocument();
+      render(<OAuthButtons providers={{ google: true, github: false }} />);
+
+      expect(
+        screen.getByRole("button", { name: /google/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /github/i })
+      ).not.toBeInTheDocument();
     });
 
     it("shows only GitHub button when Google is disabled", () => {
-      render(<OAuthButtons featureFlags={{ enableGoogle: false }} />);
-      
-      expect(screen.queryByRole("button", { name: /google/i })).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /github/i })).toBeInTheDocument();
+      render(<OAuthButtons providers={{ google: false, github: true }} />);
+
+      expect(
+        screen.queryByRole("button", { name: /google/i })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /github/i })
+      ).toBeInTheDocument();
     });
 
     it("renders nothing when all providers are disabled", () => {
       const { container } = render(
-        <OAuthButtons featureFlags={{ enableGoogle: false, enableGitHub: false }} />
+        <OAuthButtons providers={{ google: false, github: false }} />
       );
-      
+
       expect(container.firstChild).toBeNull();
     });
 
     it("shows both buttons when all providers are enabled", () => {
-      render(<OAuthButtons featureFlags={{ enableGoogle: true, enableGitHub: true }} />);
-      
-      expect(screen.getByRole("button", { name: /google/i })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /github/i })).toBeInTheDocument();
+      render(<OAuthButtons providers={{ google: true, github: true }} />);
+
+      expect(
+        screen.getByRole("button", { name: /google/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /github/i })
+      ).toBeInTheDocument();
     });
 
     it("uses single column layout when only one provider", () => {
-      render(<OAuthButtons featureFlags={{ enableGitHub: false }} />);
-      
-      const container = screen.getByRole("button", { name: /google/i }).parentElement;
+      render(<OAuthButtons providers={{ google: true, github: false }} />);
+
+      const container = screen.getByRole("button", {
+        name: /google/i,
+      }).parentElement;
       expect(container).toHaveClass("flex");
       expect(container).toHaveClass("justify-center");
     });
@@ -190,18 +213,24 @@ describe("AuthErrorAlert", () => {
   });
 
   it("renders error message with default title", () => {
-    const error: AuthError = { code: "unknown_error", message: "Test error message" };
+    const error: AuthError = {
+      code: "unknown_error",
+      message: "Test error message",
+    };
     render(<AuthErrorAlert error={error} />);
-    
+
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(screen.getByText("An error occurred")).toBeInTheDocument();
     expect(screen.getByText("Test error message")).toBeInTheDocument();
   });
 
   it("renders error message with custom title", () => {
-    const error: AuthError = { code: "unknown_error", message: "Test error message" };
+    const error: AuthError = {
+      code: "unknown_error",
+      message: "Test error message",
+    };
     render(<AuthErrorAlert error={error} title="Login failed" />);
-    
+
     expect(screen.getByText("Login failed")).toBeInTheDocument();
   });
 });

@@ -176,7 +176,9 @@ function CallbackContent() {
 
   // If there's an error, show the error display
   if (errorCode) {
-    return <ErrorDisplay errorCode={errorCode} errorDescription={errorDescription} />;
+    return (
+      <ErrorDisplay errorCode={errorCode} errorDescription={errorDescription} />
+    );
   }
 
   // Otherwise show loading state

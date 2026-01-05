@@ -37,9 +37,7 @@ describe("CallbackPage", () => {
       render(<CallbackPage />);
 
       expect(screen.getByRole("status")).toBeInTheDocument();
-      expect(
-        screen.getByText(/completing your sign-in/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/completing your sign-in/i)).toBeInTheDocument();
     });
 
     it("should have accessible loading text", () => {
@@ -103,9 +101,7 @@ describe("CallbackPage", () => {
 
       render(<CallbackPage />);
 
-      expect(
-        screen.getByText(/authentication server/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/authentication server/i)).toBeInTheDocument();
     });
   });
 

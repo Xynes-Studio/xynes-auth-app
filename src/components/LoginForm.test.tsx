@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderWithProviders } from "@/test/test-utils";
 import { LoginForm } from "./LoginForm";
 
 // Mock Supabase client - createClient is imported as createBrowserClient in the component
@@ -42,7 +43,7 @@ describe("LoginForm", () => {
 
   describe("rendering", () => {
     it("should render the login form with all required elements", () => {
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
@@ -52,7 +53,7 @@ describe("LoginForm", () => {
     });
 
     it("should render OAuth buttons", () => {
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       expect(
         screen.getByRole("button", { name: /google/i })
@@ -63,7 +64,7 @@ describe("LoginForm", () => {
     });
 
     it("should render forgot password link", () => {
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       expect(
         screen.getByRole("link", { name: /forgot password/i })
@@ -71,7 +72,7 @@ describe("LoginForm", () => {
     });
 
     it("should render link to signup page", () => {
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       expect(screen.getByText(/don't have an account/i)).toBeInTheDocument();
       expect(screen.getByRole("link", { name: /sign up/i })).toHaveAttribute(
@@ -84,7 +85,7 @@ describe("LoginForm", () => {
   describe("form validation", () => {
     it("should show error for empty email on submit", async () => {
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       const submitButton = screen.getByRole("button", { name: /sign in/i });
       await user.click(submitButton);
@@ -96,7 +97,7 @@ describe("LoginForm", () => {
 
     it("should show error for invalid email format", async () => {
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
       await user.type(emailInput, "invalid-email");
@@ -109,7 +110,7 @@ describe("LoginForm", () => {
 
     it("should show error for empty password on submit", async () => {
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
       await user.type(emailInput, "test@example.com");
@@ -126,7 +127,7 @@ describe("LoginForm", () => {
   describe("form submission", () => {
     it("should call signInWithPassword with correct credentials", async () => {
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/password/i), "password123");
@@ -156,13 +157,15 @@ describe("LoginForm", () => {
       );
 
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/password/i), "password123");
       await user.click(screen.getByRole("button", { name: /sign in/i }));
 
-      expect(screen.getByRole("button", { name: /signing in/i })).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: /signing in/i })
+      ).toBeDisabled();
     });
 
     it("should call onSuccess when login succeeds", async () => {
@@ -173,7 +176,7 @@ describe("LoginForm", () => {
       });
 
       const user = userEvent.setup();
-      render(<LoginForm onSuccess={onSuccess} />);
+      renderWithProviders(<LoginForm onSuccess={onSuccess} />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/password/i), "password123");
@@ -191,14 +194,16 @@ describe("LoginForm", () => {
       });
 
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/password/i), "wrongpassword");
       await user.click(screen.getByRole("button", { name: /sign in/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/invalid email or password/i)
+        ).toBeInTheDocument();
       });
     });
   });
@@ -206,7 +211,7 @@ describe("LoginForm", () => {
   describe("OAuth login", () => {
     it("should call signInWithOAuth for Google", async () => {
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       await user.click(screen.getByRole("button", { name: /google/i }));
 
@@ -222,7 +227,7 @@ describe("LoginForm", () => {
 
     it("should call signInWithOAuth for GitHub", async () => {
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       await user.click(screen.getByRole("button", { name: /github/i }));
 
@@ -238,7 +243,9 @@ describe("LoginForm", () => {
 
     it("should include redirect URL in OAuth options when provided", async () => {
       const user = userEvent.setup();
-      render(<LoginForm redirectUrl="https://cms.xynes.com/dashboard" />);
+      renderWithProviders(
+        <LoginForm redirectUrl="https://cms.xynes.com/dashboard" />
+      );
 
       await user.click(screen.getByRole("button", { name: /google/i }));
 
@@ -260,7 +267,7 @@ describe("LoginForm", () => {
       });
 
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       await user.click(screen.getByRole("button", { name: /google/i }));
 
@@ -272,7 +279,7 @@ describe("LoginForm", () => {
 
   describe("accessibility", () => {
     it("should have proper form labels", () => {
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
@@ -282,7 +289,7 @@ describe("LoginForm", () => {
     });
 
     it("should have proper autocomplete attributes", () => {
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
       const passwordInput = screen.getByLabelText(/password/i);
@@ -293,7 +300,7 @@ describe("LoginForm", () => {
 
     it("should announce errors via aria-describedby", async () => {
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
       await user.type(emailInput, "invalid");
@@ -321,7 +328,7 @@ describe("LoginForm", () => {
       );
 
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/password/i), "password123");
@@ -335,7 +342,7 @@ describe("LoginForm", () => {
   describe("edge cases", () => {
     it("should trim email whitespace before submission", async () => {
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "  test@example.com  ");
       await user.type(screen.getByLabelText(/password/i), "password123");
@@ -353,7 +360,7 @@ describe("LoginForm", () => {
       mockSignInWithPassword.mockRejectedValueOnce(new Error("Network error"));
 
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/password/i), "password123");
@@ -371,14 +378,16 @@ describe("LoginForm", () => {
       });
 
       const user = userEvent.setup();
-      render(<LoginForm />);
+      renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/password/i), "wrongpassword");
       await user.click(screen.getByRole("button", { name: /sign in/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/invalid email or password/i)
+        ).toBeInTheDocument();
       });
 
       // Start typing again

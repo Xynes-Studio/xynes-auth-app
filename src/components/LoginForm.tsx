@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@lumia-ui/components";
+import { useOAuthProviders } from "@xynes/auth-sdk";
 import { loginFormSchema, type LoginFormData } from "@/lib/validation";
 import { normalizeAuthError, type AuthError } from "@/lib/errors";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
@@ -17,6 +18,7 @@ interface LoginFormProps {
 export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
+  const oauthProviders = useOAuthProviders();
 
   const {
     register,
@@ -163,6 +165,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
         disabled={isLoading}
         onError={handleOAuthError}
         onLoadingChange={handleOAuthLoadingChange}
+        providers={oauthProviders}
       />
 
       <p className="text-center text-sm text-gray-500">
