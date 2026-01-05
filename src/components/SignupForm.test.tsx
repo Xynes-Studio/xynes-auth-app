@@ -7,8 +7,8 @@ import { SignupForm } from "./SignupForm";
 const mockSignUp = vi.fn();
 const mockSignInWithOAuth = vi.fn();
 
-vi.mock("@/lib/supabase", () => ({
-  createBrowserClient: () => ({
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({
     auth: {
       signUp: mockSignUp,
       signInWithOAuth: mockSignInWithOAuth,

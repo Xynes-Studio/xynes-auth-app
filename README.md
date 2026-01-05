@@ -34,6 +34,16 @@ This is a Next.js 15 application that serves as the centralized authentication h
 - [x] Form accessibility (labels, focus, keyboard nav)
 - [x] 99% test coverage
 
+### Story 3: OAuth Login with Feature Flags (AUTH-FE-1.5) ✅
+
+- [x] Dynamic feature flags integration via `@xynes/auth-sdk`
+- [x] Backend-driven OAuth provider configuration
+- [x] Google OAuth conditional rendering
+- [x] GitHub OAuth conditional rendering
+- [x] `FeatureFlagsProvider` integration
+- [x] `useOAuthProviders()` hook usage
+- [x] Test utilities for provider mocking
+
 ## Getting Started
 
 ### Prerequisites
@@ -95,6 +105,7 @@ src/
 │   ├── login/             # Login flow
 │   │   ├── page.tsx       # Login page with OAuth & email
 │   │   └── page.test.tsx  # Page integration tests
+│   ├── providers.tsx      # App-level providers (FeatureFlagsProvider)
 │   └── layout.tsx         # Root layout
 ├── components/            # React components
 │   ├── SignupForm.tsx     # Main signup form component
@@ -106,11 +117,50 @@ src/
 │       ├── AuthErrorAlert.tsx   # Error alert component
 │       ├── index.ts             # Barrel exports
 │       └── index.test.tsx       # UI component tests
-└── lib/                   # Utilities and configuration
-    ├── supabase/          # Supabase client setup
-    ├── validation/        # Re-exports from @xynes/auth-sdk
-    ├── errors/            # Re-exports from @xynes/auth-sdk
-    └── redirect/          # Re-exports from @xynes/auth-sdk
+├── lib/                   # Utilities and configuration
+│   ├── supabase/          # Supabase client setup
+│   ├── validation/        # Re-exports from @xynes/auth-sdk
+│   ├── errors/            # Re-exports from @xynes/auth-sdk
+│   └── redirect/          # Re-exports from @xynes/auth-sdk
+└── test/                  # Test utilities
+    └── test-utils.tsx     # Custom render with providers
+```
+
+### App Providers
+
+The app uses `FeatureFlagsProvider` from `@xynes/auth-sdk` to dynamically fetch feature flags from the backend:
+
+```tsx
+"use client";
+
+// src/app/providers.tsx
+import { FeatureFlagsProvider } from "@xynes/auth-sdk";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100";
+
+  return (
+    <FeatureFlagsProvider apiBaseUrl={apiBaseUrl} fetchOnMount={true}>
+      {children}
+    </FeatureFlagsProvider>
+  );
+}
+```
+
+### Using Feature Flags in Components
+
+```tsx
+// In any component
+import { useOAuthProviders } from "@xynes/auth-sdk";
+
+export function LoginForm() {
+  const oauthProviders = useOAuthProviders();
+  // { google: true/false, github: true/false, apple: true/false }
+  
+  return (
+    <OAuthButtons providers={oauthProviders} />
+  );
+}
 ```
 
 ### Utility Re-exports
@@ -144,15 +194,38 @@ pnpm test:coverage
 pnpm lint
 ```
 
+### Test Utilities
+
+Use `renderWithProviders` for components that need context providers:
+
+```tsx
+import { renderWithProviders, mockFeatureFlags } from "@/test/test-utils";
+
+describe("LoginForm", () => {
+  it("renders OAuth buttons when enabled", () => {
+    renderWithProviders(<LoginForm />, {
+      flags: {
+        ...mockFeatureFlags,
+        xynes_auth_oauth_google: true,
+        xynes_auth_oauth_github: true,
+      },
+    });
+    
+    expect(screen.getByText("Continue with Google")).toBeInTheDocument();
+  });
+});
+```
+
 ### Current Coverage
 
 | File | Coverage |
 |------|----------|
 | SignupForm.tsx | 96.86% |
+| LoginForm.tsx | 99%+ |
 | lib/validation | 100% |
 | lib/errors | 100% |
 | lib/redirect | 100% |
-| **Overall** | **86.57%** |
+| **Overall** | **90.52%** |
 
 ## OAuth Configuration
 
