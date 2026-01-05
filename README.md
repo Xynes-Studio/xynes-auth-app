@@ -131,14 +131,16 @@ src/
 The app uses `FeatureFlagsProvider` from `@xynes/auth-sdk` to dynamically fetch feature flags from the backend:
 
 ```tsx
+"use client";
+
 // src/app/providers.tsx
 import { FeatureFlagsProvider } from "@xynes/auth-sdk";
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100";
+
   return (
-    <FeatureFlagsProvider
-      apiBaseUrl={process.env.NEXT_PUBLIC_API_URL}
-    >
+    <FeatureFlagsProvider apiBaseUrl={apiBaseUrl} fetchOnMount={true}>
       {children}
     </FeatureFlagsProvider>
   );

@@ -53,12 +53,12 @@ export const OAUTH_PROVIDERS: OAuthProvider[] = [
 ];
 
 /**
- * OAuth feature flags configuration.
- * Controls which OAuth providers are displayed.
+ * OAuth provider configuration.
+ * Matches the shape returned by useOAuthProviders() hook.
  */
-export interface OAuthFeatureFlags {
-  enableGoogle?: boolean;
-  enableGitHub?: boolean;
+export interface OAuthProviders {
+  google?: boolean;
+  github?: boolean;
 }
 
 interface OAuthButtonsProps {
