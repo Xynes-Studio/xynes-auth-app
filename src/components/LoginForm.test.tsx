@@ -3,7 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { LoginForm } from "./LoginForm";
 
-// Mock Supabase client
+// Mock Supabase client - createClient is imported as createBrowserClient in the component
 const mockSignInWithPassword = vi.fn();
 const mockSignInWithOAuth = vi.fn();
 
@@ -16,11 +16,28 @@ vi.mock("@/lib/supabase/client", () => ({
   }),
 }));
 
+// Realistic session object for successful login
+const mockSession = {
+  access_token: "mock-access-token",
+  refresh_token: "mock-refresh-token",
+  expires_in: 3600,
+  token_type: "bearer",
+  user: {
+    id: "test-user-id",
+    email: "test@example.com",
+    role: "authenticated",
+  },
+};
+
 describe("LoginForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSignInWithPassword.mockResolvedValue({ data: {}, error: null });
-    mockSignInWithOAuth.mockResolvedValue({ error: null });
+    // Default mock: successful login with session
+    mockSignInWithPassword.mockResolvedValue({
+      data: { user: mockSession.user, session: mockSession },
+      error: null,
+    });
+    mockSignInWithOAuth.mockResolvedValue({ data: {}, error: null });
   });
 
   describe("rendering", () => {
@@ -125,7 +142,17 @@ describe("LoginForm", () => {
 
     it("should show loading state during submission", async () => {
       mockSignInWithPassword.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100))
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  data: { user: mockSession.user, session: mockSession },
+                  error: null,
+                }),
+              100
+            )
+          )
       );
 
       const user = userEvent.setup();
@@ -280,7 +307,17 @@ describe("LoginForm", () => {
 
     it("should disable submit button when form is loading", async () => {
       mockSignInWithPassword.mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 500))
+        () =>
+          new Promise((resolve) =>
+            setTimeout(
+              () =>
+                resolve({
+                  data: { user: mockSession.user, session: mockSession },
+                  error: null,
+                }),
+              500
+            )
+          )
       );
 
       const user = userEvent.setup();
