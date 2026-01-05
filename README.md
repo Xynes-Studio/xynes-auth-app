@@ -22,6 +22,18 @@ This is a Next.js 15 application that serves as the centralized authentication h
 - [x] Loading states and error handling
 - [x] Redirect handling (safe redirects only)
 
+### Story 2: Login Page (AUTH-FE-1.4) ✅
+
+- [x] Email/password login with validation
+- [x] Google OAuth login
+- [x] GitHub OAuth login  
+- [x] Loading states during submission
+- [x] Error display (invalid credentials, network errors)
+- [x] "Forgot password" link navigation
+- [x] Redirect to `?redirect=` param or default route
+- [x] Form accessibility (labels, focus, keyboard nav)
+- [x] 99% test coverage
+
 ## Getting Started
 
 ### Prerequisites
@@ -80,10 +92,20 @@ src/
 ├── app/                    # Next.js App Router pages
 │   ├── signup/            # Signup flow
 │   │   └── page.tsx       # Email verification handling
-│   ├── login/             # Login flow (future)
+│   ├── login/             # Login flow
+│   │   ├── page.tsx       # Login page with OAuth & email
+│   │   └── page.test.tsx  # Page integration tests
 │   └── layout.tsx         # Root layout
 ├── components/            # React components
-│   └── SignupForm.tsx     # Main signup form component
+│   ├── SignupForm.tsx     # Main signup form component
+│   ├── LoginForm.tsx      # Main login form component
+│   ├── LoginForm.test.tsx # Login form unit tests
+│   └── ui/                # Shared UI components
+│       ├── OAuthButtons.tsx     # Reusable OAuth buttons
+│       ├── AuthDivider.tsx      # Divider component
+│       ├── AuthErrorAlert.tsx   # Error alert component
+│       ├── index.ts             # Barrel exports
+│       └── index.test.tsx       # UI component tests
 └── lib/                   # Utilities and configuration
     ├── supabase/          # Supabase client setup
     ├── validation/        # Re-exports from @xynes/auth-sdk
