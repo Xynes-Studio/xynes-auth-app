@@ -52,24 +52,65 @@ export const OAUTH_PROVIDERS: OAuthProvider[] = [
   },
 ];
 
+/**
+ * OAuth provider configuration.
+ * Matches the shape returned by useOAuthProviders() hook.
+ */
+export interface OAuthProviders {
+  google?: boolean;
+  github?: boolean;
+}
+
 interface OAuthButtonsProps {
   redirectUrl?: string;
   disabled?: boolean;
   onError?: (error: AuthError) => void;
   onLoadingChange?: (isLoading: boolean) => void;
+  /**
+   * OAuth provider configuration from feature flags.
+   * If not provided, all providers are enabled by default.
+   * Use with useOAuthProviders() hook from @xynes/auth-sdk.
+   */
+  providers?: {
+    google?: boolean;
+    github?: boolean;
+  };
 }
 
 /**
  * Reusable OAuth buttons component for Google and GitHub authentication.
  * Used in both LoginForm and SignupForm to maintain consistency and reduce duplication.
+ *
+ * @example
+ * // With feature flags provider
+ * const providers = useOAuthProviders();
+ * <OAuthButtons providers={providers} />
+ *
+ * @example
+ * // Without provider (all enabled)
+ * <OAuthButtons />
  */
 export function OAuthButtons({
   redirectUrl,
   disabled = false,
   onError,
   onLoadingChange,
+  providers,
 }: OAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+
+  // Default to all providers enabled if not specified
+  const enabledConfig = {
+    google: providers?.google ?? true,
+    github: providers?.github ?? true,
+  };
+
+  // Filter providers based on configuration
+  const enabledProviders = OAUTH_PROVIDERS.filter((provider) => {
+    if (provider.id === "google") return enabledConfig.google;
+    if (provider.id === "github") return enabledConfig.github;
+    return true;
+  });
 
   const handleOAuthLogin = useCallback(
     async (provider: "google" | "github") => {
@@ -106,9 +147,20 @@ export function OAuthButtons({
 
   const isLoading = loadingProvider !== null;
 
+  // If no providers are enabled, don't render anything
+  if (enabledProviders.length === 0) {
+    return null;
+  }
+
+  // Use single column if only one provider, otherwise grid
+  const gridClass =
+    enabledProviders.length === 1
+      ? "flex justify-center"
+      : "grid grid-cols-2 gap-4";
+
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {OAUTH_PROVIDERS.map((provider) => (
+    <div className={gridClass}>
+      {enabledProviders.map((provider) => (
         <Button
           key={provider.id}
           type="button"
