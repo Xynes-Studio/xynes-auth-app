@@ -52,24 +52,72 @@ export const OAUTH_PROVIDERS: OAuthProvider[] = [
   },
 ];
 
+/**
+ * OAuth feature flags configuration.
+ * Controls which OAuth providers are displayed.
+ */
+export interface OAuthFeatureFlags {
+  enableGoogle?: boolean;
+  enableGitHub?: boolean;
+}
+
+/**
+ * Default feature flags - all providers enabled.
+ */
+const DEFAULT_FEATURE_FLAGS: Required<OAuthFeatureFlags> = {
+  enableGoogle: true,
+  enableGitHub: true,
+};
+
+/**
+ * Gets OAuth feature flags from environment variables.
+ * Falls back to defaults if not configured.
+ */
+function getOAuthFeatureFlags(): Required<OAuthFeatureFlags> {
+  return {
+    enableGoogle:
+      process.env.NEXT_PUBLIC_ENABLE_OAUTH_GOOGLE !== "false",
+    enableGitHub:
+      process.env.NEXT_PUBLIC_ENABLE_OAUTH_GITHUB !== "false",
+  };
+}
+
 interface OAuthButtonsProps {
   redirectUrl?: string;
   disabled?: boolean;
   onError?: (error: AuthError) => void;
   onLoadingChange?: (isLoading: boolean) => void;
+  /** Override feature flags for testing or per-component configuration */
+  featureFlags?: OAuthFeatureFlags;
 }
 
 /**
  * Reusable OAuth buttons component for Google and GitHub authentication.
  * Used in both LoginForm and SignupForm to maintain consistency and reduce duplication.
+ * Supports feature flags to control which providers are displayed.
  */
 export function OAuthButtons({
   redirectUrl,
   disabled = false,
   onError,
   onLoadingChange,
+  featureFlags,
 }: OAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+
+  // Merge provided feature flags with environment-based defaults
+  const flags = {
+    ...DEFAULT_FEATURE_FLAGS,
+    ...getOAuthFeatureFlags(),
+    ...featureFlags,
+  };
+
+  // Filter providers based on feature flags
+  const enabledProviders = OAUTH_PROVIDERS.filter((provider) => {
+    if (provider.id === "google") return flags.enableGoogle;
+    if (provider.id === "github") return flags.enableGitHub;
+    return true;
+  });
 
   const handleOAuthLogin = useCallback(
     async (provider: "google" | "github") => {
@@ -106,9 +154,18 @@ export function OAuthButtons({
 
   const isLoading = loadingProvider !== null;
 
+  // If no providers are enabled, don't render anything
+  if (enabledProviders.length === 0) {
+    return null;
+  }
+
+  // Use single column if only one provider, otherwise grid
+  const gridClass =
+    enabledProviders.length === 1 ? "flex justify-center" : "grid grid-cols-2 gap-4";
+
   return (
-    <div className="grid grid-cols-2 gap-4">
-      {OAUTH_PROVIDERS.map((provider) => (
+    <div className={gridClass}>
+      {enabledProviders.map((provider) => (
         <Button
           key={provider.id}
           type="button"
