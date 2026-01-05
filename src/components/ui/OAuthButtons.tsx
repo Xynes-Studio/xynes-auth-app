@@ -61,61 +61,54 @@ export interface OAuthFeatureFlags {
   enableGitHub?: boolean;
 }
 
-/**
- * Default feature flags - all providers enabled.
- */
-const DEFAULT_FEATURE_FLAGS: Required<OAuthFeatureFlags> = {
-  enableGoogle: true,
-  enableGitHub: true,
-};
-
-/**
- * Gets OAuth feature flags from environment variables.
- * Falls back to defaults if not configured.
- */
-function getOAuthFeatureFlags(): Required<OAuthFeatureFlags> {
-  return {
-    enableGoogle:
-      process.env.NEXT_PUBLIC_ENABLE_OAUTH_GOOGLE !== "false",
-    enableGitHub:
-      process.env.NEXT_PUBLIC_ENABLE_OAUTH_GITHUB !== "false",
-  };
-}
-
 interface OAuthButtonsProps {
   redirectUrl?: string;
   disabled?: boolean;
   onError?: (error: AuthError) => void;
   onLoadingChange?: (isLoading: boolean) => void;
-  /** Override feature flags for testing or per-component configuration */
-  featureFlags?: OAuthFeatureFlags;
+  /**
+   * OAuth provider configuration from feature flags.
+   * If not provided, all providers are enabled by default.
+   * Use with useOAuthProviders() hook from @xynes/auth-sdk.
+   */
+  providers?: {
+    google?: boolean;
+    github?: boolean;
+  };
 }
 
 /**
  * Reusable OAuth buttons component for Google and GitHub authentication.
  * Used in both LoginForm and SignupForm to maintain consistency and reduce duplication.
- * Supports feature flags to control which providers are displayed.
+ *
+ * @example
+ * // With feature flags provider
+ * const providers = useOAuthProviders();
+ * <OAuthButtons providers={providers} />
+ *
+ * @example
+ * // Without provider (all enabled)
+ * <OAuthButtons />
  */
 export function OAuthButtons({
   redirectUrl,
   disabled = false,
   onError,
   onLoadingChange,
-  featureFlags,
+  providers,
 }: OAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
-  // Merge provided feature flags with environment-based defaults
-  const flags = {
-    ...DEFAULT_FEATURE_FLAGS,
-    ...getOAuthFeatureFlags(),
-    ...featureFlags,
+  // Default to all providers enabled if not specified
+  const enabledConfig = {
+    google: providers?.google ?? true,
+    github: providers?.github ?? true,
   };
 
-  // Filter providers based on feature flags
+  // Filter providers based on configuration
   const enabledProviders = OAUTH_PROVIDERS.filter((provider) => {
-    if (provider.id === "google") return flags.enableGoogle;
-    if (provider.id === "github") return flags.enableGitHub;
+    if (provider.id === "google") return enabledConfig.google;
+    if (provider.id === "github") return enabledConfig.github;
     return true;
   });
 
@@ -161,7 +154,9 @@ export function OAuthButtons({
 
   // Use single column if only one provider, otherwise grid
   const gridClass =
-    enabledProviders.length === 1 ? "flex justify-center" : "grid grid-cols-2 gap-4";
+    enabledProviders.length === 1
+      ? "flex justify-center"
+      : "grid grid-cols-2 gap-4";
 
   return (
     <div className={gridClass}>

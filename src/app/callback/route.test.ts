@@ -69,7 +69,9 @@ describe("OAuth Callback Route", () => {
 
       await GET(request);
 
-      expect(mockExchangeCodeForSession).toHaveBeenCalledWith("valid-auth-code");
+      expect(mockExchangeCodeForSession).toHaveBeenCalledWith(
+        "valid-auth-code"
+      );
     });
 
     it("should redirect to default route after successful code exchange", async () => {
