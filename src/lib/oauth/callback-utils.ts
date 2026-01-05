@@ -12,8 +12,11 @@ import { getSafeRedirectUrl } from "@/lib/redirect";
 /**
  * API base URL for the accounts service.
  * Used for bootstrapping user after OAuth.
+ * 
+ * Uses server-only env var (NEXT_API_URL) to avoid bundling into client code.
+ * This file is only used in server-side route handlers.
  */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.xynes.com";
+const API_BASE_URL = process.env.NEXT_API_URL || "https://api.xynes.com";
 
 /**
  * Default redirect for new users (no workspaces).
