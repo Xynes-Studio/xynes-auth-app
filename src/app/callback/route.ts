@@ -25,15 +25,13 @@ export async function GET(request: Request) {
 
   // Handle OAuth provider errors (when provider returns error instead of code)
   const errorCode = searchParams.get("error");
-  const errorDescription = searchParams.get("error_description");
 
   if (errorCode) {
-    // Redirect to login page with error information
+    // Redirect to login page with only the error code
+    // We use our predefined error messages instead of provider descriptions
+    // to prevent potential XSS and ensure consistent UX
     const loginUrl = new URL("/login", origin);
     loginUrl.searchParams.set("error", errorCode);
-    if (errorDescription) {
-      loginUrl.searchParams.set("error_description", errorDescription);
-    }
     return NextResponse.redirect(loginUrl.toString());
   }
 
