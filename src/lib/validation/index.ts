@@ -53,6 +53,9 @@ export type SignupFormData = z.infer<typeof signupFormSchema>;
 
 /**
  * Zod schema for login form validation
+ * 
+ * Note: rememberMe functionality will be added in a future story
+ * when session management (SEC-FE-1.8) is implemented.
  */
 export const loginFormSchema = z.object({
   email: z
@@ -60,7 +63,6 @@ export const loginFormSchema = z.object({
     .min(1, "Email is required")
     .email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
-  rememberMe: z.boolean().optional().default(false),
 });
 
 /**

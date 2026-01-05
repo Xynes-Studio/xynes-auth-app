@@ -58,6 +58,15 @@ describe("Redirect utilities re-exports", () => {
         isValidRedirectUrl("http://localhost:4000/app", allowedDomains)
       ).toBe(false);
     });
+
+    it("should reject protocol-relative URLs (open redirect vector)", () => {
+      expect(isValidRedirectUrl("//evil.com/path", allowedDomains)).toBe(
+        false
+      );
+      expect(isValidRedirectUrl("//xynes.com.evil.com", allowedDomains)).toBe(
+        false
+      );
+    });
   });
 
   describe("getSafeRedirectUrl", () => {
