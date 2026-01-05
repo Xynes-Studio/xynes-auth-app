@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 import { GET } from "./route";
+import {
+  bootstrapUser,
+  determineRedirectUrl,
+} from "@/lib/oauth/callback-utils";
 
 // Mock fetch for bootstrap API call
 const mockFetch = vi.fn();
@@ -58,7 +62,133 @@ describe("OAuth Callback Route", () => {
       data: { session: mockSession },
       error: null,
     });
-    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    // Default: new user with no workspaces
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ workspaces: [] }),
+    });
+  });
+
+  describe("bootstrapUser", () => {
+    it("should return success with hasWorkspaces false for new user", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ workspaces: [] }),
+      });
+
+      const result = await bootstrapUser("test-token");
+
+      expect(result).toEqual({
+        success: true,
+        isNewUser: true,
+        hasWorkspaces: false,
+      });
+    });
+
+    it("should return success with hasWorkspaces true for existing user", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            workspaces: [{ id: "ws-1", name: "My Workspace" }],
+          }),
+      });
+
+      const result = await bootstrapUser("test-token");
+
+      expect(result).toEqual({
+        success: true,
+        isNewUser: false,
+        hasWorkspaces: true,
+      });
+    });
+
+    it("should return failure state when API returns error", async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+      });
+
+      const result = await bootstrapUser("test-token");
+
+      expect(result).toEqual({
+        success: false,
+        isNewUser: true,
+        hasWorkspaces: false,
+      });
+    });
+
+    it("should return failure state when network error occurs", async () => {
+      mockFetch.mockRejectedValue(new Error("Network error"));
+
+      const result = await bootstrapUser("test-token");
+
+      expect(result).toEqual({
+        success: false,
+        isNewUser: true,
+        hasWorkspaces: false,
+      });
+    });
+
+    it("should handle missing workspaces array in response", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ user: { id: "123" } }),
+      });
+
+      const result = await bootstrapUser("test-token");
+
+      expect(result).toEqual({
+        success: true,
+        isNewUser: true,
+        hasWorkspaces: false,
+      });
+    });
+  });
+
+  describe("determineRedirectUrl", () => {
+    const allowedDomains = ["xynes.com", "localhost:3000"];
+
+    it("should return onboarding for new user without redirect param", () => {
+      const result = determineRedirectUrl(
+        null,
+        { success: true, isNewUser: true, hasWorkspaces: false },
+        allowedDomains
+      );
+
+      expect(result).toBe("/onboarding");
+    });
+
+    it("should return workspaces for existing user without redirect param", () => {
+      const result = determineRedirectUrl(
+        null,
+        { success: true, isNewUser: false, hasWorkspaces: true },
+        allowedDomains
+      );
+
+      expect(result).toBe("/workspaces");
+    });
+
+    it("should use redirect param when provided", () => {
+      const result = determineRedirectUrl(
+        "/dashboard",
+        { success: true, isNewUser: true, hasWorkspaces: false },
+        allowedDomains
+      );
+
+      expect(result).toBe("/dashboard");
+    });
+
+    it("should fall back to default when redirect is invalid", () => {
+      const result = determineRedirectUrl(
+        "https://evil.com",
+        { success: true, isNewUser: true, hasWorkspaces: false },
+        allowedDomains
+      );
+
+      // Falls back to default (onboarding for new user)
+      expect(result).toBe("/onboarding");
+    });
   });
 
   describe("successful OAuth callback", () => {
@@ -74,7 +204,12 @@ describe("OAuth Callback Route", () => {
       );
     });
 
-    it("should redirect to default route after successful code exchange", async () => {
+    it("should redirect to onboarding for new user after successful code exchange", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ workspaces: [] }),
+      });
+
       const request = new Request(
         "http://localhost:3000/callback?code=valid-auth-code"
       );
@@ -84,6 +219,24 @@ describe("OAuth Callback Route", () => {
       expect(NextResponse.redirect).toHaveBeenCalled();
       const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
       expect(redirectCall.toString()).toContain("/onboarding");
+    });
+
+    it("should redirect to workspaces for existing user", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ workspaces: [{ id: "ws-1", name: "Test" }] }),
+      });
+
+      const request = new Request(
+        "http://localhost:3000/callback?code=valid-auth-code"
+      );
+
+      await GET(request);
+
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
+      expect(redirectCall.toString()).toContain("/workspaces");
     });
 
     it("should redirect to custom redirect URL after successful exchange", async () => {
@@ -107,18 +260,6 @@ describe("OAuth Callback Route", () => {
 
       expect(NextResponse.redirect).toHaveBeenCalled();
     });
-
-    it("should use next parameter as fallback redirect", async () => {
-      const request = new Request(
-        "http://localhost:3000/callback?code=valid-auth-code&next=/workspace"
-      );
-
-      await GET(request);
-
-      expect(NextResponse.redirect).toHaveBeenCalled();
-      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
-      expect(redirectCall.toString()).toContain("/workspace");
-    });
   });
 
   describe("failed OAuth callback", () => {
@@ -141,6 +282,24 @@ describe("OAuth Callback Route", () => {
 
     it("should redirect to login with error when no code is present", async () => {
       const request = new Request("http://localhost:3000/callback");
+
+      await GET(request);
+
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
+      expect(redirectCall.toString()).toContain("/login");
+      expect(redirectCall.toString()).toContain("error=auth_callback_error");
+    });
+
+    it("should redirect to login when session data is missing", async () => {
+      mockExchangeCodeForSession.mockResolvedValue({
+        data: { session: null },
+        error: null,
+      });
+
+      const request = new Request(
+        "http://localhost:3000/callback?code=valid-auth-code"
+      );
 
       await GET(request);
 
@@ -239,6 +398,70 @@ describe("OAuth Callback Route", () => {
 
       // Should not call bootstrap API
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("OAuth provider errors", () => {
+    it("should redirect to login with error when OAuth provider returns error", async () => {
+      const request = new Request(
+        "http://localhost:3000/callback?error=access_denied"
+      );
+
+      await GET(request);
+
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
+      expect(redirectCall.toString()).toContain("/login");
+      expect(redirectCall.toString()).toContain("error=access_denied");
+    });
+
+    it("should include error_description when provider provides it", async () => {
+      const request = new Request(
+        "http://localhost:3000/callback?error=access_denied&error_description=User%20cancelled"
+      );
+
+      await GET(request);
+
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
+      expect(redirectCall.toString()).toContain("error=access_denied");
+      // URL encoding may use + or %20 for spaces
+      expect(redirectCall.toString()).toMatch(/error_description=User[+%20]cancelled/);
+    });
+
+    it("should not call code exchange when error is present", async () => {
+      const request = new Request(
+        "http://localhost:3000/callback?error=server_error"
+      );
+
+      await GET(request);
+
+      // Should not attempt to exchange code
+      expect(mockExchangeCodeForSession).not.toHaveBeenCalled();
+    });
+
+    it("should handle invalid_request error", async () => {
+      const request = new Request(
+        "http://localhost:3000/callback?error=invalid_request"
+      );
+
+      await GET(request);
+
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
+      expect(redirectCall.toString()).toContain("error=invalid_request");
+    });
+
+    it("should handle server_error", async () => {
+      const request = new Request(
+        "http://localhost:3000/callback?error=server_error"
+      );
+
+      await GET(request);
+
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
+      expect(redirectCall.toString()).toContain("error=server_error");
     });
   });
 });
