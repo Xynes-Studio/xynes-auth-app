@@ -298,9 +298,9 @@ describe("OAuth Callback Route", () => {
       expect(redirectCall.toString()).toContain("error=access_denied");
     });
 
-    it("should include error_description when provider provides it", async () => {
+    it("should not pass error_description to prevent XSS", async () => {
       const request = new Request(
-        "http://localhost:3000/callback?error=access_denied&error_description=User%20cancelled"
+        "http://localhost:3000/callback?error=access_denied&error_description=<script>alert('xss')</script>"
       );
 
       await GET(request);
@@ -308,8 +308,8 @@ describe("OAuth Callback Route", () => {
       expect(NextResponse.redirect).toHaveBeenCalled();
       const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
       expect(redirectCall.toString()).toContain("error=access_denied");
-      // URL encoding may use + or %20 for spaces
-      expect(redirectCall.toString()).toMatch(/error_description=User[+%20]cancelled/);
+      // Should NOT include error_description (security measure)
+      expect(redirectCall.toString()).not.toContain("error_description");
     });
 
     it("should not call code exchange when error is present", async () => {
