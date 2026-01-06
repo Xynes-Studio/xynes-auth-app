@@ -42,9 +42,24 @@ vi.mock("@/lib/redirect", () => ({
   isValidRedirectUrl: vi.fn((url: string, domains: string[]) => {
     if (!url) return false;
     if (url.startsWith("/") && !url.startsWith("//")) return true;
+    // Reject dangerous protocols
+    const lower = url.toLowerCase();
+    if (lower.startsWith("javascript:") || lower.startsWith("data:")) return false;
     return domains.some(
       (d) => url.includes(d) || url.includes(d.replace(":", ""))
     );
+  }),
+  getSafeRedirectUrl: vi.fn((url: string, defaultUrl: string, domains: string[]) => {
+    if (!url) return defaultUrl;
+    if (url.startsWith("/") && !url.startsWith("//")) return url;
+    // Reject dangerous protocols
+    const lower = url.toLowerCase();
+    if (lower.startsWith("javascript:") || lower.startsWith("data:")) return defaultUrl;
+    if (lower.startsWith("//")) return defaultUrl; // Protocol-relative URLs
+    const isValid = domains.some(
+      (d) => url.includes(d) || url.includes(d.replace(":", ""))
+    );
+    return isValid ? url : defaultUrl;
   }),
   getAllowedRedirectDomains: vi.fn(() => ["xynes.com", "localhost:3000"]),
 }));
