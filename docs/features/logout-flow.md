@@ -10,7 +10,7 @@ The logout flow provides secure session termination for authenticated users. It 
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           LOGOUT FLOW ARCHITECTURE                          │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -34,7 +34,7 @@ The logout flow provides secure session termination for authenticated users. It 
 
 ## File Structure
 
-```
+```text
 src/
 ├── app/logout/
 │   ├── route.ts        # Server-side logout handler (POST/GET)
