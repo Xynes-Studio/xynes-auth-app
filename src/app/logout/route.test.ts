@@ -45,9 +45,22 @@ vi.mock("@/lib/redirect", () => ({
     // Reject dangerous protocols
     const lower = url.toLowerCase();
     if (lower.startsWith("javascript:") || lower.startsWith("data:")) return false;
-    return domains.some(
-      (d) => url.includes(d) || url.includes(d.replace(":", ""))
-    );
+    try {
+      const parsedUrl = new URL(url);
+      const hostname = parsedUrl.hostname.toLowerCase();
+      return domains.some((domain) => {
+        const lowerDomain = domain.toLowerCase();
+        // Handle localhost with port (e.g., localhost:3000)
+        if (lowerDomain.includes(":")) {
+          const [domainHost, domainPort] = lowerDomain.split(":");
+          return hostname === domainHost && parsedUrl.port === domainPort;
+        }
+        // Exact match or subdomain match
+        return hostname === lowerDomain || hostname.endsWith(`.${lowerDomain}`);
+      });
+    } catch {
+      return false;
+    }
   }),
   getSafeRedirectUrl: vi.fn((url: string, defaultUrl: string, domains: string[]) => {
     if (!url) return defaultUrl;
@@ -56,10 +69,23 @@ vi.mock("@/lib/redirect", () => ({
     const lower = url.toLowerCase();
     if (lower.startsWith("javascript:") || lower.startsWith("data:")) return defaultUrl;
     if (lower.startsWith("//")) return defaultUrl; // Protocol-relative URLs
-    const isValid = domains.some(
-      (d) => url.includes(d) || url.includes(d.replace(":", ""))
-    );
-    return isValid ? url : defaultUrl;
+    try {
+      const parsedUrl = new URL(url);
+      const hostname = parsedUrl.hostname.toLowerCase();
+      const isValid = domains.some((domain) => {
+        const lowerDomain = domain.toLowerCase();
+        // Handle localhost with port (e.g., localhost:3000)
+        if (lowerDomain.includes(":")) {
+          const [domainHost, domainPort] = lowerDomain.split(":");
+          return hostname === domainHost && parsedUrl.port === domainPort;
+        }
+        // Exact match or subdomain match
+        return hostname === lowerDomain || hostname.endsWith(`.${lowerDomain}`);
+      });
+      return isValid ? url : defaultUrl;
+    } catch {
+      return defaultUrl;
+    }
   }),
   getAllowedRedirectDomains: vi.fn(() => ["xynes.com", "localhost:3000"]),
 }));
