@@ -8,7 +8,7 @@
  * @see AUTH-FE-1.7 Logout Flow Story
  */
 
-import { isValidRedirectUrl } from "../redirect";
+import { getSafeRedirectUrl } from "../redirect";
 
 /**
  * Supabase authentication cookie prefixes.
@@ -67,34 +67,27 @@ export function buildLogoutRedirectUrl(
  * Validates and returns a safe post-logout redirect URL.
  * Falls back to default URL if the provided URL is invalid or potentially malicious.
  *
+ * This is a thin wrapper around getSafeRedirectUrl with null/undefined handling
+ * specific to logout flow requirements.
+ *
  * @param redirectUrl - The requested redirect URL (from query params)
  * @param defaultUrl - Fallback URL if redirect is invalid
  * @param allowedDomains - List of allowed redirect domains
  * @returns A validated redirect URL
  *
  * @security Prevents open redirect attacks by validating against allowed domains
+ * @see getSafeRedirectUrl - The core validation logic
  */
 export function getPostLogoutRedirectUrl(
   redirectUrl: string | null | undefined,
   defaultUrl: string,
   allowedDomains: string[]
 ): string {
-  // Handle null/undefined/empty values
-  if (!redirectUrl || typeof redirectUrl !== "string") {
-    return defaultUrl;
-  }
+  // Handle null/undefined - normalize to empty string for getSafeRedirectUrl
+  const normalizedUrl = redirectUrl?.trim() ?? "";
 
-  const trimmed = redirectUrl.trim();
-  if (!trimmed) {
-    return defaultUrl;
-  }
-
-  // Use existing validation from redirect module
-  if (isValidRedirectUrl(trimmed, allowedDomains)) {
-    return trimmed;
-  }
-
-  return defaultUrl;
+  // Delegate to the shared redirect validation utility
+  return getSafeRedirectUrl(normalizedUrl, defaultUrl, allowedDomains);
 }
 
 /**
