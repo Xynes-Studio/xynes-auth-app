@@ -27,7 +27,7 @@ The logout flow provides secure session termination for authenticated users. It 
               │                                          │  3. Validate redirect URL
               │                                          │
               │◀─────────────────────────────────────────│
-              │  302 Redirect to /login                  │
+              │  307 Redirect to /login                  │
               │  (with ?redirect= for login flow)        │
               │                                          │
 ```
@@ -109,7 +109,10 @@ function LogoutButton() {
 
 | Status | Description |
 |--------|-------------|
-| `302` | Redirect to login page or specified redirect URL |
+| `307` | Redirect to login page or specified redirect URL |
+
+> **Note:** `NextResponse.redirect()` uses HTTP 307 (Temporary Redirect) by default,
+> which preserves the request method. This matches the test expectations in `route.test.ts`.
 
 ### Utilities (`@/lib/logout`)
 
