@@ -19,6 +19,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import {
+  buildLogoutRedirectUrl,
   getPostLogoutRedirectUrl,
   getSupabaseCookieNames,
 } from "@/lib/logout";
@@ -38,17 +39,16 @@ async function performLogout(request: Request): Promise<NextResponse> {
   const allowedDomains = getAllowedRedirectDomains();
   const safeRedirect = getPostLogoutRedirectUrl(
     redirectParam,
-    "/login",
+    "",
     allowedDomains
   );
 
-  // Build the final redirect URL
-  let redirectUrl: string;
-  if (safeRedirect.startsWith("http")) {
-    redirectUrl = safeRedirect;
-  } else {
-    redirectUrl = `${origin}${safeRedirect}`;
-  }
+  // Build the final redirect URL using the utility
+  // After logout, redirect to /login with the original redirect preserved
+  const redirectUrl = buildLogoutRedirectUrl(
+    origin,
+    safeRedirect || undefined
+  );
 
   // Create Supabase client and sign out
   try {

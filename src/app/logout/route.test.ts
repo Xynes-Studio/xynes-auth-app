@@ -143,7 +143,7 @@ describe("Logout Route Handler", () => {
       expect(response.headers.get("Location")).toBe("http://localhost:3000/login");
     });
 
-    it("should redirect to valid external URL when provided", async () => {
+    it("should redirect to login with valid external URL preserved", async () => {
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/logout?redirect=https://cms.xynes.com/dashboard"
@@ -152,8 +152,9 @@ describe("Logout Route Handler", () => {
       const response = await POST(request);
 
       expect(response.status).toBe(307);
+      // After logout, redirect to login with the original redirect preserved
       expect(response.headers.get("Location")).toBe(
-        "https://cms.xynes.com/dashboard"
+        "http://localhost:3000/login?redirect=https%3A%2F%2Fcms.xynes.com%2Fdashboard"
       );
     });
 
@@ -178,8 +179,9 @@ describe("Logout Route Handler", () => {
       const response = await POST(request);
 
       expect(response.status).toBe(307);
+      // Relative URLs are preserved in the redirect param
       expect(response.headers.get("Location")).toBe(
-        "http://localhost:3000/dashboard"
+        "http://localhost:3000/login?redirect=%2Fdashboard"
       );
     });
 
@@ -240,7 +242,10 @@ describe("Logout Route Handler", () => {
       const response = await GET(request);
 
       expect(response.status).toBe(307);
-      expect(response.headers.get("Location")).toBe("https://cms.xynes.com/dashboard");
+      // After logout, redirect to login with the original redirect preserved
+      expect(response.headers.get("Location")).toBe(
+        "http://localhost:3000/login?redirect=https%3A%2F%2Fcms.xynes.com%2Fdashboard"
+      );
     });
   });
 
