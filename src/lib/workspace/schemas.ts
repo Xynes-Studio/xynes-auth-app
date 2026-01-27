@@ -15,16 +15,20 @@ import { SLUG_CONSTRAINTS, NAME_CONSTRAINTS } from "./validation";
  */
 export const workspaceNameSchema = z
   .string()
-  .min(1, "Workspace name is required")
-  .min(
-    NAME_CONSTRAINTS.MIN_LENGTH,
-    `Workspace name must be at least ${NAME_CONSTRAINTS.MIN_LENGTH} characters`
-  )
-  .max(
-    NAME_CONSTRAINTS.MAX_LENGTH,
-    `Workspace name must be at most ${NAME_CONSTRAINTS.MAX_LENGTH} characters`
-  )
-  .transform((val) => val.trim());
+  .transform((val) => val.trim())
+  .pipe(
+    z
+      .string()
+      .min(1, "Workspace name is required")
+      .min(
+        NAME_CONSTRAINTS.MIN_LENGTH,
+        `Workspace name must be at least ${NAME_CONSTRAINTS.MIN_LENGTH} characters`
+      )
+      .max(
+        NAME_CONSTRAINTS.MAX_LENGTH,
+        `Workspace name must be at most ${NAME_CONSTRAINTS.MAX_LENGTH} characters`
+      )
+  );
 
 /**
  * Zod schema for workspace slug validation

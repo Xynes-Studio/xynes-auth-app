@@ -56,7 +56,7 @@ Future considerations:
 
 ## File Organization
 
-```
+```text
 src/
 ├── lib/                    # Pure functions (Tier 1)
 │   ├── workspace/
