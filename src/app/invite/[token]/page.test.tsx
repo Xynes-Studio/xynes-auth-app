@@ -5,15 +5,24 @@ import { InvitePreview } from '@/components/invite/InvitePreview';
 import { useAuth, useInvite } from '@xynes/auth-sdk';
 
 // Mock the hooks
-vi.mock('@xynes/auth-sdk', () => ({
-  useAuth: vi.fn(),
-  useInvite: vi.fn(),
-}));
+// Mock the hooks
+vi.mock('@xynes/auth-sdk', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@xynes/auth-sdk')>();
+  return {
+    ...actual,
+    useAuth: vi.fn(),
+    useInvite: vi.fn(),
+  };
+});
 
 // Mock next/navigation
+const mockSearchParamsGet = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({
     push: vi.fn(),
+  })),
+  useSearchParams: vi.fn(() => ({
+    get: mockSearchParamsGet,
   })),
 }));
 
@@ -37,6 +46,7 @@ describe('InvitePreview', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchParamsGet.mockReturnValue(null);
   });
 
   it('renders loading state initially', () => {
@@ -84,7 +94,7 @@ describe('InvitePreview', () => {
 
     expect(screen.getByText(mockInvite.workspaceName)).toBeInTheDocument();
     expect(screen.getByText(mockInvite.inviterName)).toBeInTheDocument();
-    expect(screen.getByText(mockInvite.inviterEmail)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(mockInvite.inviterEmail))).toBeInTheDocument();
     expect(screen.getByText(new RegExp(mockInvite.role.replace('_', ' '), 'i'))).toBeInTheDocument();
     expect(screen.getByText(/You are signed in as/i)).toBeInTheDocument();
   });
@@ -110,7 +120,7 @@ describe('InvitePreview', () => {
 
     expect(screen.getByText(mockInvite.workspaceName)).toBeInTheDocument();
     expect(screen.getByText(mockInvite.inviterName)).toBeInTheDocument();
-    expect(screen.getByText(mockInvite.inviterEmail)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(mockInvite.inviterEmail))).toBeInTheDocument();
     expect(screen.getByText(new RegExp(mockInvite.role.replace('_', ' '), 'i'))).toBeInTheDocument();
     expect(screen.getByText(/Sign in to accept this invitation/i)).toBeInTheDocument();
   });
@@ -246,6 +256,33 @@ describe('InvitePreview', () => {
     const signInButton = screen.getByRole('button', { name: /Sign In to Continue/i });
     signInButton.click();
 
-    expect(mockRedirectToLogin).toHaveBeenCalledWith(`/invite/test-token`);
+    expect(mockRedirectToLogin).toHaveBeenCalledWith(`/invite/test-token?autoAccept=true`);
+  });
+
+  it('automatically accepts invite when authenticated and autoAccept param is true', async () => {
+    mockSearchParamsGet.mockReturnValue('true');
+    const mockAcceptInvite = vi.fn().mockResolvedValue(mockInvite);
+
+    const useInviteMock = vi.fn().mockReturnValue({
+      invite: mockInvite,
+      isLoading: false,
+      error: null,
+      acceptInvite: mockAcceptInvite,
+      isAccepting: false,
+    });
+
+    const useAuthMock = vi.fn().mockReturnValue({
+      isAuthenticated: true,
+      redirectToLogin: vi.fn(),
+    });
+
+    vi.mocked(useInvite).mockImplementation(useInviteMock);
+    vi.mocked(useAuth).mockImplementation(useAuthMock);
+
+    renderWithProviders(<InvitePreview token="test-token" />);
+
+    await waitFor(() => {
+      expect(mockAcceptInvite).toHaveBeenCalled();
+    });
   });
 });
