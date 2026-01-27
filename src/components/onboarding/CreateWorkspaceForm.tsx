@@ -16,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Button, Alert, Card, CardContent, Spinner } from "@lumia-ui/components";
 import { createClient } from "@/lib/supabase/client";
+import { getSafeRedirectUrl, getAllowedRedirectDomains } from "@/lib/redirect";
 import {
   createWorkspaceFormSchema,
   type CreateWorkspaceFormData,
@@ -44,7 +45,10 @@ export interface CreateWorkspaceFormProps {
   apiBaseUrl?: string;
   /** Callback when workspace is created successfully */
   onSuccess?: (workspace: Workspace) => void;
-  /** URL to redirect to after success (default: workspace dashboard) */
+  /**
+   * URL to redirect to after success (default: workspace dashboard)
+   * Note: This URL is validated against allowed domains to prevent open redirects
+   */
   redirectUrl?: string;
 }
 
@@ -203,19 +207,14 @@ export function CreateWorkspaceForm({
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-
           if (response.status === 409) {
-            setSubmitError(
-              errorData.message || "A workspace with this URL already exists"
-            );
+            setSubmitError("A workspace with this URL already exists");
             setSlugStatus("unavailable");
             return;
           }
 
-          setSubmitError(
-            errorData.message || "Failed to create workspace. Please try again."
-          );
+          // Generic error message to prevent information leakage
+          setSubmitError("Failed to create workspace. Please try again.");
           return;
         }
 
@@ -224,12 +223,25 @@ export function CreateWorkspaceForm({
         // Call success callback if provided
         onSuccess?.(workspace);
 
-        // Redirect to workspace dashboard
-        const targetUrl =
-          redirectUrl || `${process.env.NEXT_PUBLIC_CONSOLE_URL || ''}/${workspace.slug}`;
+        // Calculate default target (workspace console)
+        const defaultTarget = `${process.env.NEXT_PUBLIC_CONSOLE_URL || ""}/${
+          workspace.slug
+        }`;
+
+        // Determine final redirect URL
+        // If a redirectUrl is provided, we must validate it to prevent open redirects
+        const targetUrl = redirectUrl
+          ? getSafeRedirectUrl(
+              redirectUrl,
+              defaultTarget,
+              getAllowedRedirectDomains()
+            )
+          : defaultTarget;
+
         router.push(targetUrl);
       } catch (error) {
         setSubmitError("An unexpected error occurred. Please try again.");
+        // Log the actual error to console for debugging, but don't show to user
         console.error("Failed to create workspace:", error);
       } finally {
         setIsSubmitting(false);
