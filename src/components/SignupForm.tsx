@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@lumia-ui/components";
 import {
   signupFormSchema,
   type SignupFormData,
@@ -202,13 +203,14 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
           )}
         </div>
 
-        <button
+        <Button
           type="submit"
-          disabled={isLoading}
-          className="w-full rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          fullWidth
+          isLoading={isLoading}
+          loadingText="Creating account..."
         >
-          {isLoading ? "Creating account..." : "Create account"}
-        </button>
+          Create account
+        </Button>
       </form>
 
       <div className="relative">

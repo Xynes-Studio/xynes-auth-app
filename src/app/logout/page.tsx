@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Card, Button, Spinner, Alert } from "@lumia-ui/components";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { getSafeRedirectUrl } from "@/lib/redirect";
+import { AuthPageSkeleton } from "@/components/ui";
 
 /**
  * Logout page states
@@ -186,25 +187,7 @@ function LogoutContentWrapper() {
 }
 
 function LogoutLoading() {
-  return (
-    <main
-      className="flex min-h-screen items-center justify-center p-4 bg-gray-50"
-      role="main"
-      aria-busy="true"
-    >
-      <Card className="w-full max-w-md p-8">
-        <div className="space-y-6 text-center animate-pulse">
-          <div className="flex justify-center">
-            <div className="h-10 w-10 bg-gray-200 rounded-full" />
-          </div>
-          <div>
-            <div className="h-8 bg-gray-200 rounded w-48 mx-auto" />
-            <div className="mt-2 h-4 bg-gray-200 rounded w-56 mx-auto" />
-          </div>
-        </div>
-      </Card>
-    </main>
-  );
+  return <AuthPageSkeleton title="Signing out" showForm={false} showOAuth={false} />;
 }
 
 /**

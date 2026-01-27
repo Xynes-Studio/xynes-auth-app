@@ -4,6 +4,7 @@ import { Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card } from "@lumia-ui/components";
 import { LoginForm } from "@/components/LoginForm";
+import { AuthPageSkeleton } from "@/components/ui";
 import { getSafeRedirectUrl } from "@/lib/redirect";
 
 /**
@@ -56,28 +57,7 @@ function LoginContent() {
 }
 
 function LoginLoading() {
-  return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gray-50">
-      <Card className="w-full max-w-md p-8">
-        <div className="space-y-6 animate-pulse">
-          <div className="text-center">
-            <div className="h-8 bg-gray-200 rounded w-48 mx-auto" />
-            <div className="mt-2 h-4 bg-gray-200 rounded w-56 mx-auto" />
-          </div>
-          <div className="space-y-4">
-            <div className="h-10 bg-gray-200 rounded" />
-            <div className="h-10 bg-gray-200 rounded" />
-            <div className="h-10 bg-gray-200 rounded" />
-          </div>
-          <div className="h-px bg-gray-200" />
-          <div className="grid grid-cols-2 gap-4">
-            <div className="h-10 bg-gray-200 rounded" />
-            <div className="h-10 bg-gray-200 rounded" />
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
+  return <AuthPageSkeleton title="Loading login" showForm={true} showOAuth={true} />;
 }
 
 export default function LoginPage() {
