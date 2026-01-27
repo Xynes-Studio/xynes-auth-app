@@ -1,0 +1,9 @@
+packages:
+  - 'src/**'
+  - '../lumia-ds/packages/*'
+  - '../xynes-auth-sdk'
+
+overrides:
+  '@lumia-ui/components': link:../lumia-ds/packages/components
+  '@lumia-ui/forms': link:../lumia-ds/packages/forms
+  '@xynes/auth-sdk': link:../xynes-auth-sdk
