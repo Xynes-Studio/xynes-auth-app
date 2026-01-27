@@ -95,36 +95,65 @@ export function InvitePreview({ token }: InvitePreviewProps) {
     }
   }, [isAuthenticated, invite, autoAccept, isAccepting, error, isLoading, handleAccept]);
 
-  // If invite is expired or cancelled, show error
-  if (invite && (invite.status === 'expired' || invite.status === 'cancelled')) {
+  // Determine if we should show the error state card
+  const isExpiredOrCancelled = invite && (invite.status === 'expired' || invite.status === 'cancelled');
+  const isNotFound = error?.code === 'invite_not_found';
+  const isAlreadyMember = error?.code === 'already_in_workspace';
+  
+  if (isExpiredOrCancelled || isNotFound || isAlreadyMember) {
+    let title = 'Invite Not Valid';
+    let description = 'This invitation is no longer valid.';
+    let Icon = XCircleIcon;
+    let iconClass = 'text-red-600';
+    let bgClass = 'bg-red-100';
+    let showSignIn = !isAuthenticated;
+
+    if (isExpiredOrCancelled) {
+      if (invite?.status === 'expired') description = 'This invitation has expired.';
+      else description = 'This invitation has been cancelled.';
+    } else if (isNotFound) {
+      description = 'The invitation code could not be found or has expired.';
+    } else if (isAlreadyMember) {
+      title = 'Already a Member';
+      description = 'You are already a member of this workspace.';
+      Icon = CheckCircleIcon;
+      iconClass = 'text-green-600';
+      bgClass = 'bg-green-100';
+      showSignIn = false; // No need to sign in if already member (though error implies we tried to join)
+    }
+
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
         <Card className="w-full max-w-md" aria-labelledby="invite-error-title" role="alertdialog" aria-modal="true">
           <CardHeader className="text-center">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100" aria-hidden="true">
-              <XCircleIcon className="h-8 w-8 text-red-600" aria-hidden="true" />
+            <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${bgClass}`} aria-hidden="true">
+              <Icon className={`h-8 w-8 ${iconClass}`} aria-hidden="true" />
             </div>
-            <CardTitle id="invite-error-title" className="mt-4">Invite Not Valid</CardTitle>
+            <CardTitle id="invite-error-title" className="mt-4">{title}</CardTitle>
             <CardDescription id="invite-error-desc">
-              {invite.status === 'expired' 
-                ? 'This invitation has expired.' 
-                : 'This invitation has been cancelled.'}
+              {description}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-center text-sm text-muted-foreground" id="contact-info">
-              Contact the workspace owner for a new invitation.
-            </p>
+            {isAlreadyMember ? (
+               <p className="text-center text-sm text-muted-foreground">
+                 You can access this workspace from your dashboard.
+               </p>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground" id="contact-info">
+                Contact the workspace owner for a new invitation.
+              </p>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
             <Button 
               className="w-full" 
               onClick={() => router.push('/')}
-              aria-describedby="invite-error-desc contact-info"
+              aria-describedby="invite-error-desc"
             >
               Go to Home
             </Button>
-            {!isAuthenticated && (
+            {showSignIn && (
               <Button 
                 variant="outline" 
                 className="w-full" 
