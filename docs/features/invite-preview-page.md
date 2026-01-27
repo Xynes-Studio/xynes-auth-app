@@ -30,15 +30,11 @@ The Invite Preview Page allows users to view details about a workspace invitatio
    - Option to sign up if no account exists
 
 ## Components Used
-- `@lumia-ui/components/button/button`
-- `@lumia-ui/components/card/card`
-- `@lumia-ui/components/skeleton/skeleton`
-- `@lumia-ui/components/alert/alert`
-- `@lumia-ui/components/badge/badge`
+- `@lumia-ui/components` (Button, Card, Skeleton, Alert, Badge)
 
 ## Hooks Used
-- `useAuth` from `@xynes/auth-sdk` - Manages authentication state
-- `useInvite` from `@xynes/auth-sdk` - Resolves and accepts invites
+- `useAuth` from `@xynes/auth-sdk` - Manages authentication state (provides `getAccessToken` for secure calls)
+- `useInvite` from `@xynes/auth-sdk` - Resolves and accepts invites (uses authenticated API calls)
 
 ## Accessibility Features
 - Proper ARIA attributes (roles, labels, descriptions)
@@ -57,9 +53,10 @@ The Invite Preview Page allows users to view details about a workspace invitatio
 - Uses secure invite token resolution
 - Validates invite status before allowing acceptance
 - Prevents unauthorized access to workspaces
+- Requires a valid authentication token for accepting invites
 
 ## Testing
-- Comprehensive test suite with 7 test cases
+- Comprehensive test suite with 9 test cases
 - Covers all major user flows and edge cases
 - Mocks external dependencies appropriately
 - Verifies accessibility attributes

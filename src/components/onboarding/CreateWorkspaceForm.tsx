@@ -14,6 +14,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import Link from 'next/link';
 import { Button, Alert, Card, CardContent, Spinner } from "@lumia-ui/components";
 import { createClient } from "@/lib/supabase/client";
 import { getSafeRedirectUrl, getAllowedRedirectDomains } from "@/lib/redirect";
@@ -462,12 +463,12 @@ export function CreateWorkspaceForm({
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               Already have an invitation?{" "}
-              <a
+              <Link
                 href="/invite"
                 className="font-medium text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
               >
                 Have an invite? Join a workspace
-              </a>
+              </Link>
             </p>
           </div>
         </CardContent>
