@@ -1,7 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useInvite } from '@xynes/auth-sdk';
+import { useEffect, useCallback } from 'react';
 import { 
   Button, 
   Card, 
@@ -60,7 +61,9 @@ interface InvitePreviewProps {
 
 export function InvitePreview({ token }: InvitePreviewProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, redirectToLogin } = useAuth();
+  const autoAccept = searchParams.get('autoAccept') === 'true';
 
   // Validate environment variable
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -71,7 +74,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
   const { invite, isLoading, error, acceptInvite, isAccepting } = useInvite(token, apiBaseUrl);
   
   // Handle invite acceptance
-  const handleAccept = async () => {
+  const handleAccept = useCallback(async () => {
     const workspace = await acceptInvite();
     if (workspace) {
       const consoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL || '';
@@ -83,7 +86,14 @@ export function InvitePreview({ token }: InvitePreviewProps) {
         router.push('/');
       }
     }
-  };
+  }, [acceptInvite, router]);
+
+  // Auto-accept effect
+  useEffect(() => {
+    if (isAuthenticated && invite && autoAccept && !isAccepting && !error && !isLoading) {
+      handleAccept();
+    }
+  }, [isAuthenticated, invite, autoAccept, isAccepting, error, isLoading, handleAccept]);
 
   // If invite is expired or cancelled, show error
   if (invite && (invite.status === 'expired' || invite.status === 'cancelled')) {
@@ -118,7 +128,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
               <Button 
                 variant="outline" 
                 className="w-full" 
-                onClick={() => redirectToLogin()}
+                onClick={() => redirectToLogin(`/invite/${token}`)}
                 aria-describedby="invite-error-desc"
               >
                 Sign In
@@ -249,7 +259,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                   
                   <Button 
                     className="w-full" 
-                    onClick={() => redirectToLogin(`/invite/${token}`)}
+                    onClick={() => redirectToLogin(`/invite/${token}?autoAccept=true`)}
                     aria-describedby="workspace-name inviter-details expiry-info sign-in-prompt"
                   >
                     Sign In to Continue
@@ -258,7 +268,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                   <p className="text-center text-xs text-muted-foreground pt-2">
                     {'Do not'} have an account?{' '}
                     <Link
-                      href="/signup"
+                      href={`/signup?redirect=${encodeURIComponent(`/invite/${token}?autoAccept=true`)}`}
                       className="underline focus:outline-none focus:ring-2 focus:ring-primary focus:rounded"
                     >
                       Sign up
