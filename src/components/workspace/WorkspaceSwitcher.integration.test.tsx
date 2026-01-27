@@ -111,6 +111,24 @@ vi.mock("@xynes/auth-sdk", () => ({
     if (otherCount === 1) return `Current workspace: ${name}. 1 other workspace available.`;
     return `Current workspace: ${name}. ${otherCount} other workspaces available.`;
   },
+  // Security utility - validates redirect URLs against allowed domains
+  isValidRedirectUrl: (url: string, allowedDomains: string[]) => {
+    if (!url) return false;
+    try {
+      const parsedUrl = new URL(url);
+      return allowedDomains.some((domain) => {
+        const hostname = parsedUrl.hostname.toLowerCase();
+        const lowerDomain = domain.toLowerCase();
+        if (lowerDomain.includes(":")) {
+          const [domainHost] = lowerDomain.split(":");
+          return hostname === domainHost;
+        }
+        return hostname === lowerDomain || hostname.endsWith(`.${lowerDomain}`);
+      });
+    } catch {
+      return false;
+    }
+  },
 }));
 
 // Factory function for creating test workspaces
