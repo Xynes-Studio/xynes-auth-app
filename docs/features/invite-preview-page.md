@@ -59,7 +59,7 @@ The Invite Preview Page allows users to view details about a workspace invitatio
 - Prevents unauthorized access to workspaces
 
 ## Testing
-- Comprehensive test suite with 8 test cases
+- Comprehensive test suite with 7 test cases
 - Covers all major user flows and edge cases
 - Mocks external dependencies appropriately
 - Verifies accessibility attributes

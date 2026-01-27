@@ -40,6 +40,13 @@ const BuildingIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const SpinnerIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24">
+    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  </svg>
+);
+
 interface InvitePreviewProps {
   token: string;
 }
@@ -47,7 +54,14 @@ interface InvitePreviewProps {
 export function InvitePreview({ token }: InvitePreviewProps) {
   const router = useRouter();
   const { isAuthenticated, redirectToLogin } = useAuth();
-  const { invite, isLoading, error, acceptInvite, isAccepting } = useInvite(token, process.env.NEXT_PUBLIC_API_URL!);
+
+  // Validate environment variable
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!apiBaseUrl) {
+    throw new Error('NEXT_PUBLIC_API_URL environment variable is required for InvitePreview component');
+  }
+
+  const { invite, isLoading, error, acceptInvite, isAccepting } = useInvite(token, apiBaseUrl);
   
   // If user is authenticated and invite is accepted, redirect to workspace
   useEffect(() => {
@@ -185,8 +199,8 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                     You are signed in as <span className="font-medium">{invite.inviteeEmail}</span>
                   </p>
                   
-                  <Button 
-                    className="w-full" 
+                  <Button
+                    className="w-full"
                     onClick={() => acceptInvite()}
                     disabled={isAccepting}
                     aria-describedby="workspace-name inviter-details expiry-info signed-in-as"
@@ -194,7 +208,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                     {isAccepting ? (
                       <>
                         <span className="sr-only">Loading</span>
-                        <CheckCircleIcon className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                        <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
                         Accepting...
                       </>
                     ) : (

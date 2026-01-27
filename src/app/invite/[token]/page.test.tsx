@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { renderWithProviders } from '@/test/test-utils';
 import { InvitePreview } from '@/components/invite/InvitePreview';
+import { useAuth, useInvite } from '@xynes/auth-sdk';
 
 // Mock the hooks
 vi.mock('@xynes/auth-sdk', () => ({
@@ -58,7 +59,7 @@ describe('InvitePreview', () => {
     renderWithProviders(<InvitePreview token="test-token" />);
 
     expect(screen.getByText(/Join Workspace/i)).toBeInTheDocument();
-    expect(screen.getByText(/You've been invited to join a workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/You have been invited to join a workspace/i)).toBeInTheDocument();
     expect(screen.getByTestId('loading-state')).toBeInTheDocument();
   });
 
@@ -84,7 +85,7 @@ describe('InvitePreview', () => {
     expect(screen.getByText(mockInvite.workspaceName)).toBeInTheDocument();
     expect(screen.getByText(mockInvite.inviterName)).toBeInTheDocument();
     expect(screen.getByText(mockInvite.inviterEmail)).toBeInTheDocument();
-    expect(screen.getByText(/workspace_member/i)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(mockInvite.role.replace('_', ' '), 'i'))).toBeInTheDocument();
     expect(screen.getByText(/You are signed in as/i)).toBeInTheDocument();
   });
 
@@ -110,7 +111,7 @@ describe('InvitePreview', () => {
     expect(screen.getByText(mockInvite.workspaceName)).toBeInTheDocument();
     expect(screen.getByText(mockInvite.inviterName)).toBeInTheDocument();
     expect(screen.getByText(mockInvite.inviterEmail)).toBeInTheDocument();
-    expect(screen.getByText(/workspace_member/i)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(mockInvite.role.replace('_', ' '), 'i'))).toBeInTheDocument();
     expect(screen.getByText(/Sign in to accept this invitation/i)).toBeInTheDocument();
   });
 
