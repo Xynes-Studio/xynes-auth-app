@@ -181,11 +181,11 @@ describe('InvitePreview', () => {
     expect(screen.getByText(/This invitation has been cancelled./i)).toBeInTheDocument();
   });
 
-  it('shows error when API returns an error', () => {
+  it('shows error when API returns a generic error', () => {
     const useInviteMock = vi.fn().mockReturnValue({
       invite: null,
       isLoading: false,
-      error: { code: 'invalid_invite', message: 'Invalid invite token' },
+      error: { code: 'unknown_error', message: 'Something went wrong' },
       acceptInvite: vi.fn(),
       isAccepting: false,
     });
@@ -201,6 +201,52 @@ describe('InvitePreview', () => {
     renderWithProviders(<InvitePreview token="test-token" />);
 
     expect(screen.getByTestId('error-state')).toBeInTheDocument();
+  });
+
+  it('shows customized error when invite is not found', () => {
+    const useInviteMock = vi.fn().mockReturnValue({
+      invite: null,
+      isLoading: false,
+      error: { code: 'invite_not_found', message: 'Not Found' },
+      acceptInvite: vi.fn(),
+      isAccepting: false,
+    });
+
+    const useAuthMock = vi.fn().mockReturnValue({
+      isAuthenticated: false,
+      redirectToLogin: vi.fn(),
+    });
+
+    vi.mocked(useInvite).mockImplementation(useInviteMock);
+    vi.mocked(useAuth).mockImplementation(useAuthMock);
+
+    renderWithProviders(<InvitePreview token="test-token" />);
+
+    expect(screen.getByText(/Invite Not Valid/i)).toBeInTheDocument();
+    expect(screen.getByText(/The invitation code could not be found or has expired./i)).toBeInTheDocument();
+  });
+
+  it('shows customized error when user is already a member', () => {
+    const useInviteMock = vi.fn().mockReturnValue({
+      invite: null,
+      isLoading: false,
+      error: { code: 'already_in_workspace', message: 'Already Member' },
+      acceptInvite: vi.fn(),
+      isAccepting: false,
+    });
+
+    const useAuthMock = vi.fn().mockReturnValue({
+      isAuthenticated: true,
+      redirectToLogin: vi.fn(),
+    });
+
+    vi.mocked(useInvite).mockImplementation(useInviteMock);
+    vi.mocked(useAuth).mockImplementation(useAuthMock);
+
+    renderWithProviders(<InvitePreview token="test-token" />);
+
+    expect(screen.getByRole('heading', { name: /Already a Member/i })).toBeInTheDocument();
+    expect(screen.getByText(/You are already a member of this workspace./i)).toBeInTheDocument();
   });
 
   it('calls acceptInvite when authenticated user clicks join button', async () => {

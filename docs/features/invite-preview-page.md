@@ -13,9 +13,11 @@ The Invite Preview Page allows users to view details about a workspace invitatio
 ### States Handled
 1. **Loading State**: Shows skeleton UI while fetching invite details
 2. **Valid Invite**: Displays invite details (workspace name, inviter, role, expiration)
-3. **Expired Invite**: Shows error message when invite has expired
-4. **Cancelled Invite**: Shows error message when invite has been cancelled
-5. **Error State**: Displays API errors
+3. **Expired Invite**: Shows specific error card when invite has expired
+4. **Cancelled Invite**: Shows specific error card when invite has been cancelled
+5. **Invalid/Not Found Invite**: Shows specific error card when invite is invalid or not found (404)
+6. **Already A Member**: Shows tailored success/info card when user is already a member
+7. **Error State**: Displays generic API errors for other issues
 
 ### User Flows
 1. **Authenticated User**:
