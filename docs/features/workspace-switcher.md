@@ -125,16 +125,28 @@ import {
 
 ## Testing
 
-The component includes comprehensive tests following ADR-001 testing standards:
+The component includes comprehensive tests following [ADR-001 Testing Standards](../../../lumia-ds/docs/ADR-001-testing-standards.md):
 
-- **Unit Tests**: Pure utility functions (100% coverage)
-- **Integration Tests**: Component behavior (70%+ coverage)
+### Test Tiers
 
-Run tests:
+| Tier | Type | File | Tests | Coverage |
+|------|------|------|-------|----------|
+| 1 | Unit (Pure Functions) | `workspace-switcher-utils.test.ts` | 33 | 100% |
+| 2 | Integration | `WorkspaceSwitcher.integration.test.tsx` | 29 | 99% |
+
+### Naming Conventions (per ADR-001)
+
+- Unit tests: `*.test.ts`
+- Integration tests: `*.integration.test.tsx`
+
+### Running Tests
 
 ```bash
 # Run workspace component tests
 npm test src/components/workspace/
+
+# Run SDK utility tests
+cd ../xynes-auth-sdk && npm test src/modules/workspace/
 
 # Run with coverage
 npm run test:coverage src/components/workspace/
