@@ -2,13 +2,19 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@xynes/auth-sdk';
-import { useInvite } from '@xynes/auth-sdk';
-import { Button } from '@lumia-ui/components/button/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@lumia-ui/components/card/card';
-import { Skeleton } from '@lumia-ui/components/skeleton/skeleton';
-import { Alert, AlertDescription } from '@lumia-ui/components/alert/alert';
-import { Badge } from '@lumia-ui/components/badge/badge';
+import { useAuth, useInvite } from '@xynes/auth-sdk';
+import { 
+  Button, 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardFooter, 
+  CardHeader, 
+  CardTitle,
+  Skeleton,
+  Alert,
+  Badge
+} from '@lumia-ui/components';
 import Link from 'next/link';
 
 // Using basic SVG icons since lucide-react might not be available
@@ -95,8 +101,12 @@ export function InvitePreview({ token }: InvitePreviewProps) {
             </p>
           </CardContent>
           <CardFooter className="flex flex-col gap-2">
-            <Button asChild className="w-full" aria-describedby="invite-error-desc contact-info">
-              <Link href="/">Go to Home</Link>
+            <Button 
+              className="w-full" 
+              onClick={() => router.push('/')}
+              aria-describedby="invite-error-desc contact-info"
+            >
+              Go to Home
             </Button>
             {!isAuthenticated && (
               <Button 
@@ -146,13 +156,13 @@ export function InvitePreview({ token }: InvitePreviewProps) {
             </div>
           ) : error ? (
             <Alert 
-              variant="destructive" 
+              variant="error" 
               data-testid="error-state"
               role="alert"
               aria-live="assertive"
+              description={error.message}
             >
-              <XCircleIcon className="h-4 w-4" aria-hidden="true" />
-              <AlertDescription>{error.message}</AlertDescription>
+              {/* Icon is auto-handled by Alert in lumia-ds */}
             </Alert>
           ) : invite ? (
             <div className="space-y-4">
@@ -174,7 +184,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                 
                 <div className="flex items-center gap-2 mb-4">
                   <Badge
-                    variant="secondary"
+                    variant="subtle"
                     className="capitalize"
                     aria-label={`Role: ${invite.role.replace(/_/g, ' ')}`}
                   >
@@ -204,7 +214,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                   <Button
                     className="w-full"
                     onClick={() => acceptInvite()}
-                    disabled={isAccepting}
+                    disabled={isAccepting || isLoading}
                     aria-describedby="workspace-name inviter-details expiry-info signed-in-as"
                   >
                     {isAccepting ? (
