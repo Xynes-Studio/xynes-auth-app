@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, useInvite } from '@xynes/auth-sdk';
 import { 
@@ -71,13 +70,20 @@ export function InvitePreview({ token }: InvitePreviewProps) {
 
   const { invite, isLoading, error, acceptInvite, isAccepting } = useInvite(token, apiBaseUrl);
   
-  // If user is authenticated and invite is accepted, redirect to workspace
-  useEffect(() => {
-    if (isAuthenticated && invite && invite.status === 'accepted') {
-      // Redirect to workspace dashboard or home page
-      router.push('/');
+  // Handle invite acceptance
+  const handleAccept = async () => {
+    const workspace = await acceptInvite();
+    if (workspace) {
+      const consoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL || '';
+      if (consoleUrl) {
+        // Redirect to workspace dashboard in console app
+        window.location.href = `${consoleUrl}/${workspace.slug}`;
+      } else {
+        // Fallback to home if console URL not configured
+        router.push('/');
+      }
     }
-  }, [isAuthenticated, invite, router]);
+  };
 
   // If invite is expired or cancelled, show error
   if (invite && (invite.status === 'expired' || invite.status === 'cancelled')) {
@@ -213,7 +219,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                   
                   <Button
                     className="w-full"
-                    onClick={() => acceptInvite()}
+                    onClick={handleAccept}
                     disabled={isAccepting || isLoading}
                     aria-describedby="workspace-name inviter-details expiry-info signed-in-as"
                   >
