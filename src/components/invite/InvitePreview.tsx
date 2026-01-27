@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@xynes/auth-sdk';
@@ -171,12 +173,12 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                 </div>
                 
                 <div className="flex items-center gap-2 mb-4">
-                  <Badge 
-                    variant="secondary" 
+                  <Badge
+                    variant="secondary"
                     className="capitalize"
-                    aria-label={`Role: ${invite.role.replace('_', ' ')}`}
+                    aria-label={`Role: ${invite.role.replace(/_/g, ' ')}`}
                   >
-                    {invite.role.replace('_', ' ')}
+                    {invite.role.replace(/_/g, ' ')}
                   </Badge>
                 </div>
                 
