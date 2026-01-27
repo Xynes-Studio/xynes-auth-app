@@ -33,18 +33,18 @@ This feature provides a user-friendly onboarding experience for new users to cre
 src/
 ├── app/
 │   └── onboarding/
-│       └── page.tsx                    # Onboarding page with metadata
+│       └── page.tsx                              # Onboarding page with metadata
 ├── components/
 │   └── onboarding/
-│       ├── CreateWorkspaceForm.tsx     # Main form component
-│       ├── CreateWorkspaceForm.test.tsx # Integration tests
-│       └── index.ts                    # Component exports
+│       ├── CreateWorkspaceForm.tsx               # Main form component
+│       ├── CreateWorkspaceForm.integration.test.tsx # Integration tests (ADR naming)
+│       └── index.ts                              # Component exports
 └── lib/
     └── workspace/
-        ├── validation.ts               # Pure validation functions
-        ├── validation.test.ts          # Unit tests (100% coverage)
-        ├── schemas.ts                  # Zod schemas for form validation
-        └── index.ts                    # Module exports
+        ├── validation.ts                         # Pure validation functions (Tier 1)
+        ├── validation.test.ts                    # Unit tests (100% coverage)
+        ├── schemas.ts                            # Zod schemas for form validation
+        └── index.ts                              # Module exports
 ```
 
 ### Component Flow
