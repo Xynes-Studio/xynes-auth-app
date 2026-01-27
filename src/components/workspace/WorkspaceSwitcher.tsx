@@ -20,6 +20,7 @@ import {
   formatWorkspaceRole,
   sanitizeWorkspaceSlug,
   getWorkspaceSwitcherAriaLabel,
+  isValidRedirectUrl,
 } from "@xynes/auth-sdk";
 
 /**
@@ -167,10 +168,15 @@ export function WorkspaceSwitcher({
       const targetConsoleUrl =
         consoleUrl || process.env.NEXT_PUBLIC_CONSOLE_URL;
 
-      if (targetConsoleUrl) {
+      // Security: Validate the console URL before redirecting
+      // Only allow xynes.com domains and localhost in development
+      const allowedDomains = ["xynes.com", "localhost:3000", "localhost:3001"];
+      
+      if (targetConsoleUrl && isValidRedirectUrl(targetConsoleUrl, allowedDomains)) {
         const baseUrl = targetConsoleUrl.replace(/\/$/, "");
         window.location.href = `${baseUrl}/${safeSlug}`;
       } else {
+        // Fall back to local routing if URL is invalid or not provided
         router.push(`/dashboard/${safeSlug}`);
       }
 
