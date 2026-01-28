@@ -2,6 +2,25 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(req: NextRequest) {
+  // Generate CSP Nonce
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  
+  // CSP Directives
+  const cspHeader = `
+    default-src 'self';
+    script-src 'self' 'nonce-${nonce}' https://cdn.supabase.io ${process.env.NODE_ENV === 'development' ? "'unsafe-eval'" : ''};
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+    font-src 'self';
+    connect-src 'self' https://*.supabase.co https://api.xynes.com;
+    frame-ancestors 'none';
+    base-uri 'self';
+    form-action 'self';
+    report-uri /api/csp-report;
+  `
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
   // Get existing CSRF token from cookie
   let csrfToken = req.cookies.get('csrf_token')?.value;
   const isNewToken = !csrfToken;
@@ -14,6 +33,8 @@ export async function middleware(req: NextRequest) {
   // Create request headers for downstream components (server components, layout)
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-csrf-token', csrfToken);
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', cspHeader);
 
   // Initialize response
   const response = NextResponse.next({
@@ -24,6 +45,7 @@ export async function middleware(req: NextRequest) {
 
   // Set CSRF token in header for client-side access
   response.headers.set('x-csrf-token', csrfToken);
+  response.headers.set('Content-Security-Policy', cspHeader);
 
   // Set httpOnly cookie if it's a new token
   if (isNewToken) {
