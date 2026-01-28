@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
-
 import { headers } from "next/headers";
+import { RateLimitOverlay } from "@/components/security/RateLimitOverlay";
 
 export const metadata: Metadata = {
   title: "Xynes Auth",
@@ -23,7 +23,10 @@ export default async function RootLayout({
         <meta name="csrf-token" content={csrfToken} />
       </head>
       <body className="min-h-screen bg-background antialiased">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <RateLimitOverlay />
+        </Providers>
       </body>
     </html>
   );
