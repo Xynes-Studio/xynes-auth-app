@@ -2,17 +2,38 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+
   // Generate CSP Nonce
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+  const isNonProd = process.env.NODE_ENV !== 'production';
+
+  const sources = new Set<string>([
+    "'self'",
+    'https://*.supabase.co',
+    'https://api.xynes.com',
+  ]);
+
+  for (const raw of [
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL,
+    process.env.NEXT_PUBLIC_API_URL ?? process.env.API_URL,
+  ]) {
+    if (!raw) continue;
+    try {
+      sources.add(new URL(raw).origin);
+    } catch {
+      // ignore invalid URL strings
+    }
+  }
   
   // CSP Directives
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'nonce-${nonce}' https://cdn.supabase.io ${process.env.NODE_ENV === 'development' ? "'unsafe-eval'" : ''};
+    script-src 'self' 'nonce-${nonce}' https://cdn.supabase.io ${isNonProd ? "'unsafe-eval' 'unsafe-inline'" : ''};
     style-src 'self' 'unsafe-inline';
     img-src 'self' data: https:;
     font-src 'self';
-    connect-src 'self' https://*.supabase.co https://api.xynes.com;
+    connect-src ${Array.from(sources).join(' ')};
     frame-ancestors 'none';
     base-uri 'self';
     form-action 'self';
@@ -45,17 +66,30 @@ export async function middleware(req: NextRequest) {
 
   // Set CSRF token in header for client-side access
   response.headers.set('x-csrf-token', csrfToken);
+  response.headers.set('x-nonce', nonce);
   response.headers.set('Content-Security-Policy', cspHeader);
 
   // Set httpOnly cookie if it's a new token
   if (isNewToken) {
+    const hostname = req.nextUrl.hostname;
+    const shouldSetDomain =
+      hostname !== 'localhost' &&
+      hostname !== '127.0.0.1' &&
+      hostname !== '::1';
     response.cookies.set('csrf_token', csrfToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       path: '/',
-      domain: process.env.COOKIE_DOMAIN || '.xynes.com',
+      ...(shouldSetDomain
+        ? { domain: process.env.COOKIE_DOMAIN || '.xynes.com' }
+        : {}),
     });
+  }
+
+  // CSP violation reports are fire-and-forget from the browser and won't include CSRF headers.
+  if (pathname === '/api/csp-report') {
+    return response;
   }
 
   // Validate CSRF token for state-changing methods
