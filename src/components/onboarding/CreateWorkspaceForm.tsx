@@ -79,7 +79,8 @@ export function CreateWorkspaceForm({
     formState: { errors, isValid },
   } = useForm<CreateWorkspaceFormData>({
     resolver: zodResolver(createWorkspaceFormSchema),
-    mode: "onBlur",
+    mode: "onTouched",
+    reValidateMode: "onChange",
     defaultValues: {
       name: "",
       slug: "",
@@ -88,6 +89,16 @@ export function CreateWorkspaceForm({
 
   const nameValue = watch("name");
   const slugValue = watch("slug");
+  const slugField = register("slug");
+
+  /**
+   * Get access token for API calls
+   */
+  const getAccessToken = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  }, []);
 
   /**
    * Check slug availability via API
@@ -110,12 +121,13 @@ export function CreateWorkspaceForm({
       slugCheckAbortController.current = new AbortController();
 
       try {
+        const token = await getAccessToken();
         const response = await fetch(
           `${apiBaseUrl}/workspaces/check-slug/${slug}`,
           {
             method: "GET",
             headers: {
-              "Content-Type": "application/json",
+              ...(token && { Authorization: `Bearer ${token}` }),
             },
             signal: slugCheckAbortController.current.signal,
           }
@@ -135,7 +147,7 @@ export function CreateWorkspaceForm({
         setSlugStatus("error");
       }
     },
-    [apiBaseUrl]
+    [apiBaseUrl, getAccessToken]
   );
 
   // Debounced slug availability check
@@ -174,15 +186,6 @@ export function CreateWorkspaceForm({
     },
     [setValue]
   );
-
-  /**
-   * Get access token for API calls
-   */
-  const getAccessToken = useCallback(async () => {
-    const supabase = createClient();
-    const { data } = await supabase.auth.getSession();
-    return data.session?.access_token ?? null;
-  }, []);
 
   /**
    * Handle form submission
@@ -411,6 +414,7 @@ export function CreateWorkspaceForm({
                   type="text"
                   placeholder="your-workspace"
                   autoComplete="off"
+                  {...slugField}
                   className={`w-full rounded-r-md border px-3 py-2 text-sm shadow-sm transition-colors
                     focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
                     ${
@@ -422,7 +426,10 @@ export function CreateWorkspaceForm({
                   aria-describedby="slug-rules slug-error slug-status"
                   value={slugValue}
                   onChange={handleSlugChange}
-                  onBlur={() => trigger("slug")}
+                  onBlur={(e) => {
+                    slugField.onBlur(e);
+                    void trigger("slug");
+                  }}
                 />
               </div>
 
@@ -457,6 +464,27 @@ export function CreateWorkspaceForm({
             >
               Create Workspace
             </Button>
+
+            {/* Disabled-state hint */}
+            {(isSubmitDisabled && !isSubmitting) && (
+              <div
+                className={`text-xs ${
+                  slugStatus === "unavailable" || errors.name || errors.slug
+                    ? "text-red-600"
+                    : slugStatus === "checking"
+                    ? "text-muted-foreground"
+                    : "text-muted-foreground"
+                }`}
+                role="status"
+                aria-live="polite"
+              >
+                {slugStatus === "checking"
+                  ? "Checking workspace URL availability…"
+                  : slugStatus === "unavailable"
+                  ? "That workspace URL isn’t available."
+                  : "Fix the highlighted fields above to enable workspace creation."}
+              </div>
+            )}
           </form>
 
           {/* Have an invite link */}
