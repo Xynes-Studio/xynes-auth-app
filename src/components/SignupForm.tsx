@@ -53,7 +53,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
                   }/callback?redirect=${encodeURIComponent(redirectUrl)}`
                 : `${window.location.origin}/callback`,
             },
-          }
+          },
         );
 
         if (authError) {
@@ -72,7 +72,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
         setIsLoading(false);
       }
     },
-    [onSuccess, redirectUrl]
+    [onSuccess, redirectUrl],
   );
 
   const handleOAuthSignup = useCallback(
@@ -104,7 +104,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
         setIsLoading(false);
       }
     },
-    [redirectUrl]
+    [redirectUrl],
   );
 
   return (
