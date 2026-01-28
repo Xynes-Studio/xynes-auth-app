@@ -125,6 +125,13 @@ describe("SignupForm", () => {
   });
 
   describe("form submission", () => {
+    it("should use POST method to avoid leaking credentials in URL", () => {
+      const { container } = render(<SignupForm />);
+      const form = container.querySelector("form");
+      expect(form).toBeTruthy();
+      expect(form).toHaveAttribute("method", "post");
+    });
+
     it("should call onSuccess when signup succeeds with email verification", async () => {
       const onSuccess = vi.fn();
       mockSignUp.mockResolvedValueOnce({

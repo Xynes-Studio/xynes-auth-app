@@ -116,7 +116,14 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit(handleSignup)} className="space-y-4">
+      <form
+        method="post"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleSubmit(handleSignup)(e);
+        }}
+        className="space-y-4"
+      >
         <div className="space-y-2">
           <label
             htmlFor="email"
