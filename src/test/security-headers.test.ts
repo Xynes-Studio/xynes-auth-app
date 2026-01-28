@@ -30,5 +30,8 @@ describe('Security Headers', () => {
     expect(headerMap['Permissions-Policy']).toContain('microphone=()');
     expect(headerMap['Permissions-Policy']).toContain('geolocation=()');
     expect(headerMap['Permissions-Policy']).toContain('payment=()');
+
+    // Check Cross-Origin-Embedder-Policy uses credentialless for better third-party compatibility
+    expect(headerMap['Cross-Origin-Embedder-Policy']).toBe('credentialless');
   });
 });

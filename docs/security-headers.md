@@ -49,8 +49,8 @@ This document outlines the security headers implemented across the Xynes platfor
 
 ### 8. Cross-Origin-Embedder-Policy (COEP)
 - **Location**: `next.config.mjs` and `next.config.ts`
-- **Value**: `require-corp`
-- **Purpose**: Prevents cross-origin information leakage by requiring CORP/COEP headers
+- **Value**: `credentialless`
+- **Purpose**: Prevents cross-origin information leakage while allowing third-party resources that don't send CORP headers
 
 ### 9. Cross-Origin-Opener-Policy (COOP)
 - **Location**: `next.config.mjs` and `next.config.ts`
