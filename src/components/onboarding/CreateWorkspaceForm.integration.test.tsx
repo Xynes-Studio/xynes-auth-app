@@ -299,6 +299,55 @@ describe("CreateWorkspaceForm", () => {
       });
     });
 
+    it("should redirect to external console URL on success when NEXT_PUBLIC_CONSOLE_URL is set", async () => {
+      const previousConsoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL;
+      process.env.NEXT_PUBLIC_CONSOLE_URL = "https://console.test.com";
+      const assignSpy = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => {});
+
+      try {
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({ available: true }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                id: "workspace-123",
+                name: "My Team",
+                slug: "my-team",
+              }),
+          });
+
+        render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
+
+        const nameInput = screen.getByLabelText(/workspace name/i);
+        await user.type(nameInput, "My Team");
+
+        await waitFor(() => {
+          expect(screen.getByText(/is available/i)).toBeInTheDocument();
+        });
+
+        const submitButton = screen.getByRole("button", {
+          name: /create workspace/i,
+        });
+        await user.click(submitButton);
+
+        await waitFor(() => {
+          expect(assignSpy).toHaveBeenCalledWith(
+            "https://console.test.com/my-team"
+          );
+        });
+        expect(mockPush).not.toHaveBeenCalled();
+      } finally {
+        process.env.NEXT_PUBLIC_CONSOLE_URL = previousConsoleUrl;
+        assignSpy.mockRestore();
+      }
+    });
+
     it("should show error on 409 duplicate slug", async () => {
       mockFetch
         .mockResolvedValueOnce({

@@ -228,9 +228,15 @@ export function CreateWorkspaceForm({
         onSuccess?.(workspace);
 
         // Calculate default target (workspace console)
-        const defaultTarget = `${process.env.NEXT_PUBLIC_CONSOLE_URL || ""}/${
-          workspace.slug
-        }`;
+        const consoleBaseUrl = (
+          process.env.NEXT_PUBLIC_CONSOLE_URL ||
+          process.env.NEXT_PUBLIC_CMS_CONSOLE_URL ||
+          ""
+        ).replace(/\/$/, "");
+
+        const defaultTarget = consoleBaseUrl
+          ? `${consoleBaseUrl}/${workspace.slug}`
+          : `/${workspace.slug}`;
 
         // Determine final redirect URL
         // If a redirectUrl is provided, we must validate it to prevent open redirects
@@ -242,7 +248,13 @@ export function CreateWorkspaceForm({
             )
           : defaultTarget;
 
-        router.push(targetUrl);
+        // next/navigation router.push is intended for in-app navigation.
+        // Use a hard navigation for absolute URLs (e.g., redirecting to the console app).
+        if (/^https?:\/\//i.test(targetUrl) || targetUrl.startsWith("//")) {
+          window.location.assign(targetUrl);
+        } else {
+          router.push(targetUrl);
+        }
       } catch (error) {
         setSubmitError("An unexpected error occurred. Please try again.");
         // Log the actual error to console for debugging, but don't show to user
