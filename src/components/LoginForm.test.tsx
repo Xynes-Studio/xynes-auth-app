@@ -52,6 +52,14 @@ describe("LoginForm", () => {
       ).toBeInTheDocument();
     });
 
+    it("should cap password input with a maxLength", () => {
+      renderWithProviders(<LoginForm />);
+      expect(screen.getByLabelText(/password/i)).toHaveAttribute(
+        "maxLength",
+        "256"
+      );
+    });
+
     it("should render OAuth buttons", () => {
       renderWithProviders(<LoginForm />);
 
@@ -120,6 +128,26 @@ describe("LoginForm", () => {
 
       await waitFor(() => {
         expect(screen.getByText(/password is required/i)).toBeInTheDocument();
+      });
+    });
+
+    it("should reject overly long password and block submission", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<LoginForm />);
+
+      const longPassword = "A1a".padEnd(129, "x");
+      await user.type(screen.getByLabelText(/email/i), "test@example.com");
+      await user.type(screen.getByLabelText(/password/i), longPassword);
+      await user.tab(); // Trigger blur validation
+
+      await waitFor(() => {
+        expect(screen.getByText(/128/i)).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(mockSignInWithPassword).not.toHaveBeenCalled();
       });
     });
   });

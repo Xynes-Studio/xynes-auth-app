@@ -202,6 +202,13 @@ This pattern ensures:
 - No code duplication
 - Easier updates and maintenance
 
+### Password Length Guardrails
+
+We enforce a backend-aligned password max length at the form-validation layer, and additionally cap UI input size to avoid absurd payloads:
+
+- Validation max (`MAX_PASSWORD_LENGTH`): **128** characters (inline error + submit blocked)
+- UI input cap (`MAX_PASSWORD_INPUT_LENGTH`): **256** characters (HTML `maxLength`)
+
 ## Testing
 
 Following ADR-001 testing standards with 80%+ coverage target.
