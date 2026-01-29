@@ -7,6 +7,8 @@ import {
   validatePassword,
 } from "./index";
 
+const MAX_PASSWORD_LENGTH = 128;
+
 describe("signupFormSchema", () => {
   it("should validate correct signup data", () => {
     const result = signupFormSchema.safeParse({
@@ -105,6 +107,20 @@ describe("signupFormSchema", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("should reject overly long passwords", () => {
+    const longPassword = "A1a".padEnd(MAX_PASSWORD_LENGTH + 1, "x");
+    const result = signupFormSchema.safeParse({
+      email: "test@example.com",
+      password: longPassword,
+      confirmPassword: longPassword,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toContain("128");
+    }
+  });
 });
 
 describe("loginFormSchema", () => {
@@ -135,6 +151,19 @@ describe("loginFormSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("should reject overly long passwords", () => {
+    const longPassword = "A1a".padEnd(MAX_PASSWORD_LENGTH + 1, "x");
+    const result = loginFormSchema.safeParse({
+      email: "test@example.com",
+      password: longPassword,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0].message).toContain("128");
+    }
   });
 });
 
