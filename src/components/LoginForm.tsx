@@ -5,7 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@lumia-ui/components";
 import { useOAuthProviders } from "@xynes/auth-sdk";
-import { loginFormSchema, type LoginFormData } from "@/lib/validation";
+import {
+  loginFormSchema,
+  type LoginFormData,
+  MAX_PASSWORD_LENGTH,
+  MAX_PASSWORD_INPUT_LENGTH,
+} from "@/lib/validation";
 import { normalizeAuthError, type AuthError } from "@/lib/errors";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { OAuthButtons, AuthDivider, AuthErrorAlert } from "./ui";
@@ -23,6 +28,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
   const {
     register,
     handleSubmit,
+    trigger,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginFormSchema),
@@ -124,13 +130,19 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
             type="password"
             placeholder="Enter your password"
             autoComplete="current-password"
+            maxLength={MAX_PASSWORD_INPUT_LENGTH}
             aria-invalid={!!errors.password}
             aria-describedby={errors.password ? "password-error" : undefined}
             className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.password ? "border-red-500" : "border-gray-300"
             }`}
             {...register("password", {
-              onChange: clearError,
+              onChange: (e) => {
+                clearError();
+                if (e.target.value.length > MAX_PASSWORD_LENGTH) {
+                  void trigger("password");
+                }
+              },
             })}
           />
           {errors.password && (

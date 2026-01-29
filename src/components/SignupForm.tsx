@@ -9,6 +9,8 @@ import {
   type SignupFormData,
   getPasswordStrength,
   PASSWORD_STRENGTH_CONFIG,
+  MAX_PASSWORD_LENGTH,
+  MAX_PASSWORD_INPUT_LENGTH,
 } from "@/lib/validation";
 import { normalizeAuthError, type AuthError } from "@/lib/errors";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
@@ -26,6 +28,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
   const {
     register,
     handleSubmit,
+    trigger,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupFormSchema),
@@ -136,13 +139,17 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
             type="email"
             placeholder="you@example.com"
             autoComplete="email"
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? "email-error" : undefined}
             className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.email ? "border-red-500" : "border-gray-300"
             }`}
             {...register("email")}
           />
           {errors.email && (
-            <p className="text-sm text-red-600">{errors.email.message}</p>
+            <p id="email-error" className="text-sm text-red-600">
+              {errors.email.message}
+            </p>
           )}
         </div>
 
@@ -158,15 +165,26 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
             type="password"
             placeholder="Create a strong password"
             autoComplete="new-password"
+            maxLength={MAX_PASSWORD_INPUT_LENGTH}
+            aria-invalid={!!errors.password}
+            aria-describedby={errors.password ? "password-error" : undefined}
             className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.password ? "border-red-500" : "border-gray-300"
             }`}
             {...register("password", {
-              onChange: (e) => setPasswordValue(e.target.value),
+              onChange: (e) => {
+                const nextValue = e.target.value;
+                setPasswordValue(nextValue);
+                if (nextValue.length > MAX_PASSWORD_LENGTH) {
+                  void trigger("password");
+                }
+              },
             })}
           />
           {errors.password && (
-            <p className="text-sm text-red-600">{errors.password.message}</p>
+            <p id="password-error" className="text-sm text-red-600">
+              {errors.password.message}
+            </p>
           )}
           {passwordValue && (
             <div className="space-y-1">
@@ -198,13 +216,18 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
             type="password"
             placeholder="Confirm your password"
             autoComplete="new-password"
+            maxLength={MAX_PASSWORD_INPUT_LENGTH}
+            aria-invalid={!!errors.confirmPassword}
+            aria-describedby={
+              errors.confirmPassword ? "confirmPassword-error" : undefined
+            }
             className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
               errors.confirmPassword ? "border-red-500" : "border-gray-300"
             }`}
             {...register("confirmPassword")}
           />
           {errors.confirmPassword && (
-            <p className="text-sm text-red-600">
+            <p id="confirmPassword-error" className="text-sm text-red-600">
               {errors.confirmPassword.message}
             </p>
           )}
