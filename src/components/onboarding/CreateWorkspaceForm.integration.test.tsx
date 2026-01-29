@@ -264,6 +264,44 @@ describe("CreateWorkspaceForm", () => {
       });
     });
 
+    it("should handle gateway envelope response and redirect using workspace slug", async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ available: true }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              ok: true,
+              data: {
+                id: "workspace-123",
+                name: "My Team",
+                slug: "my-team",
+              },
+            }),
+        });
+
+      render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
+
+      const nameInput = screen.getByLabelText(/workspace name/i);
+      await user.type(nameInput, "My Team");
+
+      await waitFor(() => {
+        expect(screen.getByText(/is available/i)).toBeInTheDocument();
+      });
+
+      const submitButton = screen.getByRole("button", {
+        name: /create workspace/i,
+      });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/my-team");
+      });
+    });
+
     it("should redirect to workspace dashboard on success", async () => {
       mockFetch
         .mockResolvedValueOnce({
