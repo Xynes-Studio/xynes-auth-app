@@ -35,6 +35,19 @@ describe("SignupForm", () => {
       ).toBeInTheDocument();
     });
 
+    it("should cap password inputs with a maxLength", () => {
+      render(<SignupForm />);
+
+      expect(screen.getByLabelText(/^password$/i)).toHaveAttribute(
+        "maxLength",
+        "256"
+      );
+      expect(screen.getByLabelText(/confirm password/i)).toHaveAttribute(
+        "maxLength",
+        "256"
+      );
+    });
+
     it("should render OAuth buttons", () => {
       render(<SignupForm />);
 
@@ -97,6 +110,29 @@ describe("SignupForm", () => {
 
       await waitFor(() => {
         expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument();
+      });
+    });
+
+    it("should reject overly long password with inline validation and block submission", async () => {
+      const user = userEvent.setup();
+      render(<SignupForm />);
+
+      const longPassword = "A1a".padEnd(129, "x");
+      await user.type(screen.getByLabelText(/^password$/i), longPassword);
+      await user.type(screen.getByLabelText(/confirm password/i), longPassword);
+      await user.tab(); // Trigger blur validation
+
+      await waitFor(() => {
+        expect(
+          screen.getAllByText(/password must be at most 128 characters/i)
+        ).toHaveLength(2);
+      });
+
+      await user.type(screen.getByLabelText(/email/i), "test@example.com");
+      await user.click(screen.getByRole("button", { name: /create account/i }));
+
+      await waitFor(() => {
+        expect(mockSignUp).not.toHaveBeenCalled();
       });
     });
   });
