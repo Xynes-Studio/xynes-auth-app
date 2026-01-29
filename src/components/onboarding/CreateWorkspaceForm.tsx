@@ -222,10 +222,28 @@ export function CreateWorkspaceForm({
           return;
         }
 
-        const workspace: Workspace = await response.json();
+        const payload: unknown = await response.json();
+        const workspace = (
+          (payload as { data?: { data?: Workspace; slug?: string } }).data?.data ??
+          (payload as { data?: Workspace }).data ??
+          payload
+        ) as Partial<Workspace>;
+
+        // Defensive: gateway responses may be wrapped; always ensure we have a slug for redirects.
+        const workspaceSlug = workspace.slug ?? data.slug;
+        if (!workspaceSlug) {
+          setSubmitError("Failed to create workspace. Please try again.");
+          return;
+        }
+
+        const resolvedWorkspace: Workspace = {
+          id: workspace.id ?? "",
+          name: workspace.name ?? data.name.trim(),
+          slug: workspaceSlug,
+        };
 
         // Call success callback if provided
-        onSuccess?.(workspace);
+        onSuccess?.(resolvedWorkspace);
 
         // Calculate default target (workspace console)
         const consoleBaseUrl = (
@@ -235,8 +253,8 @@ export function CreateWorkspaceForm({
         ).replace(/\/$/, "");
 
         const defaultTarget = consoleBaseUrl
-          ? `${consoleBaseUrl}/${workspace.slug}`
-          : `/${workspace.slug}`;
+          ? `${consoleBaseUrl}/${resolvedWorkspace.slug}`
+          : `/${resolvedWorkspace.slug}`;
 
         // Determine final redirect URL
         // If a redirectUrl is provided, we must validate it to prevent open redirects
