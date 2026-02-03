@@ -33,10 +33,6 @@ This is a Next.js 15 application that serves as the centralized authentication h
 - [x] Redirect to `?redirect=` param or default route
 - [x] Form accessibility (labels, focus, keyboard nav)
 - [x] 99% test coverage
-
-│   ├── feature-flags/      # Feature flag overrides (Tier 1)
-│   │   ├── overrides.ts          # Deterministic local overrides
-│   │   └── overrides.test.ts     # Unit tests
 ### Story 3: OAuth Login with Feature Flags (AUTH-FE-1.5) ✅
 
 - [x] Dynamic feature flags integration via `@xynes/auth-sdk`

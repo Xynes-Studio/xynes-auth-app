@@ -64,7 +64,7 @@ Rules:
 
 - Follow the three-tier testing architecture (Tier 1 = 100%, Tier 2 = 70%, Tier 3 = smoke).
 - Overall coverage target: **80%** minimum.
-- See [docs/TESTING.md](TESTING.md) and [ADR-001](../../lumia-ds/docs/ADR-001-testing-standards.md).
+- See [docs/TESTING.md](TESTING.md).
 
 ## Linting
 
