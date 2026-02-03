@@ -99,7 +99,9 @@ function ResetPasswordContent() {
   const [state, setState] = useState<
     "loading" | "ready" | "invalid" | "needs_email"
   >("loading");
-  const [debugInfo, setDebugInfo] = useState<ResetPasswordDebugInfo | null>(null);
+  const [debugInfo, setDebugInfo] = useState<ResetPasswordDebugInfo | null>(
+    null,
+  );
   const [emailForOtp, setEmailForOtp] = useState("");
   const [emailVerifyError, setEmailVerifyError] = useState(false);
   const [emailVerifyLoading, setEmailVerifyLoading] = useState(false);
@@ -405,7 +407,13 @@ function ResetPasswordContent() {
 }
 
 function ResetPasswordLoading() {
-  return <AuthPageSkeleton title="Loading reset password" showForm={true} showOAuth={false} />;
+  return (
+    <AuthPageSkeleton
+      title="Loading reset password"
+      showForm={true}
+      showOAuth={false}
+    />
+  );
 }
 
 export default function ResetPasswordPage() {

@@ -74,7 +74,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
         setIsLoading(false);
       }
     },
-    [authDebug, onSuccess]
+    [authDebug, onSuccess],
   );
 
   const handleFormSubmit = useCallback(
@@ -83,7 +83,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
       event.stopPropagation();
       void handleSubmit(handleLogin)(event);
     },
-    [handleSubmit, handleLogin]
+    [handleSubmit, handleLogin],
   );
 
   const handleKeyDown = useCallback(
@@ -92,7 +92,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
       event.preventDefault();
       void handleSubmit(handleLogin)();
     },
-    [handleSubmit, handleLogin]
+    [handleSubmit, handleLogin],
   );
 
   useEffect(() => {
