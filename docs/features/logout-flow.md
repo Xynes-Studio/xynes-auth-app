@@ -2,7 +2,7 @@
 
 > **Story:** AUTH-FE-1.7  
 > **Status:** Complete  
-> **Last Updated:** 2026-01-06
+> **Last Updated:** 2026-02-03
 
 ## Overview
 
@@ -199,6 +199,18 @@ Errors during logout don't expose sensitive information:
 - Supabase errors are logged but don't fail the logout
 - Cookie clearing errors are handled individually
 - Users are always redirected (even on errors)
+
+### 5. Reverse Proxy / Port Forwarding Safe Origin
+
+The route handler must use an **absolute** URL with `NextResponse.redirect()`.
+In local dev or behind a reverse proxy, `request.url` can reflect an internal
+origin (e.g., `http://localhost:3000`) even when the user is visiting via a
+different public port (e.g., `http://localhost:3100`).
+
+The server computes a safe public origin with these rules:
+- Prefer an explicit configured public auth URL origin (if set).
+- Otherwise, accept `x-forwarded-host` / `x-forwarded-proto` only when the host matches an allowlist.
+- Disallowed/malformed forwarded values are ignored and the handler falls back safely.
 
 ## Testing
 

@@ -24,6 +24,7 @@ import {
   getSupabaseCookieNames,
 } from "@/lib/logout";
 import { getAllowedRedirectDomains } from "@/lib/redirect";
+import { getEffectiveOrigin } from "@/lib/http/origin";
 
 /**
  * Performs the logout operation.
@@ -32,7 +33,8 @@ import { getAllowedRedirectDomains } from "@/lib/redirect";
  * @returns NextResponse with redirect to login page
  */
 async function performLogout(request: Request): Promise<NextResponse> {
-  const { searchParams, origin } = new URL(request.url);
+  const url = new URL(request.url);
+  const { searchParams } = url;
   const redirectParam = searchParams.get("redirect");
 
   // Get allowed domains and validate redirect
@@ -40,15 +42,13 @@ async function performLogout(request: Request): Promise<NextResponse> {
   const safeRedirect = getPostLogoutRedirectUrl(
     redirectParam,
     "",
-    allowedDomains
+    allowedDomains,
   );
 
-  // Build the final redirect URL using the utility
-  // After logout, redirect to /login with the original redirect preserved
-  const redirectUrl = buildLogoutRedirectUrl(
-    origin,
-    safeRedirect || undefined
-  );
+  // NextResponse.redirect requires an absolute URL. Compute an effective
+  // public origin safely (prefer configured origin, else allowlisted headers).
+  const origin = getEffectiveOrigin(request.url, request.headers);
+  const redirectUrl = buildLogoutRedirectUrl(origin, safeRedirect || undefined);
 
   // Create Supabase client and sign out
   try {

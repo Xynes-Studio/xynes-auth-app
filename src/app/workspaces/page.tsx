@@ -1,38 +1,51 @@
 "use client";
 
-import { useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, useWorkspace, AuthGuard } from "@xynes/auth-sdk";
 import { WorkspaceSelector } from "@/components/workspace/WorkspaceSelector";
+import { getAllowedRedirectDomains, getSafeRedirectUrl } from "@/lib/redirect";
 
 export default function WorkspaceSelectorPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { workspaces, isLoading: isAuthLoading } = useAuth();
   const { selectWorkspace, isLoading: isWorkspaceLoading } = useWorkspace();
+  const [isSelecting, setIsSelecting] = useState(false);
+  const selectionInFlightRef = useRef(false);
 
   const handleSelect = useCallback(
     (workspaceId: string) => {
+      if (selectionInFlightRef.current) return;
+      selectionInFlightRef.current = true;
+      setIsSelecting(true);
+
       selectWorkspace(workspaceId);
       // Navigation strategy: The WorkspaceProvider stores the ID in cookie/local.
       const ws = workspaces.find((w) => w.id === workspaceId);
       if (ws) {
-        // Sanitize slug (Defense in Depth)
-        const safeSlug = ws.slug.replace(/[^a-z0-9-]/g, "");
+        // Only redirect externally (e.g., CMS portal) when an explicit redirect is provided.
+        const allowedDomains = getAllowedRedirectDomains();
+        const redirectParam = searchParams.get("redirect");
+        const safeRedirect = getSafeRedirectUrl(
+          redirectParam?.trim() ?? "",
+          "",
+          allowedDomains,
+        ).trim();
 
-        // Redirect to the console/dashboard for this workspace
-        const consoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL;
-
-        if (consoleUrl) {
-          // Ensure no double slashes
-          const baseUrl = consoleUrl.replace(/\/$/, "");
-          window.location.href = `${baseUrl}/${safeSlug}`;
+        if (safeRedirect) {
+          // Use a hard navigation for absolute URLs (e.g., CMS portal).
+          if (safeRedirect.startsWith("/") && !safeRedirect.startsWith("//")) {
+            router.push(safeRedirect);
+          } else {
+            window.location.assign(safeRedirect);
+          }
         } else {
-          // Fallback to local route for testing
-          router.push(`/dashboard/${safeSlug}`);
+          router.push("/workspaces/selected");
         }
       }
     },
-    [selectWorkspace, workspaces, router],
+    [selectWorkspace, workspaces, router, searchParams],
   );
 
   const handleCreateNew = useCallback(() => {
@@ -56,7 +69,10 @@ export default function WorkspaceSelectorPage() {
             workspaces={workspaces}
             onSelect={handleSelect}
             onCreateNew={handleCreateNew}
-            isLoading={isAuthLoading || isWorkspaceLoading}
+            isLoading={isAuthLoading || isWorkspaceLoading || isSelecting}
+            loadingText={
+              isSelecting ? "Selecting workspace..." : "Loading workspaces..."
+            }
           />
         </div>
       </div>

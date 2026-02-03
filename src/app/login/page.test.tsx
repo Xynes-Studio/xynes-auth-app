@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // Mock next/navigation
+const mockReplace = vi.fn();
 const mockPush = vi.fn();
 let redirectValue: string | null = "https://cms.xynes.com/dashboard";
 let errorValue: string | null = null;
@@ -15,8 +16,25 @@ vi.mock("next/navigation", () => ({
     }),
   }),
   useRouter: () => ({
+    replace: mockReplace,
     push: mockPush,
   }),
+}));
+
+type AuthState = {
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  workspaces: Array<{ slug?: string }>;
+};
+
+let authState: AuthState = {
+  isAuthenticated: false,
+  isLoading: false,
+  workspaces: [],
+};
+
+vi.mock("@xynes/auth-sdk", () => ({
+  useAuth: () => authState,
 }));
 
 // Mock LoginForm component
@@ -36,11 +54,6 @@ vi.mock("@/components/LoginForm", () => ({
   ),
 }));
 
-// Mock getSafeRedirectUrl
-vi.mock("@/lib/redirect", () => ({
-  getSafeRedirectUrl: vi.fn((url, defaultUrl) => url || defaultUrl),
-}));
-
 // Import the component after mocks are set up
 import LoginPage from "./page";
 
@@ -49,6 +62,11 @@ describe("LoginPage", () => {
     vi.clearAllMocks();
     redirectValue = "https://cms.xynes.com/dashboard";
     errorValue = null;
+    authState = {
+      isAuthenticated: false,
+      isLoading: false,
+      workspaces: [],
+    };
   });
 
   describe("rendering", () => {
@@ -129,6 +147,72 @@ describe("LoginPage", () => {
       });
 
       // Restore
+      Object.defineProperty(window, "location", {
+        value: originalLocation,
+        writable: true,
+      });
+    });
+  });
+
+  describe("authenticated redirect", () => {
+    it("should redirect authenticated user with 0 workspaces to onboarding", async () => {
+      redirectValue = null;
+      authState = {
+        isAuthenticated: true,
+        isLoading: false,
+        workspaces: [],
+      };
+
+      render(<LoginPage />);
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/onboarding");
+      });
+    });
+
+    it("should redirect authenticated user with 2+ workspaces to selector", async () => {
+      redirectValue = null;
+      authState = {
+        isAuthenticated: true,
+        isLoading: false,
+        workspaces: [{ slug: "ws-1" }, { slug: "ws-2" }],
+      };
+
+      render(<LoginPage />);
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/workspaces");
+      });
+    });
+
+    it("should redirect authenticated user with 1 workspace to console when configured", async () => {
+      redirectValue = null;
+      const originalConsoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL;
+      process.env.NEXT_PUBLIC_CONSOLE_URL = "https://cms.xynes.com";
+
+      // Mock window.location.assign
+      const originalLocation = window.location;
+      const assign = vi.fn();
+      Object.defineProperty(window, "location", {
+        value: { ...originalLocation, assign },
+        writable: true,
+      });
+
+      authState = {
+        isAuthenticated: true,
+        isLoading: false,
+        workspaces: [{ slug: "My Workspace!" }],
+      };
+
+      render(<LoginPage />);
+
+      await waitFor(() => {
+        expect(assign).toHaveBeenCalledWith(
+          "https://cms.xynes.com/myworkspace",
+        );
+      });
+
+      process.env.NEXT_PUBLIC_CONSOLE_URL = originalConsoleUrl;
       Object.defineProperty(window, "location", {
         value: originalLocation,
         writable: true,

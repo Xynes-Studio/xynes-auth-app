@@ -1,20 +1,14 @@
 "use client";
 
-import { Suspense, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, Alert } from "@lumia-ui/components";
 import { LoginForm } from "@/components/LoginForm";
 import { AuthPageSkeleton } from "@/components/ui";
-import { getSafeRedirectUrl } from "@/lib/redirect";
+import { useAuth } from "@xynes/auth-sdk";
+import { getAllowedRedirectDomains, getSafeRedirectUrl } from "@/lib/redirect";
 import { getOAuthErrorMessage } from "@/lib/oauth/errors";
-
-/**
- * Allowed redirect domains for security validation.
- * Prevents open redirect attacks.
- */
-const ALLOWED_REDIRECT_DOMAINS = (
-  process.env.NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS || "xynes.com,localhost:3000"
-).split(",");
+import { determinePostLoginDestination } from "@/lib/auth/post-login-destination";
 
 /**
  * Default redirect URL after successful login.
@@ -22,15 +16,19 @@ const ALLOWED_REDIRECT_DOMAINS = (
 const DEFAULT_REDIRECT = "/workspaces";
 
 function LoginContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAuthenticated, isLoading: isAuthLoading, workspaces } = useAuth();
   const redirectParam = searchParams.get("redirect");
   const errorParam = searchParams.get("error");
+
+  const allowedDomains = useMemo(() => getAllowedRedirectDomains(), []);
 
   // Validate redirect URL to prevent open redirect attacks
   const redirectUrl = getSafeRedirectUrl(
     redirectParam || "",
     DEFAULT_REDIRECT,
-    ALLOWED_REDIRECT_DOMAINS,
+    allowedDomains,
   );
 
   const oauthErrorMessage = errorParam
@@ -41,6 +39,46 @@ function LoginContent() {
     // Redirect to the validated URL after successful login
     window.location.href = redirectUrl;
   }, [redirectUrl]);
+
+  useEffect(() => {
+    if (isAuthLoading) return;
+    if (!isAuthenticated) return;
+
+    const consoleBaseUrl =
+      process.env.NEXT_PUBLIC_CONSOLE_URL ||
+      process.env.NEXT_PUBLIC_CMS_CONSOLE_URL ||
+      "";
+
+    const destination = determinePostLoginDestination({
+      workspaces: workspaces ?? [],
+      redirectParam,
+      consoleBaseUrl,
+      allowedRedirectDomains: allowedDomains,
+    });
+
+    if (/^https?:\/\//i.test(destination) || destination.startsWith("//")) {
+      window.location.assign(destination);
+    } else {
+      router.replace(destination);
+    }
+  }, [
+    isAuthenticated,
+    isAuthLoading,
+    workspaces,
+    redirectParam,
+    allowedDomains,
+    router,
+  ]);
+
+  if (isAuthLoading || isAuthenticated) {
+    return (
+      <AuthPageSkeleton
+        title={isAuthenticated ? "Redirecting" : "Loading login"}
+        showForm={false}
+        showOAuth={false}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted/30 p-4">

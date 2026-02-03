@@ -22,7 +22,7 @@ vi.mock("@/lib/supabase/server", () => ({
       auth: {
         signOut: () => mockSignOut(),
       },
-    })
+    }),
   ),
 }));
 
@@ -33,7 +33,7 @@ vi.mock("next/headers", () => ({
       getAll: () => mockGetAll(),
       set: (...args: unknown[]) => mockSet(...args),
       delete: (...args: unknown[]) => mockDelete(...args),
-    })
+    }),
   ),
 }));
 
@@ -44,7 +44,8 @@ vi.mock("@/lib/redirect", () => ({
     if (url.startsWith("/") && !url.startsWith("//")) return true;
     // Reject dangerous protocols
     const lower = url.toLowerCase();
-    if (lower.startsWith("javascript:") || lower.startsWith("data:")) return false;
+    if (lower.startsWith("javascript:") || lower.startsWith("data:"))
+      return false;
     try {
       const parsedUrl = new URL(url);
       const hostname = parsedUrl.hostname.toLowerCase();
@@ -62,31 +63,36 @@ vi.mock("@/lib/redirect", () => ({
       return false;
     }
   }),
-  getSafeRedirectUrl: vi.fn((url: string, defaultUrl: string, domains: string[]) => {
-    if (!url) return defaultUrl;
-    if (url.startsWith("/") && !url.startsWith("//")) return url;
-    // Reject dangerous protocols
-    const lower = url.toLowerCase();
-    if (lower.startsWith("javascript:") || lower.startsWith("data:")) return defaultUrl;
-    if (lower.startsWith("//")) return defaultUrl; // Protocol-relative URLs
-    try {
-      const parsedUrl = new URL(url);
-      const hostname = parsedUrl.hostname.toLowerCase();
-      const isValid = domains.some((domain) => {
-        const lowerDomain = domain.toLowerCase();
-        // Handle localhost with port (e.g., localhost:3000)
-        if (lowerDomain.includes(":")) {
-          const [domainHost, domainPort] = lowerDomain.split(":");
-          return hostname === domainHost && parsedUrl.port === domainPort;
-        }
-        // Exact match or subdomain match
-        return hostname === lowerDomain || hostname.endsWith(`.${lowerDomain}`);
-      });
-      return isValid ? url : defaultUrl;
-    } catch {
-      return defaultUrl;
-    }
-  }),
+  getSafeRedirectUrl: vi.fn(
+    (url: string, defaultUrl: string, domains: string[]) => {
+      if (!url) return defaultUrl;
+      if (url.startsWith("/") && !url.startsWith("//")) return url;
+      // Reject dangerous protocols
+      const lower = url.toLowerCase();
+      if (lower.startsWith("javascript:") || lower.startsWith("data:"))
+        return defaultUrl;
+      if (lower.startsWith("//")) return defaultUrl; // Protocol-relative URLs
+      try {
+        const parsedUrl = new URL(url);
+        const hostname = parsedUrl.hostname.toLowerCase();
+        const isValid = domains.some((domain) => {
+          const lowerDomain = domain.toLowerCase();
+          // Handle localhost with port (e.g., localhost:3000)
+          if (lowerDomain.includes(":")) {
+            const [domainHost, domainPort] = lowerDomain.split(":");
+            return hostname === domainHost && parsedUrl.port === domainPort;
+          }
+          // Exact match or subdomain match
+          return (
+            hostname === lowerDomain || hostname.endsWith(`.${lowerDomain}`)
+          );
+        });
+        return isValid ? url : defaultUrl;
+      } catch {
+        return defaultUrl;
+      }
+    },
+  ),
   getAllowedRedirectDomains: vi.fn(() => ["xynes.com", "localhost:3000"]),
 }));
 
@@ -97,7 +103,7 @@ import { POST, GET } from "./route";
 function createMockRequest(
   method: string,
   url: string,
-  options?: RequestInit
+  options?: RequestInit,
 ): Request {
   return new Request(url, { method, ...options });
 }
@@ -119,10 +125,7 @@ describe("Logout Route Handler", () => {
 
   describe("POST handler", () => {
     it("should sign out from Supabase", async () => {
-      const request = createMockRequest(
-        "POST",
-        "http://localhost:3000/logout"
-      );
+      const request = createMockRequest("POST", "http://localhost:3000/logout");
 
       await POST(request);
 
@@ -130,10 +133,7 @@ describe("Logout Route Handler", () => {
     });
 
     it("should clear Supabase auth cookies", async () => {
-      const request = createMockRequest(
-        "POST",
-        "http://localhost:3000/logout"
-      );
+      const request = createMockRequest("POST", "http://localhost:3000/logout");
 
       await POST(request);
 
@@ -145,10 +145,7 @@ describe("Logout Route Handler", () => {
     });
 
     it("should not clear non-auth cookies", async () => {
-      const request = createMockRequest(
-        "POST",
-        "http://localhost:3000/logout"
-      );
+      const request = createMockRequest("POST", "http://localhost:3000/logout");
 
       await POST(request);
 
@@ -157,22 +154,21 @@ describe("Logout Route Handler", () => {
     });
 
     it("should redirect to login page by default", async () => {
-      const request = createMockRequest(
-        "POST",
-        "http://localhost:3000/logout"
-      );
+      const request = createMockRequest("POST", "http://localhost:3000/logout");
 
       const response = await POST(request);
 
       // NextResponse.redirect uses 307 by default
       expect(response.status).toBe(307);
-      expect(response.headers.get("Location")).toBe("http://localhost:3000/login");
+      expect(response.headers.get("Location")).toBe(
+        "http://localhost:3000/login",
+      );
     });
 
     it("should redirect to login with valid external URL preserved", async () => {
       const request = createMockRequest(
         "POST",
-        "http://localhost:3000/logout?redirect=https://cms.xynes.com/dashboard"
+        "http://localhost:3000/logout?redirect=https://cms.xynes.com/dashboard",
       );
 
       const response = await POST(request);
@@ -180,26 +176,28 @@ describe("Logout Route Handler", () => {
       expect(response.status).toBe(307);
       // After logout, redirect to login with the original redirect preserved
       expect(response.headers.get("Location")).toBe(
-        "http://localhost:3000/login?redirect=https%3A%2F%2Fcms.xynes.com%2Fdashboard"
+        "http://localhost:3000/login?redirect=https%3A%2F%2Fcms.xynes.com%2Fdashboard",
       );
     });
 
     it("should reject invalid redirect URLs", async () => {
       const request = createMockRequest(
         "POST",
-        "http://localhost:3000/logout?redirect=https://malicious.com"
+        "http://localhost:3000/logout?redirect=https://malicious.com",
       );
 
       const response = await POST(request);
 
       expect(response.status).toBe(307);
-      expect(response.headers.get("Location")).toBe("http://localhost:3000/login");
+      expect(response.headers.get("Location")).toBe(
+        "http://localhost:3000/login",
+      );
     });
 
     it("should handle relative redirect URLs", async () => {
       const request = createMockRequest(
         "POST",
-        "http://localhost:3000/logout?redirect=/dashboard"
+        "http://localhost:3000/logout?redirect=/dashboard",
       );
 
       const response = await POST(request);
@@ -207,17 +205,14 @@ describe("Logout Route Handler", () => {
       expect(response.status).toBe(307);
       // Relative URLs are preserved in the redirect param
       expect(response.headers.get("Location")).toBe(
-        "http://localhost:3000/login?redirect=%2Fdashboard"
+        "http://localhost:3000/login?redirect=%2Fdashboard",
       );
     });
 
     it("should handle Supabase signOut errors gracefully", async () => {
       mockSignOut.mockRejectedValue(new Error("Network error"));
 
-      const request = createMockRequest(
-        "POST",
-        "http://localhost:3000/logout"
-      );
+      const request = createMockRequest("POST", "http://localhost:3000/logout");
 
       // Should still redirect even if signOut fails
       const response = await POST(request);
@@ -234,10 +229,7 @@ describe("Logout Route Handler", () => {
         }
       });
 
-      const request = createMockRequest(
-        "POST",
-        "http://localhost:3000/logout"
-      );
+      const request = createMockRequest("POST", "http://localhost:3000/logout");
 
       // Should not throw, should handle gracefully
       const response = await POST(request);
@@ -248,10 +240,7 @@ describe("Logout Route Handler", () => {
 
   describe("GET handler", () => {
     it("should perform logout and redirect", async () => {
-      const request = createMockRequest(
-        "GET",
-        "http://localhost:3000/logout"
-      );
+      const request = createMockRequest("GET", "http://localhost:3000/logout");
 
       const response = await GET(request);
 
@@ -262,7 +251,7 @@ describe("Logout Route Handler", () => {
     it("should support redirect parameter via GET", async () => {
       const request = createMockRequest(
         "GET",
-        "http://localhost:3000/logout?redirect=https://cms.xynes.com/dashboard"
+        "http://localhost:3000/logout?redirect=https://cms.xynes.com/dashboard",
       );
 
       const response = await GET(request);
@@ -270,7 +259,41 @@ describe("Logout Route Handler", () => {
       expect(response.status).toBe(307);
       // After logout, redirect to login with the original redirect preserved
       expect(response.headers.get("Location")).toBe(
-        "http://localhost:3000/login?redirect=https%3A%2F%2Fcms.xynes.com%2Fdashboard"
+        "http://localhost:3000/login?redirect=https%3A%2F%2Fcms.xynes.com%2Fdashboard",
+      );
+    });
+
+    it("should respect allowlisted forwarded host/proto for public-origin redirects", async () => {
+      const request = createMockRequest("GET", "http://localhost:3000/logout", {
+        headers: {
+          host: "localhost:3000",
+          "x-forwarded-host": "localhost:3100",
+          "x-forwarded-proto": "http",
+        },
+      });
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("Location")).toBe(
+        "http://localhost:3100/login",
+      );
+    });
+
+    it("should ignore disallowed forwarded host for redirect origin", async () => {
+      const request = createMockRequest("GET", "http://localhost:3000/logout", {
+        headers: {
+          host: "localhost:3000",
+          "x-forwarded-host": "evil.example",
+          "x-forwarded-proto": "https",
+        },
+      });
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("Location")).toBe(
+        "http://localhost:3000/login",
       );
     });
   });
@@ -279,34 +302,40 @@ describe("Logout Route Handler", () => {
     it("should reject javascript: protocol in redirect", async () => {
       const request = createMockRequest(
         "POST",
-        "http://localhost:3000/logout?redirect=javascript:alert('xss')"
+        "http://localhost:3000/logout?redirect=javascript:alert('xss')",
       );
 
       const response = await POST(request);
 
-      expect(response.headers.get("Location")).toBe("http://localhost:3000/login");
+      expect(response.headers.get("Location")).toBe(
+        "http://localhost:3000/login",
+      );
     });
 
     it("should reject data: protocol in redirect", async () => {
       const request = createMockRequest(
         "POST",
-        "http://localhost:3000/logout?redirect=data:text/html,<script>alert('xss')</script>"
+        "http://localhost:3000/logout?redirect=data:text/html,<script>alert('xss')</script>",
       );
 
       const response = await POST(request);
 
-      expect(response.headers.get("Location")).toBe("http://localhost:3000/login");
+      expect(response.headers.get("Location")).toBe(
+        "http://localhost:3000/login",
+      );
     });
 
     it("should reject protocol-relative URLs", async () => {
       const request = createMockRequest(
         "POST",
-        "http://localhost:3000/logout?redirect=//malicious.com"
+        "http://localhost:3000/logout?redirect=//malicious.com",
       );
 
       const response = await POST(request);
 
-      expect(response.headers.get("Location")).toBe("http://localhost:3000/login");
+      expect(response.headers.get("Location")).toBe(
+        "http://localhost:3000/login",
+      );
     });
   });
 });

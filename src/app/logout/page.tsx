@@ -4,21 +4,14 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, Button, Spinner, Alert } from "@lumia-ui/components";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
-import { getSafeRedirectUrl } from "@/lib/redirect";
+import { getAllowedRedirectDomains, getSafeRedirectUrl } from "@/lib/redirect";
+import { buildLogoutRedirectUrl } from "@/lib/logout";
 import { AuthPageSkeleton } from "@/components/ui";
 
 /**
  * Logout page states
  */
 type LogoutState = "loading" | "success" | "error";
-
-/**
- * Allowed redirect domains for security validation.
- * Prevents open redirect attacks.
- */
-const ALLOWED_REDIRECT_DOMAINS = (
-  process.env.NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS || "xynes.com,localhost:3000"
-).split(",");
 
 /**
  * Default redirect URL after successful logout.
@@ -51,7 +44,9 @@ function LogoutContent({ redirectUrl }: LogoutContentProps) {
       const { error: signOutError } = await supabase.auth.signOut();
 
       if (signOutError) {
-        setError(signOutError.message || "Failed to sign out. Please try again.");
+        setError(
+          signOutError.message || "Failed to sign out. Please try again.",
+        );
         setState("error");
         return;
       }
@@ -176,18 +171,33 @@ function LogoutContentWrapper() {
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect");
 
-  // Validate redirect URL to prevent open redirect attacks
-  const redirectUrl = getSafeRedirectUrl(
+  const allowedDomains = getAllowedRedirectDomains();
+
+  // Validate redirect URL to prevent open redirect attacks.
+  // IMPORTANT: This redirect is intended to be a post-login destination.
+  // After logout we always send the user to /login (auth app), preserving
+  // this destination as the login page's `redirect` query param.
+  const postLoginRedirect = getSafeRedirectUrl(
     redirectParam || "",
-    DEFAULT_REDIRECT,
-    ALLOWED_REDIRECT_DOMAINS
+    "",
+    allowedDomains,
   );
 
-  return <LogoutContent redirectUrl={redirectUrl} />;
+  const redirectUrl = buildLogoutRedirectUrl(
+    typeof window !== "undefined" ? window.location.origin : "",
+    postLoginRedirect || undefined,
+  );
+
+  // Fallback for non-browser environments (tests should provide window).
+  const finalRedirectUrl = redirectUrl || DEFAULT_REDIRECT;
+
+  return <LogoutContent redirectUrl={finalRedirectUrl} />;
 }
 
 function LogoutLoading() {
-  return <AuthPageSkeleton title="Signing out" showForm={false} showOAuth={false} />;
+  return (
+    <AuthPageSkeleton title="Signing out" showForm={false} showOAuth={false} />
+  );
 }
 
 /**

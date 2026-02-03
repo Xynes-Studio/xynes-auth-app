@@ -2,7 +2,7 @@
 
 **Feature ID:** AUTH-FE-2.3
 **Status:** `DONE`
-**Last Updated:** 2026-01-27
+**Last Updated:** 2026-02-03
 
 ## Overview
 
@@ -27,6 +27,7 @@ A presentation component that renders a grid of workspace cards.
   - `onSelect`: Callback function when a workspace is selected.
   - `onCreateNew`: Callback function for the "Create New" action.
   - `isLoading`: Boolean to show loading state.
+  - `loadingText`: Optional label shown during loading (used to avoid "rage-clicking" confusion during selection).
 
 - **Features:**
   - Responsive grid layout.
@@ -46,14 +47,22 @@ The main page component handling data fetching and navigation.
 - **Logic:**
   - Fetches workspaces using `useAuth`.
   - Handles selection logic using `useWorkspace`.
-  - Redirects to the console/dashboard upon selection.
+  - Only performs an external redirect (e.g., CMS portal) when an explicit safe `redirect` query param is provided; otherwise it stays in the auth app after selection.
+  - Prevents repeated rapid clicks by immediately switching to a "selecting" loading state and ignoring subsequent selections.
+
+#### Placeholder Confirmation (`src/app/workspaces/selected/page.tsx`)
+
+- **Route:** `/workspaces/selected`
+- **Purpose:** Ensures a workspace card click always results in visible feedback.
+- **Behavior:** When no external redirect destination is provided, selection routes here (in-app) and shows a short confirmation.
 
 ## Design Decisions
 
 1.  **Component Segregation:** The selector UI is separated into a dumb component (`WorkspaceSelector`) for reusability and testing, while the page handles the logic.
 2.  **Lumia UI Integration:** Utilizes `@lumia-ui/components` (Card, Button, Spinner) to maintain design consistency.
 3.  **Accessibility:** Explicitly handled keyboard interactions for cards since they function as buttons.
-4.  **Navigation:** Redirection logic is centralized in the page component, currently pointing to a configured console URL or a fallback local path.
+4.  **Navigation:** Redirection logic is centralized in the page component and only redirects externally when an explicit, validated `redirect` query param is present.
+5.  **Rage-click Prevention:** Selection immediately transitions into a loading state and ignores subsequent clicks to prevent multi-select race conditions.
 
 ## Testing Strategy
 
@@ -63,6 +72,7 @@ The main page component handling data fetching and navigation.
   - Empty and Loading states.
   - Keyboard events.
 - **Coverage Goal:** > 80%
+  - Includes regression for repeated rapid clicks (selection is invoked once).
 
 ## Usage
 

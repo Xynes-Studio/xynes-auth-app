@@ -8,6 +8,7 @@ export interface WorkspaceSelectorProps {
   onSelect: (workspaceId: string) => void;
   onCreateNew: () => void;
   isLoading?: boolean;
+  loadingText?: string;
 }
 
 export function WorkspaceSelector({
@@ -15,11 +16,15 @@ export function WorkspaceSelector({
   onSelect,
   onCreateNew,
   isLoading = false,
+  loadingText,
 }: WorkspaceSelectorProps) {
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-64 flex-col items-center justify-center gap-3">
         <Spinner size="lg" />
+        <p className="text-sm text-muted-foreground">
+          {loadingText ?? "Loading..."}
+        </p>
       </div>
     );
   }
