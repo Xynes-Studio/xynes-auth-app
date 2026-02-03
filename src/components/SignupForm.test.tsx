@@ -11,6 +11,10 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: {
       signUp: mockSignUp,
+    },
+  }),
+  createOAuthClient: () => ({
+    auth: {
       signInWithOAuth: mockSignInWithOAuth,
     },
   }),
@@ -31,7 +35,7 @@ describe("SignupForm", () => {
       expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /create account/i })
+        screen.getByRole("button", { name: /create account/i }),
       ).toBeInTheDocument();
     });
 
@@ -40,11 +44,11 @@ describe("SignupForm", () => {
 
       expect(screen.getByLabelText(/^password$/i)).toHaveAttribute(
         "maxLength",
-        "256"
+        "256",
       );
       expect(screen.getByLabelText(/confirm password/i)).toHaveAttribute(
         "maxLength",
-        "256"
+        "256",
       );
     });
 
@@ -52,10 +56,10 @@ describe("SignupForm", () => {
       render(<SignupForm />);
 
       expect(
-        screen.getByRole("button", { name: /google/i })
+        screen.getByRole("button", { name: /google/i }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /github/i })
+        screen.getByRole("button", { name: /github/i }),
       ).toBeInTheDocument();
     });
 
@@ -65,7 +69,7 @@ describe("SignupForm", () => {
       expect(screen.getByText(/already have an account/i)).toBeInTheDocument();
       expect(screen.getByRole("link", { name: /sign in/i })).toHaveAttribute(
         "href",
-        "/login"
+        "/login",
       );
     });
   });
@@ -124,7 +128,7 @@ describe("SignupForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getAllByText(/password must be at most 128 characters/i)
+          screen.getAllByText(/password must be at most 128 characters/i),
         ).toHaveLength(2);
       });
 
@@ -182,7 +186,7 @@ describe("SignupForm", () => {
       await user.type(screen.getByLabelText(/^password$/i), "ValidPass123!");
       await user.type(
         screen.getByLabelText(/confirm password/i),
-        "ValidPass123!"
+        "ValidPass123!",
       );
       await user.click(screen.getByRole("button", { name: /create account/i }));
 
@@ -212,7 +216,7 @@ describe("SignupForm", () => {
       await user.type(screen.getByLabelText(/^password$/i), "ValidPass123!");
       await user.type(
         screen.getByLabelText(/confirm password/i),
-        "ValidPass123!"
+        "ValidPass123!",
       );
       await user.click(screen.getByRole("button", { name: /create account/i }));
 
@@ -237,7 +241,7 @@ describe("SignupForm", () => {
       await user.type(screen.getByLabelText(/^password$/i), "ValidPass123!");
       await user.type(
         screen.getByLabelText(/confirm password/i),
-        "ValidPass123!"
+        "ValidPass123!",
       );
       await user.click(screen.getByRole("button", { name: /create account/i }));
 
@@ -248,7 +252,7 @@ describe("SignupForm", () => {
 
     it("should disable submit button while loading", async () => {
       mockSignUp.mockImplementationOnce(
-        () => new Promise((resolve) => setTimeout(resolve, 1000))
+        () => new Promise((resolve) => setTimeout(resolve, 1000)),
       );
 
       const user = userEvent.setup();
@@ -258,7 +262,7 @@ describe("SignupForm", () => {
       await user.type(screen.getByLabelText(/^password$/i), "ValidPass123!");
       await user.type(
         screen.getByLabelText(/confirm password/i),
-        "ValidPass123!"
+        "ValidPass123!",
       );
 
       const submitButton = screen.getByRole("button", {
@@ -268,7 +272,7 @@ describe("SignupForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: /creating account/i })
+          screen.getByRole("button", { name: /creating account/i }),
         ).toBeDisabled();
       });
     });
@@ -285,7 +289,7 @@ describe("SignupForm", () => {
         expect(mockSignInWithOAuth).toHaveBeenCalledWith({
           provider: "google",
           options: expect.objectContaining({
-            redirectTo: expect.stringContaining("/callback"),
+            redirectTo: expect.stringContaining("/callback/client"),
           }),
         });
       });
@@ -301,7 +305,7 @@ describe("SignupForm", () => {
         expect(mockSignInWithOAuth).toHaveBeenCalledWith({
           provider: "github",
           options: expect.objectContaining({
-            redirectTo: expect.stringContaining("/callback"),
+            redirectTo: expect.stringContaining("/callback/client"),
           }),
         });
       });
@@ -333,7 +337,7 @@ describe("SignupForm", () => {
           provider: "google",
           options: {
             redirectTo: expect.stringContaining(
-              encodeURIComponent("https://app.xynes.com/dashboard")
+              encodeURIComponent("https://app.xynes.com/dashboard"),
             ),
           },
         });

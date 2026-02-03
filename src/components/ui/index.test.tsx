@@ -11,7 +11,7 @@ import type { AuthError } from "@/lib/errors";
 // Mock Supabase client
 const mockSignInWithOAuth = vi.fn();
 vi.mock("@/lib/supabase/client", () => ({
-  createClient: vi.fn(() => ({
+  createOAuthClient: vi.fn(() => ({
     auth: {
       signInWithOAuth: mockSignInWithOAuth,
     },
@@ -43,10 +43,10 @@ describe("OAuthButtons", () => {
       render(<OAuthButtons />);
 
       expect(
-        screen.getByRole("button", { name: /google/i })
+        screen.getByRole("button", { name: /google/i }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /github/i })
+        screen.getByRole("button", { name: /github/i }),
       ).toBeInTheDocument();
     });
 
@@ -68,7 +68,7 @@ describe("OAuthButtons", () => {
         expect(mockSignInWithOAuth).toHaveBeenCalledWith({
           provider: "google",
           options: {
-            redirectTo: "http://localhost:3000/callback",
+            redirectTo: "http://localhost:3100/callback/client",
           },
         });
       });
@@ -83,7 +83,7 @@ describe("OAuthButtons", () => {
         expect(mockSignInWithOAuth).toHaveBeenCalledWith({
           provider: "github",
           options: {
-            redirectTo: "http://localhost:3000/callback",
+            redirectTo: "http://localhost:3100/callback/client",
           },
         });
       });
@@ -98,7 +98,8 @@ describe("OAuthButtons", () => {
         expect(mockSignInWithOAuth).toHaveBeenCalledWith({
           provider: "google",
           options: {
-            redirectTo: "http://localhost:3000/callback?redirect=%2Fdashboard",
+            redirectTo:
+              "http://localhost:3100/callback/client?redirect=%2Fdashboard",
           },
         });
       });
@@ -135,10 +136,10 @@ describe("OAuthButtons", () => {
       render(<OAuthButtons providers={{ google: true, github: false }} />);
 
       expect(
-        screen.getByRole("button", { name: /google/i })
+        screen.getByRole("button", { name: /google/i }),
       ).toBeInTheDocument();
       expect(
-        screen.queryByRole("button", { name: /github/i })
+        screen.queryByRole("button", { name: /github/i }),
       ).not.toBeInTheDocument();
     });
 
@@ -146,16 +147,16 @@ describe("OAuthButtons", () => {
       render(<OAuthButtons providers={{ google: false, github: true }} />);
 
       expect(
-        screen.queryByRole("button", { name: /google/i })
+        screen.queryByRole("button", { name: /google/i }),
       ).not.toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /github/i })
+        screen.getByRole("button", { name: /github/i }),
       ).toBeInTheDocument();
     });
 
     it("renders nothing when all providers are disabled", () => {
       const { container } = render(
-        <OAuthButtons providers={{ google: false, github: false }} />
+        <OAuthButtons providers={{ google: false, github: false }} />,
       );
 
       expect(container.firstChild).toBeNull();
@@ -165,10 +166,10 @@ describe("OAuthButtons", () => {
       render(<OAuthButtons providers={{ google: true, github: true }} />);
 
       expect(
-        screen.getByRole("button", { name: /google/i })
+        screen.getByRole("button", { name: /google/i }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /github/i })
+        screen.getByRole("button", { name: /github/i }),
       ).toBeInTheDocument();
     });
 

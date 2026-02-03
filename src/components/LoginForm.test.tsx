@@ -12,6 +12,10 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     auth: {
       signInWithPassword: mockSignInWithPassword,
+    },
+  }),
+  createOAuthClient: () => ({
+    auth: {
       signInWithOAuth: mockSignInWithOAuth,
     },
   }),
