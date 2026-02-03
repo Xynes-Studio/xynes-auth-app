@@ -17,6 +17,16 @@ import { getSafeRedirectUrl } from "@/lib/redirect";
  * This file is only used in server-side route handlers.
  */
 const API_BASE_URL = process.env.NEXT_API_URL || "https://api.xynes.com";
+const AUTH_DEBUG = process.env.AUTH_DEBUG === "true";
+
+function logAuthDebug(message: string, meta?: Record<string, unknown>) {
+  if (!AUTH_DEBUG) return;
+  if (meta) {
+    console.info(`[auth-bootstrap] ${message}`, meta);
+    return;
+  }
+  console.info(`[auth-bootstrap] ${message}`);
+}
 
 /**
  * Default redirect for new users (no workspaces).
@@ -60,15 +70,36 @@ export async function bootstrapUser(
     });
 
     if (!response.ok) {
+      logAuthDebug("GET /me failed", {
+        apiBaseUrl: API_BASE_URL,
+        status: response.status,
+      });
       return { success: false, isNewUser: true, hasWorkspaces: false };
     }
 
     const data = await response.json();
 
+    // Some services return an envelope shape: { ok: true, data: { ... } }
+    // Support both legacy and current API response formats.
+    if (data?.ok === false) {
+      logAuthDebug("GET /me returned ok=false", { apiBaseUrl: API_BASE_URL });
+      return { success: false, isNewUser: true, hasWorkspaces: false };
+    }
+
+    const workspaces = Array.isArray(data?.workspaces)
+      ? data.workspaces
+      : Array.isArray(data?.data?.workspaces)
+        ? data.data.workspaces
+        : [];
+
     // Check if user has workspaces to determine if they're new
-    const hasWorkspaces = Array.isArray(data.workspaces)
-      ? data.workspaces.length > 0
-      : false;
+    const hasWorkspaces = workspaces.length > 0;
+    logAuthDebug("GET /me parsed", {
+      apiBaseUrl: API_BASE_URL,
+      workspaceCount: workspaces.length,
+      hasWorkspaces,
+      envelope: typeof data?.ok === "boolean",
+    });
 
     return {
       success: true,

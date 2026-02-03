@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@lumia-ui/components";
@@ -24,6 +24,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
   const oauthProviders = useOAuthProviders();
+  const authDebug = process.env.NEXT_PUBLIC_AUTH_DEBUG === "true";
 
   const {
     register,
@@ -47,6 +48,9 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
       setError(null);
 
       try {
+        if (authDebug) {
+          console.info("[auth-login] submit");
+        }
         const supabase = createBrowserClient();
         const { data: authData, error: authError } =
           await supabase.auth.signInWithPassword({
@@ -70,8 +74,33 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
         setIsLoading(false);
       }
     },
-    [onSuccess]
+    [authDebug, onSuccess]
   );
+
+  const handleFormSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void handleSubmit(handleLogin)(event);
+    },
+    [handleSubmit, handleLogin]
+  );
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLFormElement>) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      void handleSubmit(handleLogin)();
+    },
+    [handleSubmit, handleLogin]
+  );
+
+  useEffect(() => {
+    if (!authDebug) return;
+    console.info("[auth-login] hydrated", {
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    });
+  }, [authDebug]);
 
   const handleOAuthError = useCallback((oauthError: AuthError) => {
     setError(oauthError);
@@ -86,7 +115,8 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
       <AuthErrorAlert error={error} title="Login failed" />
 
       <form
-        onSubmit={handleSubmit(handleLogin)}
+        onSubmit={handleFormSubmit}
+        onKeyDown={handleKeyDown}
         className="space-y-4"
         noValidate
       >
@@ -152,7 +182,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
           )}
           <div className="flex justify-end">
             <a
-              href="/reset-password"
+              href="/forgot-password"
               className="text-sm font-medium text-primary-600 hover:underline"
             >
               Forgot password?
@@ -161,10 +191,11 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
         </div>
 
         <Button
-          type="submit"
+          type="button"
           fullWidth
           isLoading={isLoading}
           loadingText="Signing in..."
+          onClick={() => void handleSubmit(handleLogin)()}
         >
           Sign in
         </Button>

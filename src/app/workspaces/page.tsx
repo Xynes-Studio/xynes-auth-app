@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth, useWorkspace, AuthGuard } from "@xynes/auth-sdk";
 import { WorkspaceSelector } from "@/components/workspace/WorkspaceSelector";
@@ -9,6 +9,7 @@ export default function WorkspaceSelectorPage() {
   const router = useRouter();
   const { workspaces, isLoading: isAuthLoading } = useAuth();
   const { selectWorkspace, isLoading: isWorkspaceLoading } = useWorkspace();
+  const didAutoRedirectRef = useRef(false);
 
   const handleSelect = useCallback(
     (workspaceId: string) => {
@@ -38,6 +39,15 @@ export default function WorkspaceSelectorPage() {
   const handleCreateNew = useCallback(() => {
     router.push("/onboarding");
   }, [router]);
+
+  // If the user only has one workspace, auto-select and redirect.
+  useEffect(() => {
+    if (didAutoRedirectRef.current) return;
+    if (isAuthLoading || isWorkspaceLoading) return;
+    if (workspaces.length !== 1) return;
+    didAutoRedirectRef.current = true;
+    handleSelect(workspaces[0].id);
+  }, [handleSelect, isAuthLoading, isWorkspaceLoading, workspaces]);
 
   return (
     <AuthGuard>

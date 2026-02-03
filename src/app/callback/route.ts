@@ -22,6 +22,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const redirectParam = searchParams.get("redirect");
+  const authDebug = process.env.AUTH_DEBUG === "true";
 
   // Handle OAuth provider errors (when provider returns error instead of code)
   const errorCode = searchParams.get("error");
@@ -51,6 +52,15 @@ export async function GET(request: Request) {
         bootstrapResult,
         allowedDomains
       );
+
+      if (authDebug) {
+        console.info("[auth-callback] redirect decision", {
+          redirectParam,
+          bootstrapResult,
+          safeRedirect,
+          origin,
+        });
+      }
 
       // If redirect is external (to another xynes app), use that
       // Otherwise, use internal redirect

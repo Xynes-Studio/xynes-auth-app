@@ -4,10 +4,11 @@ import userEvent from "@testing-library/user-event";
 
 // Mock next/navigation
 const mockPush = vi.fn();
+let redirectValue: string | null = "https://cms.xynes.com/dashboard";
 vi.mock("next/navigation", () => ({
   useSearchParams: () => ({
     get: vi.fn((param) => {
-      if (param === "redirect") return "https://cms.xynes.com/dashboard";
+      if (param === "redirect") return redirectValue;
       return null;
     }),
   }),
@@ -41,6 +42,7 @@ import LoginPage from "./page";
 describe("LoginPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    redirectValue = "https://cms.xynes.com/dashboard";
   });
 
   describe("rendering", () => {
@@ -70,6 +72,16 @@ describe("LoginPage", () => {
           "data-redirect-url",
           "https://cms.xynes.com/dashboard"
         );
+      });
+    });
+
+    it("should default redirect URL to workspaces when redirect param missing", async () => {
+      redirectValue = null;
+      render(<LoginPage />);
+
+      await waitFor(() => {
+        const loginForm = screen.getByTestId("login-form");
+        expect(loginForm).toHaveAttribute("data-redirect-url", "/workspaces");
       });
     });
   });

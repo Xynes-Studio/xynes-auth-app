@@ -60,6 +60,27 @@ describe("OAuth Callback Utilities", () => {
       });
     });
 
+    it("should handle nested API response shape (ok/data/workspaces)", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            ok: true,
+            data: {
+              workspaces: [{ id: "ws-1", name: "My Workspace" }],
+            },
+          }),
+      });
+
+      const result = await bootstrapUser("test-token");
+
+      expect(result).toEqual({
+        success: true,
+        isNewUser: false,
+        hasWorkspaces: true,
+      });
+    });
+
     it("should return failure state when API returns error", async () => {
       mockFetch.mockResolvedValue({
         ok: false,

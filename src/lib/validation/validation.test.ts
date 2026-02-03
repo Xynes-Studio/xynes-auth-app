@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   signupFormSchema,
   loginFormSchema,
+  forgotPasswordFormSchema,
+  resetPasswordFormSchema,
   getPasswordStrength,
   validateEmail,
   validatePassword,
@@ -164,6 +166,52 @@ describe("loginFormSchema", () => {
     if (!result.success) {
       expect(result.error.issues[0].message).toContain("128");
     }
+  });
+});
+
+describe("forgotPasswordFormSchema", () => {
+  it("should validate correct email", () => {
+    const result = forgotPasswordFormSchema.safeParse({
+      email: "test@example.com",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject empty email", () => {
+    const result = forgotPasswordFormSchema.safeParse({ email: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("should reject invalid email", () => {
+    const result = forgotPasswordFormSchema.safeParse({ email: "invalid" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("resetPasswordFormSchema", () => {
+  it("should validate correct passwords", () => {
+    const result = resetPasswordFormSchema.safeParse({
+      password: "ValidPass123",
+      confirmPassword: "ValidPass123",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("should reject weak passwords", () => {
+    const result = resetPasswordFormSchema.safeParse({
+      password: "weak",
+      confirmPassword: "weak",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("should reject mismatched passwords", () => {
+    const result = resetPasswordFormSchema.safeParse({
+      password: "ValidPass123",
+      confirmPassword: "DifferentPass123",
+    });
+    expect(result.success).toBe(false);
   });
 });
 

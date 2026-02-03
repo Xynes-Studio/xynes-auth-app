@@ -58,6 +58,15 @@ This is a Next.js 15 application that serves as the centralized authentication h
 - [x] Pure function extraction for testability (ADR-001 compliant)
 - [x] 91.4% test coverage
 
+### Story 5: Forgot/Reset Password (FE-AUTH-003) ✅
+
+- [x] `/forgot-password` route with enumeration-safe messaging
+- [x] `/reset-password` route supporting multiple Supabase recovery link formats
+- [x] Implicit-flow links for password resets (cross-device safe)
+- [x] Debug panel for local troubleshooting (safe, no token leaks)
+- [x] Validation aligned with backend password constraints
+- [x] Tier 1 + Tier 2 coverage for new flows
+
 ## Getting Started
 
 ### Prerequisites
@@ -119,6 +128,12 @@ src/
 │   ├── login/             # Login flow
 │   │   ├── page.tsx       # Login page with OAuth & email
 │   │   └── page.test.tsx  # Page integration tests
+│   ├── forgot-password/    # Password reset request
+│   │   ├── page.tsx
+│   │   └── page.test.tsx
+│   ├── reset-password/     # Password update via recovery link
+│   │   ├── page.tsx
+│   │   └── page.test.tsx
 │   ├── callback/          # OAuth callback handling
 │   │   ├── route.ts       # OAuth callback route handler
 │   │   └── route.test.ts  # Route integration tests (Tier 2)
@@ -128,6 +143,10 @@ src/
 │   ├── SignupForm.tsx     # Main signup form component
 │   ├── LoginForm.tsx      # Main login form component
 │   ├── LoginForm.test.tsx # Login form unit tests
+│   ├── ForgotPasswordForm.tsx
+│   ├── ForgotPasswordForm.test.tsx
+│   ├── ResetPasswordForm.tsx
+│   ├── ResetPasswordForm.test.tsx
 │   └── ui/                # Shared UI components
 │       ├── OAuthButtons.tsx     # Reusable OAuth buttons
 │       ├── AuthDivider.tsx      # Divider component
@@ -142,6 +161,9 @@ src/
 │   │   ├── errors.ts            # OAuth error messages
 │   │   ├── errors.test.ts       # Unit tests
 │   │   └── index.ts             # Barrel exports
+│   ├── password-reset/     # Password reset helpers (Tier 1)
+│   │   ├── password-reset-utils.ts
+│   │   └── password-reset-utils.test.ts
 │   ├── validation/        # Re-exports from @xynes/auth-sdk
 │   ├── errors/            # Re-exports from @xynes/auth-sdk
 │   └── redirect/          # Re-exports from @xynes/auth-sdk
