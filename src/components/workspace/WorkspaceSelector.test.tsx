@@ -5,15 +5,33 @@ import { WorkspaceSelector } from "./WorkspaceSelector";
 
 // Mock Lumia components
 vi.mock("@lumia-ui/components", () => ({
-  Card: ({ children, className, onClick }: { children: React.ReactNode; className: string; onClick: () => void }) => (
+  Card: ({
+    children,
+    className,
+    onClick,
+  }: {
+    children: React.ReactNode;
+    className: string;
+    onClick: () => void;
+  }) => (
     <div data-testid="card" className={className} onClick={onClick}>
       {children}
     </div>
   ),
-  CardContent: ({ children, className }: { children: React.ReactNode; className: string }) => (
-    <div className={className}>{children}</div>
-  ),
-  Button: ({ children, onClick, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode }) => (
+  CardContent: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className: string;
+  }) => <div className={className}>{children}</div>,
+  Button: ({
+    children,
+    onClick,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    children: React.ReactNode;
+  }) => (
     <button onClick={onClick} {...props}>
       {children}
     </button>
@@ -55,7 +73,7 @@ describe("WorkspaceSelector", () => {
         workspaces={mockWorkspaces}
         onSelect={onSelectMock}
         onCreateNew={onCreateNewMock}
-      />
+      />,
     );
 
     expect(screen.getByText("Acme Corp")).toBeInTheDocument();
@@ -72,7 +90,7 @@ describe("WorkspaceSelector", () => {
         workspaces={mockWorkspaces}
         onSelect={onSelectMock}
         onCreateNew={onCreateNewMock}
-      />
+      />,
     );
 
     fireEvent.click(screen.getByText("Acme Corp"));
@@ -85,7 +103,7 @@ describe("WorkspaceSelector", () => {
         workspaces={mockWorkspaces}
         onSelect={onSelectMock}
         onCreateNew={onCreateNewMock}
-      />
+      />,
     );
 
     const createBtn = screen.getByText(/create new workspace/i);
@@ -99,21 +117,24 @@ describe("WorkspaceSelector", () => {
         workspaces={[]}
         onSelect={onSelectMock}
         onCreateNew={onCreateNewMock}
-      />
+      />,
     );
 
-    expect(screen.getByText(/create your first workspace/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/create your first workspace/i),
+    ).toBeInTheDocument();
   });
-  
+
   it("renders loading state when isLoading is true", () => {
-     render(
+    render(
       <WorkspaceSelector
         workspaces={[]}
         isLoading={true}
+        loadingText="Loading workspaces..."
         onSelect={onSelectMock}
         onCreateNew={onCreateNewMock}
-      />
+      />,
     );
-    expect(screen.getByText("Loading...")).toBeInTheDocument();
+    expect(screen.getByText("Loading workspaces...")).toBeInTheDocument();
   });
 });

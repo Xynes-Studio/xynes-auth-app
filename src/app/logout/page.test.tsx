@@ -40,7 +40,18 @@ vi.mock("@/lib/supabase/client", () => ({
 // Mock getSafeRedirectUrl
 vi.mock("@/lib/redirect", () => ({
   getSafeRedirectUrl: vi.fn(
-    (url: string, defaultUrl: string) => url || defaultUrl
+    (url: string, defaultUrl: string) => url || defaultUrl,
+  ),
+  getAllowedRedirectDomains: vi.fn(() => ["xynes.com", "localhost:3000"]),
+}));
+
+vi.mock("@/lib/logout", () => ({
+  buildLogoutRedirectUrl: vi.fn(
+    (origin: string, postLoginRedirect?: string) => {
+      if (!origin) return "/login";
+      if (!postLoginRedirect) return `${origin}/login`;
+      return `${origin}/login?redirect=${encodeURIComponent(postLoginRedirect)}`;
+    },
   ),
 }));
 
@@ -59,7 +70,7 @@ describe("LogoutPage", () => {
     originalLocation = window.location;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).location;
-    window.location = { href: "" } as Location;
+    window.location = { href: "", origin: "http://localhost:3000" } as Location;
   });
 
   afterEach(() => {
@@ -115,7 +126,7 @@ describe("LogoutPage", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/successfully signed out/i)
+          screen.getByText(/successfully signed out/i),
         ).toBeInTheDocument();
       });
     });
@@ -127,7 +138,7 @@ describe("LogoutPage", () => {
         () => {
           expect(window.location.href).toContain("/login");
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       );
     });
   });
@@ -150,7 +161,7 @@ describe("LogoutPage", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: /try again/i })
+          screen.getByRole("button", { name: /try again/i }),
         ).toBeInTheDocument();
       });
     });
@@ -166,7 +177,7 @@ describe("LogoutPage", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: /try again/i })
+          screen.getByRole("button", { name: /try again/i }),
         ).toBeInTheDocument();
       });
 
@@ -186,9 +197,10 @@ describe("LogoutPage", () => {
 
       await waitFor(
         () => {
-          expect(window.location.href).toContain("cms.xynes.com");
+          expect(window.location.href).toContain("/login");
+          expect(window.location.href).toContain("redirect=");
         },
-        { timeout: 3000 }
+        { timeout: 3000 },
       );
     });
   });

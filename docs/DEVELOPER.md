@@ -54,6 +54,26 @@ Local Supabase allowlist (see `xynes-infra/supabase/config.toml`):
 ## Provider Composition
 Ensure `AuthProvider` and `WorkspaceProvider` wrap all routes that use `useAuth` or `useWorkspace`.
 
+## Auth Routing Standards
+
+These rules prevent login loops, open redirects, and confusing re-login prompts.
+
+- `/login`
+	- If a user is already authenticated, redirect immediately to the correct post-login destination (0 / 1 / many workspaces).
+	- If a `redirect` query param exists, only honor it when it is validated/allowlisted; avoid loops back to `/login`.
+- `/logout`
+	- Must always return to the auth app `/login` (never default to CMS).
+	- Any preserved `redirect` must be validated/allowlisted.
+	- Server-side redirects require absolute URLs; compute the origin safely (prefer configured public auth URL; else allowlisted `x-forwarded-*`/`Host`).
+- `/workspaces`
+	- Only redirect externally when an explicit, validated `redirect` query param is present.
+	- If no `redirect` is provided, selecting a workspace must stay within the auth app and show an in-app confirmation page (`/workspaces/selected`).
+	- Selection UI must prevent rage-clicking/multi-select races via an immediate local lock + visible loading state.
+
+Feature-level details:
+- `docs/features/logout-flow.md`
+- `docs/features/auth-workspace-selector.md`
+
 ## Feature Flags
 
 ### Source of Truth
