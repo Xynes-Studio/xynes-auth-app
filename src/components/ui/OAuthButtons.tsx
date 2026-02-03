@@ -3,6 +3,11 @@
 import { useCallback, useState, type JSX } from "react";
 import { Button } from "@lumia-ui/components";
 import { normalizeAuthError, type AuthError } from "@/lib/errors";
+import { getAllowedRedirectDomains } from "@/lib/redirect";
+import {
+  clearPersistedOAuthRedirect,
+  persistOAuthRedirect,
+} from "@/lib/redirect/storage";
 import { createOAuthClient } from "@/lib/supabase/client";
 
 export interface OAuthProvider {
@@ -122,12 +127,28 @@ export function OAuthButtons({
         const callbackBaseUrl = (
           process.env.NEXT_PUBLIC_AUTH_APP_URL ?? window.location.origin
         ).replace(/\/$/, "");
+
+        let safeRedirect: string | null = null;
+
+        if (typeof window !== "undefined") {
+          const allowedDomains = getAllowedRedirectDomains();
+          if (redirectUrl) {
+            safeRedirect = persistOAuthRedirect(
+              redirectUrl,
+              allowedDomains,
+              window.localStorage,
+            );
+          } else {
+            clearPersistedOAuthRedirect(window.localStorage);
+          }
+        }
+
         const { error: oauthError } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
-            redirectTo: redirectUrl
+            redirectTo: safeRedirect
               ? `${callbackBaseUrl}/callback/client?redirect=${encodeURIComponent(
-                  redirectUrl,
+                  safeRedirect,
                 )}`
               : `${callbackBaseUrl}/callback/client`,
           },

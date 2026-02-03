@@ -41,6 +41,22 @@ vi.mock("@/lib/redirect", () => ({
   ),
 }));
 
+const mockReadPersistedOAuthRedirect = vi.fn();
+const mockClearPersistedOAuthRedirect = vi.fn();
+const mockResolveOAuthRedirect = vi.fn(
+  (redirect: string | null, stored: string | null, fallback: string) =>
+    redirect || stored || fallback,
+);
+
+vi.mock("@/lib/redirect/storage", () => ({
+  readPersistedOAuthRedirect: (...args: unknown[]) =>
+    mockReadPersistedOAuthRedirect(...args),
+  clearPersistedOAuthRedirect: (...args: unknown[]) =>
+    mockClearPersistedOAuthRedirect(...args),
+  resolveOAuthRedirect: (...args: unknown[]) =>
+    mockResolveOAuthRedirect(...args),
+}));
+
 import OAuthClientCallbackPage from "./page";
 
 describe("OAuthClientCallbackPage error handling", () => {
@@ -49,6 +65,7 @@ describe("OAuthClientCallbackPage error handling", () => {
     mockParams.error = null;
     mockParams.code = null;
     mockParams.redirect = null;
+    mockReadPersistedOAuthRedirect.mockReturnValue(null);
   });
 
   it("shows provider cancellation error when error param is present", async () => {
@@ -84,5 +101,56 @@ describe("OAuthClientCallbackPage error handling", () => {
         screen.getByRole("link", { name: /contact support/i }),
       ).toBeInTheDocument();
     });
+  });
+
+  it("clears stored redirect on error", async () => {
+    mockParams.error = "access_denied";
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(mockClearPersistedOAuthRedirect).toHaveBeenCalled();
+    });
+  });
+
+  it("clears stored redirect and hash before redirecting", async () => {
+    mockParams.code = "good-code";
+    mockReadPersistedOAuthRedirect.mockReturnValue("/invite/test");
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+
+    const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "";
+
+    const originalLocation = window.location;
+    const mockLocation = {
+      href: "",
+      hash: "#access_token=abc&refresh_token=def",
+      pathname: "/callback/client",
+      search: "",
+    };
+    Object.defineProperty(window, "location", {
+      value: mockLocation,
+      writable: true,
+    });
+
+    const replaceStateSpy = vi.spyOn(window.history, "replaceState");
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(mockClearPersistedOAuthRedirect).toHaveBeenCalled();
+      expect(replaceStateSpy).toHaveBeenCalled();
+      expect(mockLocation.href).toBe("/invite/test");
+    });
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+    });
+    process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
+    replaceStateSpy.mockRestore();
   });
 });
