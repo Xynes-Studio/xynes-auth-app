@@ -15,15 +15,23 @@ export default function WorkspaceSelectorPage() {
   const selectionInFlightRef = useRef(false);
 
   const handleSelect = useCallback(
-    (workspaceId: string) => {
+    async (workspaceId: string) => {
       if (selectionInFlightRef.current) return;
       selectionInFlightRef.current = true;
       setIsSelecting(true);
 
-      selectWorkspace(workspaceId);
-      // Navigation strategy: The WorkspaceProvider stores the ID in cookie/local.
-      const ws = workspaces.find((w) => w.id === workspaceId);
-      if (ws) {
+      try {
+        await selectWorkspace(workspaceId);
+
+        // Navigation strategy: The WorkspaceProvider stores the ID in cookie/local.
+        const ws = workspaces.find((w) => w.id === workspaceId);
+        if (!ws) {
+          // Defense-in-depth: should never happen, but don't leave UI locked.
+          selectionInFlightRef.current = false;
+          setIsSelecting(false);
+          return;
+        }
+
         // Only redirect externally (e.g., CMS portal) when an explicit redirect is provided.
         const allowedDomains = getAllowedRedirectDomains();
         const redirectParam = searchParams.get("redirect");
@@ -43,6 +51,12 @@ export default function WorkspaceSelectorPage() {
         } else {
           router.push("/workspaces/selected");
         }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to select workspace", error);
+      } finally {
+        selectionInFlightRef.current = false;
+        setIsSelecting(false);
       }
     },
     [selectWorkspace, workspaces, router, searchParams],

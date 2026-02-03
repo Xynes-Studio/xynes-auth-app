@@ -183,13 +183,18 @@ function LogoutContentWrapper() {
     allowedDomains,
   );
 
-  const redirectUrl = buildLogoutRedirectUrl(
-    typeof window !== "undefined" ? window.location.origin : "",
-    postLoginRedirect || undefined,
-  );
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  let finalRedirectUrl = DEFAULT_REDIRECT;
 
-  // Fallback for non-browser environments (tests should provide window).
-  const finalRedirectUrl = redirectUrl || DEFAULT_REDIRECT;
+  // In SSR/non-browser environments origin may be empty, and buildLogoutRedirectUrl
+  // would throw when constructing a URL. In that case, skip it and use DEFAULT_REDIRECT.
+  if (origin) {
+    const redirectUrl = buildLogoutRedirectUrl(
+      origin,
+      postLoginRedirect || undefined,
+    );
+    finalRedirectUrl = redirectUrl || DEFAULT_REDIRECT;
+  }
 
   return <LogoutContent redirectUrl={finalRedirectUrl} />;
 }

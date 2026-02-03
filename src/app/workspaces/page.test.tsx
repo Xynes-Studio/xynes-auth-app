@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 
 const mockPush = vi.fn();
 let redirectValue: string | null = null;
@@ -75,6 +81,7 @@ import WorkspaceSelectorPage from "./page";
 describe("WorkspacesPage redirect behavior", () => {
   let originalLocation: Location;
   const assignSpy = vi.fn();
+  let originalConsoleUrl: string | undefined;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -90,45 +97,57 @@ describe("WorkspacesPage redirect behavior", () => {
       origin: "http://localhost:3100",
     } as unknown as Location;
 
+    originalConsoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL;
     process.env.NEXT_PUBLIC_CONSOLE_URL = "https://cms.xynes.com";
   });
 
   afterEach(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).location = originalLocation;
+
+    process.env.NEXT_PUBLIC_CONSOLE_URL = originalConsoleUrl;
   });
 
-  it("redirects externally only when redirect param exists", () => {
+  it("redirects externally only when redirect param exists", async () => {
     redirectValue = "https://cms.xynes.com/dashboard";
 
     render(<WorkspaceSelectorPage />);
     fireEvent.click(screen.getByRole("button", { name: "Acme" }));
 
-    expect(mockSelectWorkspace).toHaveBeenCalledWith("ws-1");
-    expect(assignSpy).toHaveBeenCalledWith("https://cms.xynes.com/dashboard");
-    expect(mockPush).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockSelectWorkspace).toHaveBeenCalledWith("ws-1");
+      expect(assignSpy).toHaveBeenCalledWith("https://cms.xynes.com/dashboard");
+      expect(mockPush).not.toHaveBeenCalled();
+    });
   });
 
-  it("does not redirect to CMS by default when redirect param is missing", () => {
+  it("does not redirect to CMS by default when redirect param is missing", async () => {
     redirectValue = null;
 
     render(<WorkspaceSelectorPage />);
     fireEvent.click(screen.getByRole("button", { name: "Acme" }));
 
-    expect(mockSelectWorkspace).toHaveBeenCalledWith("ws-1");
-    expect(assignSpy).not.toHaveBeenCalled();
-    expect(mockPush).toHaveBeenCalledWith("/workspaces/selected");
+    await waitFor(() => {
+      expect(mockSelectWorkspace).toHaveBeenCalledWith("ws-1");
+      expect(assignSpy).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledWith("/workspaces/selected");
+    });
   });
 
-  it("prevents multiple selections from rapid repeated clicks", () => {
+  it("prevents multiple selections from rapid repeated clicks", async () => {
     redirectValue = null;
 
     render(<WorkspaceSelectorPage />);
     const acmeButton = screen.getByRole("button", { name: "Acme" });
 
-    fireEvent.click(acmeButton);
-    fireEvent.click(acmeButton);
-    fireEvent.click(acmeButton);
+    await act(async () => {
+      fireEvent.click(acmeButton);
+      fireEvent.click(acmeButton);
+      fireEvent.click(acmeButton);
+
+      // Allow the async selection handler to advance to its awaited boundary.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
 
     expect(mockSelectWorkspace).toHaveBeenCalledTimes(1);
     expect(mockSelectWorkspace).toHaveBeenCalledWith("ws-1");
