@@ -105,6 +105,15 @@ Rules:
 - Autofill styling must not alter input background; keep `bg-background` via autofill overrides.
 - Copy uses ellipses (`…`) and `text-pretty` / `text-balance` for headings and helper text.
 
+## Invite Entry UX Standards
+
+- `/invite` is a lightweight entry page that accepts an invite link or code and routes to `/invite/<token>`.
+- Keep the page server-rendered; place Lumia DS components behind a client shell when required.
+- Validate and normalize invite input in a Tier 1 utility (`src/lib/invite/*`) before routing.
+- Enforce token length between 16 and 128 characters; reject shorter/longer inputs.
+- Use `encodeURIComponent` for tokens to prevent path injection.
+- Provide accessible error messaging with `role="alert"` and `aria-describedby`.
+
 ## Testing Standards (ADR-001)
 
 - Follow the three-tier testing architecture (Tier 1 = 100%, Tier 2 = 70%, Tier 3 = smoke).
