@@ -2,10 +2,11 @@
 
 import { Suspense, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card } from "@lumia-ui/components";
+import { Card, Alert } from "@lumia-ui/components";
 import { LoginForm } from "@/components/LoginForm";
 import { AuthPageSkeleton } from "@/components/ui";
 import { getSafeRedirectUrl } from "@/lib/redirect";
+import { getOAuthErrorMessage } from "@/lib/oauth/errors";
 
 /**
  * Allowed redirect domains for security validation.
@@ -23,13 +24,18 @@ const DEFAULT_REDIRECT = "/workspaces";
 function LoginContent() {
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect");
+  const errorParam = searchParams.get("error");
 
   // Validate redirect URL to prevent open redirect attacks
   const redirectUrl = getSafeRedirectUrl(
     redirectParam || "",
     DEFAULT_REDIRECT,
-    ALLOWED_REDIRECT_DOMAINS
+    ALLOWED_REDIRECT_DOMAINS,
   );
+
+  const oauthErrorMessage = errorParam
+    ? getOAuthErrorMessage(errorParam)
+    : null;
 
   const handleSuccess = useCallback(() => {
     // Redirect to the validated URL after successful login
@@ -40,6 +46,17 @@ function LoginContent() {
     <div className="flex min-h-screen items-center justify-center p-4 bg-gray-50">
       <Card className="w-full max-w-md p-8">
         <div className="space-y-6">
+          {oauthErrorMessage ? (
+            <div role="alert">
+              <Alert
+                variant="error"
+                title="Sign-in failed"
+                description={oauthErrorMessage}
+                className="text-left"
+              />
+            </div>
+          ) : null}
+
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-foreground">
               Welcome back
@@ -57,7 +74,9 @@ function LoginContent() {
 }
 
 function LoginLoading() {
-  return <AuthPageSkeleton title="Loading login" showForm={true} showOAuth={true} />;
+  return (
+    <AuthPageSkeleton title="Loading login" showForm={true} showOAuth={true} />
+  );
 }
 
 export default function LoginPage() {

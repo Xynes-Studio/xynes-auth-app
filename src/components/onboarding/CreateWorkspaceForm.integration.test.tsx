@@ -57,12 +57,12 @@ describe("CreateWorkspaceForm", () => {
       render(<CreateWorkspaceForm />);
 
       expect(
-        screen.getByRole("heading", { name: /create your workspace/i })
+        screen.getByRole("heading", { name: /create your workspace/i }),
       ).toBeInTheDocument();
       expect(screen.getByLabelText(/workspace name/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/workspace url/i)).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /create workspace/i })
+        screen.getByRole("button", { name: /create workspace/i }),
       ).toBeInTheDocument();
     });
 
@@ -77,9 +77,7 @@ describe("CreateWorkspaceForm", () => {
     it("should display slug format rules", () => {
       render(<CreateWorkspaceForm />);
 
-      expect(
-        screen.getByText(/3-50 characters/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/3-50 characters/i)).toBeInTheDocument();
     });
   });
 
@@ -91,7 +89,7 @@ describe("CreateWorkspaceForm", () => {
       await user.type(nameInput, "My Awesome Team");
 
       const slugInput = screen.getByLabelText(
-        /workspace url/i
+        /workspace url/i,
       ) as HTMLInputElement;
       expect(slugInput.value).toBe("my-awesome-team");
     });
@@ -128,7 +126,9 @@ describe("CreateWorkspaceForm", () => {
       await user.tab(); // blur
 
       await waitFor(() => {
-        expect(screen.getByText(/workspace name is required/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/workspace name is required/i),
+        ).toBeInTheDocument();
       });
     });
 
@@ -155,7 +155,7 @@ describe("CreateWorkspaceForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/cannot contain consecutive hyphens/i)
+          screen.getByText(/cannot contain consecutive hyphens/i),
         ).toBeInTheDocument();
       });
     });
@@ -180,10 +180,10 @@ describe("CreateWorkspaceForm", () => {
             "https://api.test.com/workspaces/check-slug/my-team",
             expect.objectContaining({
               method: "GET",
-            })
+            }),
           );
         },
-        { timeout: 1000 }
+        { timeout: 1000 },
       );
     });
 
@@ -259,7 +259,7 @@ describe("CreateWorkspaceForm", () => {
           expect.objectContaining({
             method: "POST",
             body: JSON.stringify({ name: "My Team", slug: "my-team" }),
-          })
+          }),
         );
       });
     });
@@ -376,7 +376,7 @@ describe("CreateWorkspaceForm", () => {
 
         await waitFor(() => {
           expect(assignSpy).toHaveBeenCalledWith(
-            "https://console.test.com/my-team"
+            "https://console.test.com/my-team",
           );
         });
         expect(mockPush).not.toHaveBeenCalled();
@@ -431,7 +431,7 @@ describe("CreateWorkspaceForm", () => {
           () =>
             new Promise((resolve) => {
               resolveSubmit = resolve;
-            })
+            }),
         );
 
       render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
@@ -450,12 +450,12 @@ describe("CreateWorkspaceForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: /creating/i })
+          screen.getByRole("button", { name: /creating/i }),
         ).toBeInTheDocument();
       });
 
       // Resolve the promise
-      act(() => {
+      await act(async () => {
         resolveSubmit!({
           ok: true,
           json: () =>
@@ -542,7 +542,7 @@ describe("CreateWorkspaceForm", () => {
       // Should reach submit button or invite link depending on form state
       expect(
         document.activeElement === submitButton ||
-          document.activeElement?.tagName === "A"
+          document.activeElement?.tagName === "A",
       ).toBe(true);
     });
   });
@@ -570,7 +570,7 @@ describe("CreateWorkspaceForm", () => {
         <CreateWorkspaceForm
           apiBaseUrl="https://api.test.com"
           onSuccess={onSuccess}
-        />
+        />,
       );
 
       const nameInput = screen.getByLabelText(/workspace name/i);
