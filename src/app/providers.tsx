@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, type ReactNode } from "react";
-import { FeatureFlagsProvider } from "@xynes/auth-sdk";
+import {
+  FeatureFlagsProvider,
+  AuthProvider,
+  WorkspaceProvider,
+} from "@xynes/auth-sdk";
 import { getFeatureFlagOverrides } from "@/lib/feature-flags/overrides";
 
 interface ProvidersProps {
@@ -14,6 +18,18 @@ interface ProvidersProps {
  */
 export function Providers({ children }: ProvidersProps) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100";
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:54321";
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  const authAppUrl =
+    process.env.NEXT_PUBLIC_AUTH_APP_URL || "http://localhost:3100";
+  const allowedRedirectDomains = (
+    process.env.NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS ||
+    "xynes.com,localhost:3000"
+  )
+    .split(",")
+    .map((domain) => domain.trim())
+    .filter(Boolean);
   const flagOverrides = useMemo(() => getFeatureFlagOverrides(), []);
 
   return (
@@ -22,7 +38,17 @@ export function Providers({ children }: ProvidersProps) {
       fetchOnMount={true}
       flagOverrides={flagOverrides}
     >
-      {children}
+      <AuthProvider
+        config={{
+          supabaseUrl,
+          supabaseKey,
+          apiBaseUrl,
+          authAppUrl,
+          allowedRedirectDomains,
+        }}
+      >
+        <WorkspaceProvider>{children}</WorkspaceProvider>
+      </AuthProvider>
     </FeatureFlagsProvider>
   );
 }

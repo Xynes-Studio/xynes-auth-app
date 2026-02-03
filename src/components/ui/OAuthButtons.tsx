@@ -3,7 +3,7 @@
 import { useCallback, useState, type JSX } from "react";
 import { Button } from "@lumia-ui/components";
 import { normalizeAuthError, type AuthError } from "@/lib/errors";
-import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import { createOAuthClient } from "@/lib/supabase/client";
 
 export interface OAuthProvider {
   id: "google" | "github";
@@ -118,15 +118,18 @@ export function OAuthButtons({
       onLoadingChange?.(true);
 
       try {
-        const supabase = createBrowserClient();
+        const supabase = createOAuthClient();
+        const callbackBaseUrl = (
+          process.env.NEXT_PUBLIC_AUTH_APP_URL ?? window.location.origin
+        ).replace(/\/$/, "");
         const { error: oauthError } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
             redirectTo: redirectUrl
-              ? `${
-                  window.location.origin
-                }/callback?redirect=${encodeURIComponent(redirectUrl)}`
-              : `${window.location.origin}/callback`,
+              ? `${callbackBaseUrl}/callback/client?redirect=${encodeURIComponent(
+                  redirectUrl,
+                )}`
+              : `${callbackBaseUrl}/callback/client`,
           },
         });
 
@@ -142,7 +145,7 @@ export function OAuthButtons({
         onLoadingChange?.(false);
       }
     },
-    [redirectUrl, onError, onLoadingChange]
+    [redirectUrl, onError, onLoadingChange],
   );
 
   const isLoading = loadingProvider !== null;

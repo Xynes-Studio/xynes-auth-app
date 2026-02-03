@@ -13,7 +13,10 @@ import {
   MAX_PASSWORD_INPUT_LENGTH,
 } from "@/lib/validation";
 import { normalizeAuthError, type AuthError } from "@/lib/errors";
-import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import {
+  createClient as createBrowserClient,
+  createOAuthClient,
+} from "@/lib/supabase/client";
 
 interface SignupFormProps {
   onSuccess?: (needsEmailVerification: boolean) => void;
@@ -45,16 +48,19 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
 
       try {
         const supabase = createBrowserClient();
+        const callbackBaseUrl = (
+          process.env.NEXT_PUBLIC_AUTH_APP_URL ?? window.location.origin
+        ).replace(/\/$/, "");
         const { data: authData, error: authError } = await supabase.auth.signUp(
           {
             email: data.email,
             password: data.password,
             options: {
               emailRedirectTo: redirectUrl
-                ? `${
-                    window.location.origin
-                  }/callback?redirect=${encodeURIComponent(redirectUrl)}`
-                : `${window.location.origin}/callback`,
+                ? `${callbackBaseUrl}/callback?redirect=${encodeURIComponent(
+                    redirectUrl,
+                  )}`
+                : `${callbackBaseUrl}/callback`,
             },
           },
         );
@@ -84,15 +90,18 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
       setError(null);
 
       try {
-        const supabase = createBrowserClient();
+        const supabase = createOAuthClient();
+        const callbackBaseUrl = (
+          process.env.NEXT_PUBLIC_AUTH_APP_URL ?? window.location.origin
+        ).replace(/\/$/, "");
         const { error: oauthError } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
             redirectTo: redirectUrl
-              ? `${
-                  window.location.origin
-                }/callback?redirect=${encodeURIComponent(redirectUrl)}`
-              : `${window.location.origin}/callback`,
+              ? `${callbackBaseUrl}/callback/client?redirect=${encodeURIComponent(
+                  redirectUrl,
+                )}`
+              : `${callbackBaseUrl}/callback/client`,
           },
         });
 

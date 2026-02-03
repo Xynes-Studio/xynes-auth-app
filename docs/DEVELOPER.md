@@ -17,6 +17,31 @@ This document captures the global engineering standards for the auth app, with e
 - Keep UI components presentational; move logic into `src/lib/*` pure utilities.
 - Avoid prop drilling for app-level concerns; use providers + hooks.
 
+## OAuth (Local Dev Standard)
+
+### Callback Strategy
+- Auth flow must complete on the auth app origin (`NEXT_PUBLIC_AUTH_APP_URL`).
+- OAuth redirect targets `/callback/client` for local implicit flow handling.
+- Server route `/callback` remains for code-based exchanges when available.
+
+### Supabase Local Setup
+Required redirect URIs in Google Console:
+- `http://localhost:54321/auth/v1/callback`
+- `http://127.0.0.1:54321/auth/v1/callback`
+
+Local Supabase allowlist (see `xynes-infra/supabase/config.toml`):
+- `http://localhost:3100/callback`
+- `http://localhost:3100/callback/client`
+- `http://127.0.0.1:3100/callback`
+- `http://127.0.0.1:3100/callback/client`
+
+### Why Implicit Flow (Local Only)
+- Avoids PKCE verifier storage errors during local OAuth testing.
+- Tokens are parsed from URL hash and stored via `setSession` on the client.
+
+## Provider Composition
+Ensure `AuthProvider` and `WorkspaceProvider` wrap all routes that use `useAuth` or `useWorkspace`.
+
 ## Feature Flags
 
 ### Source of Truth
@@ -65,6 +90,12 @@ Rules:
 - Follow the three-tier testing architecture (Tier 1 = 100%, Tier 2 = 70%, Tier 3 = smoke).
 - Overall coverage target: **80%** minimum.
 - See [docs/TESTING.md](TESTING.md).
+
+### TDD Requirements
+- Write or update tests before implementation changes.
+- Tier 1 utilities: 100% coverage target.
+- Tier 2 components/hooks: 70% coverage target.
+- Do not merge below 80% overall coverage.
 
 ## Linting
 

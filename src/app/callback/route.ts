@@ -20,6 +20,8 @@ import {
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
+  const authAppBaseUrl =
+    process.env.NEXT_PUBLIC_AUTH_APP_URL || process.env.AUTH_APP_URL || origin;
   const code = searchParams.get("code");
   const redirectParam = searchParams.get("redirect");
 
@@ -30,7 +32,7 @@ export async function GET(request: Request) {
     // Redirect to login page with only the error code
     // We use our predefined error messages instead of provider descriptions
     // to prevent potential XSS and ensure consistent UX
-    const loginUrl = new URL("/login", origin);
+    const loginUrl = new URL("/login", authAppBaseUrl);
     loginUrl.searchParams.set("error", errorCode);
     return NextResponse.redirect(loginUrl.toString());
   }
@@ -49,7 +51,7 @@ export async function GET(request: Request) {
       const safeRedirect = determineRedirectUrl(
         redirectParam,
         bootstrapResult,
-        allowedDomains
+        allowedDomains,
       );
 
       // If redirect is external (to another xynes app), use that
@@ -58,10 +60,29 @@ export async function GET(request: Request) {
         return NextResponse.redirect(safeRedirect);
       }
 
-      return NextResponse.redirect(`${origin}${safeRedirect}`);
+      return NextResponse.redirect(`${authAppBaseUrl}${safeRedirect}`);
+    }
+
+    if (error) {
+      console.error("OAuth callback exchange failed", {
+        error: error.message,
+      });
+
+      if (error?.code === "pkce_code_verifier_not_found") {
+        const fallbackUrl = new URL("/callback/client", authAppBaseUrl);
+        fallbackUrl.searchParams.set("code", code);
+        if (redirectParam) {
+          fallbackUrl.searchParams.set("redirect", redirectParam);
+        }
+        return NextResponse.redirect(fallbackUrl.toString());
+      }
+    } else {
+      console.error("OAuth callback missing session data");
     }
   }
 
   // Return to login page with error
-  return NextResponse.redirect(`${origin}/login?error=auth_callback_error`);
+  return NextResponse.redirect(
+    `${authAppBaseUrl}/login?error=auth_callback_error`,
+  );
 }
