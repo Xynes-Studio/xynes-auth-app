@@ -24,6 +24,12 @@ This document captures the global engineering standards for the auth app, with e
 - OAuth redirect targets `/callback/client` for local implicit flow handling.
 - Server route `/callback` remains for code-based exchanges when available.
 
+### Callback Error UI (Global Standard)
+- OAuth errors are rendered with safe, predefined messages (see `@/lib/oauth/errors`).
+- Login page shows a consistent error banner when `?error=` is present.
+- Callback client page shows error state with safe actions: retry login, go to login, and contact support.
+- Never render provider-supplied `error_description` strings (prevents XSS).
+
 ### Supabase Local Setup
 Required redirect URIs in Google Console:
 - `http://localhost:54321/auth/v1/callback`
@@ -84,6 +90,7 @@ Rules:
 - Use semantic HTML and accessible labels.
 - Ensure error messages are announced (`aria-describedby`, `role="alert"` where appropriate).
 - Keep keyboard navigation functional for all inputs and buttons.
+- Error states must include actionable controls and be screen reader discoverable.
 
 ## Testing Standards (ADR-001)
 

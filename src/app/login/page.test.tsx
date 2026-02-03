@@ -5,10 +5,12 @@ import userEvent from "@testing-library/user-event";
 // Mock next/navigation
 const mockPush = vi.fn();
 let redirectValue: string | null = "https://cms.xynes.com/dashboard";
+let errorValue: string | null = null;
 vi.mock("next/navigation", () => ({
   useSearchParams: () => ({
     get: vi.fn((param) => {
       if (param === "redirect") return redirectValue;
+      if (param === "error") return errorValue;
       return null;
     }),
   }),
@@ -19,12 +21,15 @@ vi.mock("next/navigation", () => ({
 
 // Mock LoginForm component
 vi.mock("@/components/LoginForm", () => ({
-  LoginForm: ({ onSuccess, redirectUrl }: { onSuccess?: () => void; redirectUrl?: string }) => (
+  LoginForm: ({
+    onSuccess,
+    redirectUrl,
+  }: {
+    onSuccess?: () => void;
+    redirectUrl?: string;
+  }) => (
     <div data-testid="login-form" data-redirect-url={redirectUrl}>
-      <button
-        data-testid="mock-login-button"
-        onClick={() => onSuccess?.()}
-      >
+      <button data-testid="mock-login-button" onClick={() => onSuccess?.()}>
         Mock Login
       </button>
     </div>
@@ -43,6 +48,7 @@ describe("LoginPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     redirectValue = "https://cms.xynes.com/dashboard";
+    errorValue = null;
   });
 
   describe("rendering", () => {
@@ -51,7 +57,9 @@ describe("LoginPage", () => {
 
       await waitFor(() => {
         expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
-        expect(screen.getByText(/sign in to your account/i)).toBeInTheDocument();
+        expect(
+          screen.getByText(/sign in to your account/i),
+        ).toBeInTheDocument();
       });
     });
 
@@ -70,7 +78,7 @@ describe("LoginPage", () => {
         const loginForm = screen.getByTestId("login-form");
         expect(loginForm).toHaveAttribute(
           "data-redirect-url",
-          "https://cms.xynes.com/dashboard"
+          "https://cms.xynes.com/dashboard",
         );
       });
     });
@@ -84,12 +92,22 @@ describe("LoginPage", () => {
         expect(loginForm).toHaveAttribute("data-redirect-url", "/workspaces");
       });
     });
+
+    it("should show OAuth error banner when error param is present", async () => {
+      errorValue = "access_denied";
+      render(<LoginPage />);
+
+      await waitFor(() => {
+        expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
+        expect(screen.getByText(/you denied the request/i)).toBeInTheDocument();
+      });
+    });
   });
 
   describe("navigation", () => {
     it("should redirect on successful login", async () => {
       const user = userEvent.setup();
-      
+
       // Mock window.location
       const originalLocation = window.location;
       const mockLocation = { href: "" };

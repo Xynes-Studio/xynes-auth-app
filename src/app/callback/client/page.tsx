@@ -2,22 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card } from "@lumia-ui/components";
+import { Card, Button, Alert, Spinner } from "@lumia-ui/components";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { getAllowedRedirectDomains, getSafeRedirectUrl } from "@/lib/redirect";
+import { getOAuthErrorMessage } from "@/lib/oauth/errors";
 
 const DEFAULT_NEW_USER_REDIRECT = "/onboarding";
 const DEFAULT_EXISTING_USER_REDIRECT = "/workspaces";
+const SUPPORT_EMAIL = "support@xynes.com";
+
+type CallbackState = "loading" | "error";
 
 export default function OAuthClientCallbackPage() {
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<CallbackState>("loading");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
+    const setErrorState = (message: string) => {
+      if (!isMounted) return;
+      setErrorMessage(message);
+      setState("error");
+    };
+
     async function handleCallback() {
       try {
+        const oauthError = searchParams.get("error");
+        if (oauthError) {
+          setErrorState(getOAuthErrorMessage(oauthError));
+          return;
+        }
+
         const supabase = createBrowserClient();
         const redirectParam = searchParams.get("redirect");
         const code = searchParams.get("code");
@@ -29,7 +46,7 @@ export default function OAuthClientCallbackPage() {
             await supabase.auth.exchangeCodeForSession(code);
 
           if (exchangeError) {
-            setError(exchangeError.message);
+            setErrorState(getOAuthErrorMessage("auth_callback_error"));
             return;
           }
 
@@ -43,7 +60,7 @@ export default function OAuthClientCallbackPage() {
           const refresh_token = params.get("refresh_token") ?? undefined;
 
           if (!access_token || !refresh_token) {
-            setError("Missing OAuth session. Please try again.");
+            setErrorState(getOAuthErrorMessage("auth_callback_error"));
             return;
           }
 
@@ -53,7 +70,7 @@ export default function OAuthClientCallbackPage() {
           });
 
           if (sessionError) {
-            setError(sessionError.message);
+            setErrorState(getOAuthErrorMessage("auth_callback_error"));
             return;
           }
 
@@ -61,7 +78,7 @@ export default function OAuthClientCallbackPage() {
         }
 
         if (!accessToken) {
-          setError("Missing OAuth session. Please try again.");
+          setErrorState(getOAuthErrorMessage("auth_callback_error"));
           return;
         }
         let hasWorkspaces = false;
@@ -118,8 +135,8 @@ export default function OAuthClientCallbackPage() {
         window.location.href = safeRedirect;
       } catch (err) {
         if (!isMounted) return;
-        const message = err instanceof Error ? err.message : "Unexpected error";
-        setError(message);
+        console.error("OAuth callback failed", err);
+        setErrorState(getOAuthErrorMessage("auth_callback_error"));
       }
     }
 
@@ -130,26 +147,82 @@ export default function OAuthClientCallbackPage() {
     };
   }, [searchParams]);
 
+  const redirectParam = searchParams.get("redirect");
+  const allowedDomains = getAllowedRedirectDomains();
+  const safeRedirect = getSafeRedirectUrl(
+    redirectParam || "",
+    DEFAULT_EXISTING_USER_REDIRECT,
+    allowedDomains,
+  );
+  const retryUrl = redirectParam
+    ? `/login?redirect=${encodeURIComponent(safeRedirect)}`
+    : "/login";
+
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gray-50">
+    <main
+      className="flex min-h-screen items-center justify-center p-4 bg-gray-50"
+      role="main"
+      aria-busy={state === "loading"}
+    >
       <Card className="w-full max-w-md p-8">
-        <div className="space-y-3 text-center">
-          <h1 className="text-xl font-semibold text-foreground">
-            Completing sign-in…
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Please wait while we finish signing you in.
-          </p>
-          {error ? (
-            <p className="text-sm text-red-600">
-              {error}{" "}
-              <a className="underline" href="/login">
-                Return to login
-              </a>
-            </p>
-          ) : null}
+        <div className="space-y-6 text-center">
+          {state === "loading" && (
+            <>
+              <div className="flex justify-center">
+                <Spinner size="lg" aria-label="Completing sign-in" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-foreground">
+                  Completing sign-in…
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Please wait while we finish signing you in.
+                </p>
+              </div>
+            </>
+          )}
+
+          {state === "error" && (
+            <>
+              <div role="alert">
+                <Alert
+                  variant="error"
+                  title="Unable to complete sign-in"
+                  description={
+                    errorMessage ?? getOAuthErrorMessage("auth_callback_error")
+                  }
+                  className="text-left"
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                You can retry sign-in or return to login.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Button
+                  onClick={() => (window.location.href = retryUrl)}
+                  variant="default"
+                  className="w-full"
+                >
+                  Try again
+                </Button>
+                <Button
+                  onClick={() => (window.location.href = "/login")}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Go to login
+                </Button>
+                <a
+                  href={`mailto:${SUPPORT_EMAIL}`}
+                  className="text-sm font-medium text-primary-600 hover:underline"
+                >
+                  Contact support
+                </a>
+              </div>
+            </>
+          )}
         </div>
       </Card>
-    </div>
+    </main>
   );
 }
