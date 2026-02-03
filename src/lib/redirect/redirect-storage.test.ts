@@ -25,11 +25,7 @@ function createMemoryStorage() {
 describe("OAuth redirect storage", () => {
   it("persists valid relative redirect URLs", () => {
     const storage = createMemoryStorage();
-    const result = persistOAuthRedirect(
-      "/invite/abc",
-      allowedDomains,
-      storage,
-    );
+    const result = persistOAuthRedirect("/invite/abc", allowedDomains, storage);
 
     expect(result).toBe("/invite/abc");
     expect(storage.getItem(OAUTH_REDIRECT_STORAGE_KEY)).toBe("/invite/abc");

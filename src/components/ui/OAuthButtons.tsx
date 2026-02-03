@@ -136,7 +136,7 @@ export function OAuthButtons({
             safeRedirect = persistOAuthRedirect(
               redirectUrl,
               allowedDomains,
-              window.localStorage
+              window.localStorage,
             );
           } else {
             clearPersistedOAuthRedirect(window.localStorage);

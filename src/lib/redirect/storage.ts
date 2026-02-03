@@ -14,7 +14,7 @@ export type RedirectStorage = Pick<
 export function persistOAuthRedirect(
   redirectUrl: string | null | undefined,
   allowedDomains: string[],
-  storage: RedirectStorage
+  storage: RedirectStorage,
 ): string | null {
   const normalized = redirectUrl?.trim() ?? "";
 
@@ -26,7 +26,7 @@ export function persistOAuthRedirect(
   const safeRedirect = getSafeRedirectUrl(
     normalized,
     "",
-    allowedDomains
+    allowedDomains,
   ).trim();
 
   if (!safeRedirect) {
@@ -42,7 +42,7 @@ export function persistOAuthRedirect(
  * Read a persisted OAuth redirect URL, if any.
  */
 export function readPersistedOAuthRedirect(
-  storage: RedirectStorage
+  storage: RedirectStorage,
 ): string | null {
   const stored = storage.getItem(OAUTH_REDIRECT_STORAGE_KEY);
   const normalized = stored?.trim() ?? "";
@@ -52,9 +52,7 @@ export function readPersistedOAuthRedirect(
 /**
  * Clear any persisted OAuth redirect URL.
  */
-export function clearPersistedOAuthRedirect(
-  storage: RedirectStorage
-): void {
+export function clearPersistedOAuthRedirect(storage: RedirectStorage): void {
   storage.removeItem(OAUTH_REDIRECT_STORAGE_KEY);
 }
 
@@ -65,7 +63,7 @@ export function resolveOAuthRedirect(
   redirectParam: string | null,
   storedRedirect: string | null,
   defaultUrl: string,
-  allowedDomains: string[]
+  allowedDomains: string[],
 ): string {
   const candidate = redirectParam?.trim() || storedRedirect?.trim() || "";
   return getSafeRedirectUrl(candidate, defaultUrl, allowedDomains);

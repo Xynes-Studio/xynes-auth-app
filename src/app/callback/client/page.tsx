@@ -180,9 +180,10 @@ export default function OAuthClientCallbackPage() {
     DEFAULT_EXISTING_USER_REDIRECT,
     allowedDomains,
   );
-  const retryUrl = redirectParam || storedRedirect
-    ? `/login?redirect=${encodeURIComponent(safeRetryRedirect)}`
-    : "/login";
+  const retryUrl =
+    redirectParam || storedRedirect
+      ? `/login?redirect=${encodeURIComponent(safeRetryRedirect)}`
+      : "/login";
 
   return (
     <main
