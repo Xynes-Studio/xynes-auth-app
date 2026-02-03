@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, Button, Alert, Spinner } from "@lumia-ui/components";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
-import { getAllowedRedirectDomains, getSafeRedirectUrl } from "@/lib/redirect";
+import { getAllowedRedirectDomains } from "@/lib/redirect";
+import {
+  clearPersistedOAuthRedirect,
+  readPersistedOAuthRedirect,
+  resolveOAuthRedirect,
+} from "@/lib/redirect/storage";
 import { getOAuthErrorMessage } from "@/lib/oauth/errors";
 
 const DEFAULT_NEW_USER_REDIRECT = "/onboarding";
@@ -17,11 +22,15 @@ export default function OAuthClientCallbackPage() {
   const searchParams = useSearchParams();
   const [state, setState] = useState<CallbackState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [storedRedirect, setStoredRedirect] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const setErrorState = (message: string) => {
+      if (typeof window !== "undefined") {
+        clearPersistedOAuthRedirect(window.localStorage);
+      }
       if (!isMounted) return;
       setErrorMessage(message);
       setState("error");
@@ -37,6 +46,11 @@ export default function OAuthClientCallbackPage() {
 
         const supabase = createBrowserClient();
         const redirectParam = searchParams.get("redirect");
+        const storedParam =
+          typeof window !== "undefined"
+            ? readPersistedOAuthRedirect(window.localStorage)
+            : null;
+        setStoredRedirect(storedParam);
         const code = searchParams.get("code");
 
         let accessToken: string | undefined;
@@ -125,13 +139,24 @@ export default function OAuthClientCallbackPage() {
           : DEFAULT_NEW_USER_REDIRECT;
 
         const allowedDomains = getAllowedRedirectDomains();
-        const safeRedirect = getSafeRedirectUrl(
-          redirectParam || "",
+        const safeRedirect = resolveOAuthRedirect(
+          redirectParam,
+          storedParam,
           defaultRedirect,
           allowedDomains,
         );
 
         if (!isMounted) return;
+        if (typeof window !== "undefined") {
+          if (window.location.hash) {
+            window.history.replaceState(
+              null,
+              "",
+              `${window.location.pathname}${window.location.search}`,
+            );
+          }
+          clearPersistedOAuthRedirect(window.localStorage);
+        }
         window.location.href = safeRedirect;
       } catch (err) {
         if (!isMounted) return;
@@ -149,13 +174,14 @@ export default function OAuthClientCallbackPage() {
 
   const redirectParam = searchParams.get("redirect");
   const allowedDomains = getAllowedRedirectDomains();
-  const safeRedirect = getSafeRedirectUrl(
-    redirectParam || "",
+  const safeRetryRedirect = resolveOAuthRedirect(
+    redirectParam,
+    storedRedirect,
     DEFAULT_EXISTING_USER_REDIRECT,
     allowedDomains,
   );
-  const retryUrl = redirectParam
-    ? `/login?redirect=${encodeURIComponent(safeRedirect)}`
+  const retryUrl = redirectParam || storedRedirect
+    ? `/login?redirect=${encodeURIComponent(safeRetryRedirect)}`
     : "/login";
 
   return (

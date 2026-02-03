@@ -24,6 +24,12 @@ This document captures the global engineering standards for the auth app, with e
 - OAuth redirect targets `/callback/client` for local implicit flow handling.
 - Server route `/callback` remains for code-based exchanges when available.
 
+### Redirect Persistence (Global Standard)
+- Validate `redirect` against allowed domains or relative paths before storing.
+- Persist validated redirects in `localStorage` under `xynes.auth.oauth_redirect`.
+- Resolve redirect using query param first, then stored value, then safe default.
+- Clear stored redirect after successful callback handling.
+
 ### Callback Error UI (Global Standard)
 - OAuth errors are rendered with safe, predefined messages (see `@/lib/oauth/errors`).
 - Login page shows a consistent error banner when `?error=` is present.
