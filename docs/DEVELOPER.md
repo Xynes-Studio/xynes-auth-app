@@ -98,6 +98,13 @@ Rules:
 - Keep keyboard navigation functional for all inputs and buttons.
 - Error states must include actionable controls and be screen reader discoverable.
 
+## Onboarding UX Standards
+
+- Workspace creation UI must match global auth form styling (same input/button heights and spacing).
+- Workspace URL input uses `InputGroup` with `xynes.com/` prefix and global input styles.
+- Autofill styling must not alter input background; keep `bg-background` via autofill overrides.
+- Copy uses ellipses (`…`) and `text-pretty` / `text-balance` for headings and helper text.
+
 ## Testing Standards (ADR-001)
 
 - Follow the three-tier testing architecture (Tier 1 = 100%, Tier 2 = 70%, Tier 3 = smoke).

@@ -50,6 +50,16 @@ describe("OAuthButtons", () => {
       ).toBeInTheDocument();
     });
 
+    it("renders provider buttons as flex rows", () => {
+      render(<OAuthButtons />);
+
+      const googleButton = screen.getByRole("button", { name: /google/i });
+      const githubButton = screen.getByRole("button", { name: /github/i });
+
+      expect(googleButton).toHaveClass("flex-row");
+      expect(githubButton).toHaveClass("flex-row");
+    });
+
     it("renders buttons as disabled when disabled prop is true", () => {
       render(<OAuthButtons disabled />);
 

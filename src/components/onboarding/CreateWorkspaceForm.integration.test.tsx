@@ -66,10 +66,12 @@ describe("CreateWorkspaceForm", () => {
       ).toBeInTheDocument();
     });
 
-    it('should render the "Have an invite?" link', () => {
+    it('should render the "Join with an invite" link', () => {
       render(<CreateWorkspaceForm />);
 
-      const inviteLink = screen.getByRole("link", { name: /have an invite/i });
+      const inviteLink = screen.getByRole("link", {
+        name: /join with an invite/i,
+      });
       expect(inviteLink).toBeInTheDocument();
       expect(inviteLink).toHaveAttribute("href", "/invite");
     });
@@ -77,7 +79,9 @@ describe("CreateWorkspaceForm", () => {
     it("should display slug format rules", () => {
       render(<CreateWorkspaceForm />);
 
-      expect(screen.getByText(/3-50 characters/i)).toBeInTheDocument();
+      const rules = screen.getByText(/3-50 characters/i);
+      expect(rules).toBeInTheDocument();
+      expect(rules).toHaveClass("text-foreground/70");
     });
   });
 

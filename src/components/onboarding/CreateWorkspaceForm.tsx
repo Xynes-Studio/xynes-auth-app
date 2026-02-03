@@ -14,8 +14,18 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import Link from 'next/link';
-import { Button, Alert, Card, CardContent, Spinner } from "@lumia-ui/components";
+import Link from "next/link";
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  Input,
+  InputGroup,
+  InputGroupInput,
+  InputGroupPrefix,
+  Spinner,
+} from "@lumia-ui/components";
 import { createClient } from "@/lib/supabase/client";
 import { getSafeRedirectUrl, getAllowedRedirectDomains } from "@/lib/redirect";
 import {
@@ -130,7 +140,7 @@ export function CreateWorkspaceForm({
               ...(token && { Authorization: `Bearer ${token}` }),
             },
             signal: slugCheckAbortController.current.signal,
-          }
+          },
         );
 
         if (!response.ok) {
@@ -147,7 +157,7 @@ export function CreateWorkspaceForm({
         setSlugStatus("error");
       }
     },
-    [apiBaseUrl, getAccessToken]
+    [apiBaseUrl, getAccessToken],
   );
 
   // Debounced slug availability check
@@ -156,7 +166,7 @@ export function CreateWorkspaceForm({
       debounce((slug: string) => {
         checkSlugAvailability(slug);
       }, 500),
-    [checkSlugAvailability]
+    [checkSlugAvailability],
   );
 
   // Auto-generate slug from name
@@ -184,7 +194,7 @@ export function CreateWorkspaceForm({
       setIsSlugManuallyEdited(true);
       setValue("slug", e.target.value, { shouldValidate: true });
     },
-    [setValue]
+    [setValue],
   );
 
   /**
@@ -223,11 +233,11 @@ export function CreateWorkspaceForm({
         }
 
         const payload: unknown = await response.json();
-        const workspace = (
-          (payload as { data?: { data?: Workspace; slug?: string } }).data?.data ??
+        const workspace = ((
+          payload as { data?: { data?: Workspace; slug?: string } }
+        ).data?.data ??
           (payload as { data?: Workspace }).data ??
-          payload
-        ) as Partial<Workspace>;
+          payload) as Partial<Workspace>;
 
         // Defensive: gateway responses may be wrapped; always ensure we have a slug for redirects.
         const workspaceSlug = workspace.slug ?? data.slug;
@@ -262,7 +272,7 @@ export function CreateWorkspaceForm({
           ? getSafeRedirectUrl(
               redirectUrl,
               defaultTarget,
-              getAllowedRedirectDomains()
+              getAllowedRedirectDomains(),
             )
           : defaultTarget;
 
@@ -281,7 +291,7 @@ export function CreateWorkspaceForm({
         setIsSubmitting(false);
       }
     },
-    [apiBaseUrl, getAccessToken, onSuccess, redirectUrl, router]
+    [apiBaseUrl, getAccessToken, onSuccess, redirectUrl, router],
   );
 
   /**
@@ -308,10 +318,10 @@ export function CreateWorkspaceForm({
           slugStatus === "available"
             ? "text-emerald-600"
             : slugStatus === "unavailable"
-            ? "text-red-600"
-            : slugStatus === "error"
-            ? "text-amber-600"
-            : "text-muted-foreground"
+              ? "text-red-600"
+              : slugStatus === "error"
+                ? "text-amber-600"
+                : "text-muted-foreground"
         }`}
         role="status"
         aria-live="polite"
@@ -355,9 +365,9 @@ export function CreateWorkspaceForm({
   };
 
   return (
-    <div className="w-full max-w-lg">
-      <Card>
-        <CardContent className="pt-6">
+    <div className="mx-auto w-full max-w-lg">
+      <Card className="w-full border border-border/70 bg-card/95 shadow-xl">
+        <CardContent className="px-6 pb-6 pt-6 sm:px-8">
           <div className="mb-8 text-center">
             <div className="mb-4 mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
               <svg
@@ -375,10 +385,10 @@ export function CreateWorkspaceForm({
                 />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            <h2 className="text-balance text-2xl font-semibold text-foreground">
               Create Your Workspace
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
+            </h2>
+            <p className="mt-2 text-pretty text-sm text-foreground/70">
               Set up your team&apos;s workspace to get started. You can invite
               team members later.
             </p>
@@ -404,24 +414,23 @@ export function CreateWorkspaceForm({
               >
                 Workspace Name
               </label>
-              <input
+              <Input
                 id="workspace-name"
                 type="text"
-                placeholder="e.g., Acme Corporation"
-                autoComplete="organization"
-                className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm transition-colors
-                  focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
-                  ${
-                    errors.name
-                      ? "border-red-500 focus:ring-red-500"
-                      : "border-border hover:border-muted-foreground/50"
-                  }`}
+                placeholder="e.g., Acme Corporation…"
+                autoComplete="off"
+                className="autofill:shadow-[inset_0_0_0px_1000px_hsl(var(--background))] autofill:text-foreground"
                 aria-invalid={errors.name ? "true" : "false"}
                 aria-describedby={errors.name ? "name-error" : undefined}
+                invalid={Boolean(errors.name)}
                 {...register("name")}
               />
               {errors.name && (
-                <p id="name-error" className="text-sm text-red-600" role="alert">
+                <p
+                  id="name-error"
+                  className="text-sm text-red-600"
+                  role="alert"
+                >
                   {errors.name.message}
                 </p>
               )}
@@ -435,23 +444,18 @@ export function CreateWorkspaceForm({
               >
                 Workspace URL
               </label>
-              <div className="flex items-center gap-0">
-                <span className="inline-flex items-center rounded-l-md border border-r-0 border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+              <InputGroup invalid={Boolean(errors.slug)}>
+                <InputGroupPrefix className="bg-transparent text-muted-foreground">
                   xynes.com/
-                </span>
-                <input
+                </InputGroupPrefix>
+                <InputGroupInput
                   id="workspace-slug"
                   type="text"
                   placeholder="your-workspace"
                   autoComplete="off"
+                  spellCheck={false}
+                  className="bg-transparent autofill:shadow-[inset_0_0_0px_1000px_hsl(var(--background))] autofill:text-foreground"
                   {...slugField}
-                  className={`w-full rounded-r-md border px-3 py-2 text-sm shadow-sm transition-colors
-                    focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
-                    ${
-                      errors.slug
-                        ? "border-red-500 focus:ring-red-500"
-                        : "border-border hover:border-muted-foreground/50"
-                    }`}
                   aria-invalid={errors.slug ? "true" : "false"}
                   aria-describedby="slug-rules slug-error slug-status"
                   value={slugValue}
@@ -461,20 +465,21 @@ export function CreateWorkspaceForm({
                     void trigger("slug");
                   }}
                 />
-              </div>
+              </InputGroup>
 
               {/* Slug format rules */}
-              <p
-                id="slug-rules"
-                className="text-xs text-muted-foreground"
-              >
+              <p id="slug-rules" className="text-sm text-foreground/70">
                 3-50 characters. Lowercase letters, numbers, and hyphens only.
                 Must start with a letter.
               </p>
 
               {/* Slug validation error */}
               {errors.slug && (
-                <p id="slug-error" className="text-sm text-red-600" role="alert">
+                <p
+                  id="slug-error"
+                  className="text-sm text-red-600"
+                  role="alert"
+                >
                   {errors.slug.message}
                 </p>
               )}
@@ -487,23 +492,23 @@ export function CreateWorkspaceForm({
             <Button
               type="submit"
               fullWidth
-              size="lg"
+              size="md"
               disabled={isSubmitDisabled}
               isLoading={isSubmitting}
-              loadingText="Creating..."
+              loadingText="Creating…"
             >
               Create Workspace
             </Button>
 
             {/* Disabled-state hint */}
-            {(isSubmitDisabled && !isSubmitting) && (
+            {isSubmitDisabled && !isSubmitting && (
               <div
                 className={`text-xs ${
                   slugStatus === "unavailable" || errors.name || errors.slug
                     ? "text-red-600"
                     : slugStatus === "checking"
-                    ? "text-muted-foreground"
-                    : "text-muted-foreground"
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground"
                 }`}
                 role="status"
                 aria-live="polite"
@@ -511,8 +516,8 @@ export function CreateWorkspaceForm({
                 {slugStatus === "checking"
                   ? "Checking workspace URL availability…"
                   : slugStatus === "unavailable"
-                  ? "That workspace URL isn’t available."
-                  : "Fix the highlighted fields above to enable workspace creation."}
+                    ? "That workspace URL isn’t available."
+                    : "Fix the highlighted fields above to enable workspace creation."}
               </div>
             )}
           </form>
@@ -520,12 +525,12 @@ export function CreateWorkspaceForm({
           {/* Have an invite link */}
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Already have an invitation?{" "}
+              Already have an invite?{" "}
               <Link
                 href="/invite"
-                className="font-medium text-primary hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                className="font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               >
-                Have an invite? Join a workspace
+                Join with an invite
               </Link>
             </p>
           </div>

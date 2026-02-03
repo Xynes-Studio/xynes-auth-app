@@ -5,7 +5,6 @@ import { SignupForm } from "./SignupForm";
 
 // Mock Supabase client
 const mockSignUp = vi.fn();
-const mockSignInWithOAuth = vi.fn();
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
@@ -13,18 +12,48 @@ vi.mock("@/lib/supabase/client", () => ({
       signUp: mockSignUp,
     },
   }),
-  createOAuthClient: () => ({
-    auth: {
-      signInWithOAuth: mockSignInWithOAuth,
-    },
-  }),
 }));
+
+vi.mock("@xynes/auth-sdk", () => ({
+  useOAuthProviders: () => ({ google: true, github: true }),
+  useFeatureFlags: () => ({ flags: {}, isLoading: false, error: null }),
+  normalizeAuthError: (error: { message?: string } | null) => ({
+    message: error?.message ?? "Unknown error",
+  }),
+  getPasswordStrength: (password: string) => {
+    if (
+      password.length >= 12 &&
+      /[A-Z]/.test(password) &&
+      /[0-9]/.test(password)
+    ) {
+      return "strong";
+    }
+    if (password.length >= 8) {
+      return "medium";
+    }
+    return "weak";
+  },
+  PASSWORD_STRENGTH_CONFIG: {
+    weak: { label: "Weak", color: "text-red-600", percentage: 25 },
+    medium: { label: "Medium", color: "text-yellow-600", percentage: 60 },
+    strong: { label: "Strong", color: "text-green-600", percentage: 100 },
+  },
+}));
+
+vi.mock("./ui", async () => {
+  const actual = await vi.importActual<typeof import("./ui")>("./ui");
+  return {
+    ...actual,
+    OAuthButtons: ({ redirectUrl }: { redirectUrl?: string }) => (
+      <div data-testid="oauth-buttons" data-redirect-url={redirectUrl} />
+    ),
+  };
+});
 
 describe("SignupForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSignUp.mockResolvedValue({ data: {}, error: null });
-    mockSignInWithOAuth.mockResolvedValue({ error: null });
   });
 
   describe("rendering", () => {
@@ -55,12 +84,7 @@ describe("SignupForm", () => {
     it("should render OAuth buttons", () => {
       render(<SignupForm />);
 
-      expect(
-        screen.getByRole("button", { name: /google/i }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /github/i }),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("oauth-buttons")).toBeInTheDocument();
     });
 
     it("should render link to login page", () => {
@@ -279,69 +303,14 @@ describe("SignupForm", () => {
   });
 
   describe("OAuth signup", () => {
-    it("should initiate Google OAuth signup", async () => {
-      const user = userEvent.setup();
-      render(<SignupForm />);
-
-      await user.click(screen.getByRole("button", { name: /google/i }));
-
-      await waitFor(() => {
-        expect(mockSignInWithOAuth).toHaveBeenCalledWith({
-          provider: "google",
-          options: expect.objectContaining({
-            redirectTo: expect.stringContaining("/callback/client"),
-          }),
-        });
-      });
-    });
-
-    it("should initiate GitHub OAuth signup", async () => {
-      const user = userEvent.setup();
-      render(<SignupForm />);
-
-      await user.click(screen.getByRole("button", { name: /github/i }));
-
-      await waitFor(() => {
-        expect(mockSignInWithOAuth).toHaveBeenCalledWith({
-          provider: "github",
-          options: expect.objectContaining({
-            redirectTo: expect.stringContaining("/callback/client"),
-          }),
-        });
-      });
-    });
-
-    it("should show error when OAuth fails", async () => {
-      mockSignInWithOAuth.mockResolvedValueOnce({
-        error: { message: "OAuth error" },
-      });
-
-      const user = userEvent.setup();
-      render(<SignupForm />);
-
-      await user.click(screen.getByRole("button", { name: /google/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText(/signup failed/i)).toBeInTheDocument();
-      });
-    });
-
-    it("should include redirectUrl in OAuth options", async () => {
-      const user = userEvent.setup();
+    it("should pass redirectUrl to OAuthButtons", () => {
       render(<SignupForm redirectUrl="https://app.xynes.com/dashboard" />);
 
-      await user.click(screen.getByRole("button", { name: /google/i }));
-
-      await waitFor(() => {
-        expect(mockSignInWithOAuth).toHaveBeenCalledWith({
-          provider: "google",
-          options: {
-            redirectTo: expect.stringContaining(
-              encodeURIComponent("https://app.xynes.com/dashboard"),
-            ),
-          },
-        });
-      });
+      const oauthButtons = screen.getByTestId("oauth-buttons");
+      expect(oauthButtons).toHaveAttribute(
+        "data-redirect-url",
+        "https://app.xynes.com/dashboard",
+      );
     });
   });
 });

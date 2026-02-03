@@ -43,8 +43,8 @@ function LoginContent() {
   }, [redirectUrl]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gray-50">
-      <Card className="w-full max-w-md p-8">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted/30 p-4">
+      <Card className="w-full max-w-md border border-border/70 bg-card p-8 shadow-xl">
         <div className="space-y-6">
           {oauthErrorMessage ? (
             <div role="alert">
@@ -58,10 +58,10 @@ function LoginContent() {
           ) : null}
 
           <div className="text-center">
-            <h1 className="text-2xl font-semibold text-foreground">
+            <h1 className="text-balance text-2xl font-semibold text-foreground">
               Welcome back
             </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-foreground/70 text-pretty">
               Sign in to your account to continue
             </p>
           </div>
