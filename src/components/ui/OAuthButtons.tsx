@@ -21,7 +21,7 @@ export const OAUTH_PROVIDERS: OAuthProvider[] = [
     id: "google",
     name: "Google",
     icon: (
-      <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
+      <svg className="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
         <path
           fill="#4285F4"
           d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -46,7 +46,7 @@ export const OAUTH_PROVIDERS: OAuthProvider[] = [
     name: "GitHub",
     icon: (
       <svg
-        className="mr-2 h-4 w-4"
+        className="h-4 w-4"
         viewBox="0 0 24 24"
         fill="currentColor"
         aria-hidden="true"
@@ -189,12 +189,15 @@ export function OAuthButtons({
           key={provider.id}
           type="button"
           variant="outline"
+          className="flex-row"
           onClick={() => handleOAuthLogin(provider.id)}
           disabled={disabled || isLoading}
           isLoading={loadingProvider === provider.id}
         >
-          {loadingProvider !== provider.id && provider.icon}
-          {provider.name}
+          <span className="inline-flex items-center gap-2">
+            {loadingProvider !== provider.id && provider.icon}
+            <span>{provider.name}</span>
+          </span>
         </Button>
       ))}
     </div>

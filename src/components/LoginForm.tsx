@@ -3,7 +3,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@lumia-ui/components";
+import Link from "next/link";
+import { Button, Input } from "@lumia-ui/components";
 import { useFeatureFlags, useOAuthProviders } from "@xynes/auth-sdk";
 import {
   loginFormSchema,
@@ -82,24 +83,6 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
     [authDebug, onSuccess],
   );
 
-  const handleFormSubmit = useCallback(
-    (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      void handleSubmit(handleLogin)(event);
-    },
-    [handleSubmit, handleLogin],
-  );
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLFormElement>) => {
-      if (event.key !== "Enter") return;
-      event.preventDefault();
-      void handleSubmit(handleLogin)();
-    },
-    [handleSubmit, handleLogin],
-  );
-
   useEffect(() => {
     if (!authDebug) return;
     console.info("[auth-login] hydrated", {
@@ -130,34 +113,32 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
       <AuthErrorAlert error={error} title="Login failed" />
 
       <form
-        onSubmit={handleFormSubmit}
-        onKeyDown={handleKeyDown}
+        onSubmit={handleSubmit(handleLogin)}
         className="space-y-4"
         noValidate
       >
         <div className="space-y-2">
           <label
             htmlFor="email"
-            className="block text-sm font-medium text-gray-900"
+            className="block text-sm font-medium text-foreground"
           >
             Email
           </label>
-          <input
+          <Input
             id="email"
             type="email"
-            placeholder="you@example.com"
+            placeholder="you@example.com…"
             autoComplete="email"
+            spellCheck={false}
             aria-invalid={!!errors.email}
             aria-describedby={errors.email ? "email-error" : undefined}
-            className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-              errors.email ? "border-red-500" : "border-gray-300"
-            }`}
+            invalid={Boolean(errors.email)}
             {...register("email", {
               onChange: clearError,
             })}
           />
           {errors.email && (
-            <p id="email-error" className="text-sm text-red-600">
+            <p id="email-error" className="text-sm text-destructive">
               {errors.email.message}
             </p>
           )}
@@ -166,21 +147,19 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
         <div className="space-y-2">
           <label
             htmlFor="password"
-            className="block text-sm font-medium text-gray-900"
+            className="block text-sm font-medium text-foreground"
           >
             Password
           </label>
-          <input
+          <Input
             id="password"
             type="password"
-            placeholder="Enter your password"
+            placeholder="Enter your password…"
             autoComplete="current-password"
             maxLength={MAX_PASSWORD_INPUT_LENGTH}
             aria-invalid={!!errors.password}
             aria-describedby={errors.password ? "password-error" : undefined}
-            className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-              errors.password ? "border-red-500" : "border-gray-300"
-            }`}
+            invalid={Boolean(errors.password)}
             {...register("password", {
               onChange: (e) => {
                 clearError();
@@ -191,26 +170,25 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
             })}
           />
           {errors.password && (
-            <p id="password-error" className="text-sm text-red-600">
+            <p id="password-error" className="text-sm text-destructive">
               {errors.password.message}
             </p>
           )}
           <div className="flex justify-end">
-            <a
+            <Link
               href="/forgot-password"
-              className="text-sm font-medium text-primary-600 hover:underline"
+              className="text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
             >
               Forgot password?
-            </a>
+            </Link>
           </div>
         </div>
 
         <Button
-          type="button"
+          type="submit"
           fullWidth
           isLoading={isLoading}
           loadingText="Signing in..."
-          onClick={() => void handleSubmit(handleLogin)()}
         >
           Sign in
         </Button>
@@ -226,14 +204,14 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
         providers={oauthProviders}
       />
 
-      <p className="text-center text-sm text-gray-500">
+      <p className="text-center text-sm text-foreground/70">
         Don&apos;t have an account?{" "}
-        <a
+        <Link
           href="/signup"
-          className="font-medium text-primary-600 hover:underline"
+          className="font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
         >
           Sign up
-        </a>
+        </Link>
       </p>
     </div>
   );

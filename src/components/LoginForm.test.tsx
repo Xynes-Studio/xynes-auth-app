@@ -73,15 +73,13 @@ describe("LoginForm", () => {
       ).toBeInTheDocument();
     });
 
-    it("should avoid native form submission by default", () => {
+    it("should use a submit button for form submission", () => {
       const { container } = renderWithProviders(<LoginForm />);
       const form = container.querySelector("form");
       expect(form).not.toBeNull();
-      expect(form).not.toHaveAttribute("action");
-      expect(form).not.toHaveAttribute("method");
       expect(screen.getByRole("button", { name: /sign in/i })).toHaveAttribute(
         "type",
-        "button",
+        "submit",
       );
     });
 
