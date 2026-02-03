@@ -79,3 +79,51 @@ export const loginFormSchema = z.object({
  * Type for login form data
  */
 export type LoginFormData = z.infer<typeof loginFormSchema>;
+
+/**
+ * Zod schema for forgot password form validation
+ */
+export const forgotPasswordFormSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
+});
+
+/**
+ * Type for forgot password form data
+ */
+export type ForgotPasswordFormData = z.infer<typeof forgotPasswordFormSchema>;
+
+/**
+ * Zod schema for reset password form validation
+ */
+export const resetPasswordFormSchema = z
+  .object({
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(
+        MAX_PASSWORD_LENGTH,
+        `Password must be at most ${MAX_PASSWORD_LENGTH} characters`
+      )
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number"),
+    confirmPassword: z
+      .string()
+      .min(1, "Please confirm your password")
+      .max(
+        MAX_PASSWORD_LENGTH,
+        `Password must be at most ${MAX_PASSWORD_LENGTH} characters`
+      ),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+/**
+ * Type for reset password form data
+ */
+export type ResetPasswordFormData = z.infer<typeof resetPasswordFormSchema>;

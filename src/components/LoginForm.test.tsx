@@ -52,6 +52,17 @@ describe("LoginForm", () => {
       ).toBeInTheDocument();
     });
 
+    it("should avoid native form submission by default", () => {
+      const { container } = renderWithProviders(<LoginForm />);
+      const form = container.querySelector("form");
+      expect(form).not.toBeNull();
+      expect(form).not.toHaveAttribute("action");
+      expect(form).not.toHaveAttribute("method");
+      expect(
+        screen.getByRole("button", { name: /sign in/i })
+      ).toHaveAttribute("type", "button");
+    });
+
     it("should cap password input with a maxLength", () => {
       renderWithProviders(<LoginForm />);
       expect(screen.getByLabelText(/password/i)).toHaveAttribute(
@@ -76,7 +87,7 @@ describe("LoginForm", () => {
 
       expect(
         screen.getByRole("link", { name: /forgot password/i })
-      ).toHaveAttribute("href", "/reset-password");
+      ).toHaveAttribute("href", "/forgot-password");
     });
 
     it("should render link to signup page", () => {

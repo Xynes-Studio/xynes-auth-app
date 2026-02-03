@@ -18,7 +18,7 @@ const ALLOWED_REDIRECT_DOMAINS = (
 /**
  * Default redirect URL after successful login.
  */
-const DEFAULT_REDIRECT = "/onboarding";
+const DEFAULT_REDIRECT = "/workspaces";
 
 function LoginContent() {
   const searchParams = useSearchParams();

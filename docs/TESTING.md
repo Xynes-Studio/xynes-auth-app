@@ -25,6 +25,7 @@ Following the global ADR, we implement a three-tier testing approach:
 | `lib/workspace/validation.ts` | 100% | 60 |
 | `lib/logout/logout-utils.ts` | 100% | - |
 | `lib/validation/index.ts` | 100% | - |
+| `lib/password-reset/password-reset-utils.ts` | 100% | - |
 
 ### Tier 2: Integration Tests (70% coverage target)
 
@@ -45,6 +46,8 @@ Following the global ADR, we implement a three-tier testing approach:
 | `SignupForm` | 96.87% | - |
 | `OAuthButtons` | 97.24% | - |
 | `AuthLoadingStates` | 100% | - |
+| `ForgotPasswordForm` | 100% | - |
+| `ResetPasswordForm` | 100% | - |
 
 ### Tier 3: E2E/Smoke Tests (Smoke coverage)
 
