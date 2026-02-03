@@ -68,7 +68,7 @@ export async function GET(request: Request) {
         error: error.message,
       });
 
-      if (error.message.includes("PKCE code verifier not found")) {
+      if (error?.code === "pkce_code_verifier_not_found") {
         const fallbackUrl = new URL("/callback/client", authAppBaseUrl);
         fallbackUrl.searchParams.set("code", code);
         if (redirectParam) {

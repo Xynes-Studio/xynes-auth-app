@@ -67,23 +67,39 @@ export default function OAuthClientCallbackPage() {
         let hasWorkspaces = false;
 
         if (process.env.NEXT_PUBLIC_API_URL) {
-          const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/me`,
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                "Content-Type": "application/json",
-              },
-            },
-          );
+          const controller = new AbortController();
+          const timeoutId = window.setTimeout(() => {
+            controller.abort();
+          }, 5000);
 
-          if (response.ok) {
-            const payload = await response.json();
-            const me = payload?.data ?? payload;
-            hasWorkspaces = Array.isArray(me?.workspaces)
-              ? me.workspaces.length > 0
-              : false;
+          try {
+            const response = await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL}/me`,
+              {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+                signal: controller.signal,
+              },
+            );
+
+            if (response.ok) {
+              const payload = await response.json();
+              const me = payload?.data ?? payload;
+              hasWorkspaces = Array.isArray(me?.workspaces)
+                ? me.workspaces.length > 0
+                : false;
+            }
+          } catch (err) {
+            const isAbortError =
+              err instanceof DOMException && err.name === "AbortError";
+            if (!isAbortError) {
+              console.error("Failed to load workspaces", err);
+            }
+          } finally {
+            window.clearTimeout(timeoutId);
           }
         }
 
