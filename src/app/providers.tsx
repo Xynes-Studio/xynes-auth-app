@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { FeatureFlagsProvider } from "@xynes/auth-sdk";
+import { getFeatureFlagOverrides } from "@/lib/feature-flags/overrides";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -13,9 +14,14 @@ interface ProvidersProps {
  */
 export function Providers({ children }: ProvidersProps) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100";
+  const flagOverrides = useMemo(() => getFeatureFlagOverrides(), []);
 
   return (
-    <FeatureFlagsProvider apiBaseUrl={apiBaseUrl} fetchOnMount={true}>
+    <FeatureFlagsProvider
+      apiBaseUrl={apiBaseUrl}
+      fetchOnMount={true}
+      flagOverrides={flagOverrides}
+    >
       {children}
     </FeatureFlagsProvider>
   );

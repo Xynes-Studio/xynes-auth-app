@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@lumia-ui/components";
-import { useOAuthProviders } from "@xynes/auth-sdk";
+import { useFeatureFlags, useOAuthProviders } from "@xynes/auth-sdk";
 import {
   loginFormSchema,
   type LoginFormData,
@@ -24,6 +24,11 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
   const oauthProviders = useOAuthProviders();
+  const {
+    flags,
+    isLoading: flagsLoading,
+    error: flagsError,
+  } = useFeatureFlags();
   const authDebug = process.env.NEXT_PUBLIC_AUTH_DEBUG === "true";
 
   const {
@@ -74,7 +79,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
         setIsLoading(false);
       }
     },
-    [authDebug, onSuccess]
+    [authDebug, onSuccess],
   );
 
   const handleFormSubmit = useCallback(
@@ -83,7 +88,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
       event.stopPropagation();
       void handleSubmit(handleLogin)(event);
     },
-    [handleSubmit, handleLogin]
+    [handleSubmit, handleLogin],
   );
 
   const handleKeyDown = useCallback(
@@ -92,7 +97,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
       event.preventDefault();
       void handleSubmit(handleLogin)();
     },
-    [handleSubmit, handleLogin]
+    [handleSubmit, handleLogin],
   );
 
   useEffect(() => {
@@ -101,6 +106,16 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     });
   }, [authDebug]);
+
+  useEffect(() => {
+    if (!authDebug) return;
+    console.info("[auth-flags]", {
+      oauthProviders,
+      flags,
+      flagsLoading,
+      flagsError: flagsError?.message ?? null,
+    });
+  }, [authDebug, oauthProviders, flags, flagsLoading, flagsError]);
 
   const handleOAuthError = useCallback((oauthError: AuthError) => {
     setError(oauthError);

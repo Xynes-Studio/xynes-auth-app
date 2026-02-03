@@ -34,6 +34,9 @@ This is a Next.js 15 application that serves as the centralized authentication h
 - [x] Form accessibility (labels, focus, keyboard nav)
 - [x] 99% test coverage
 
+│   ├── feature-flags/      # Feature flag overrides (Tier 1)
+│   │   ├── overrides.ts          # Deterministic local overrides
+│   │   └── overrides.test.ts     # Unit tests
 ### Story 3: OAuth Login with Feature Flags (AUTH-FE-1.5) ✅
 
 - [x] Dynamic feature flags integration via `@xynes/auth-sdk`
@@ -161,6 +164,9 @@ src/
 │   │   ├── errors.ts            # OAuth error messages
 │   │   ├── errors.test.ts       # Unit tests
 │   │   └── index.ts             # Barrel exports
+│   ├── feature-flags/      # Feature flag overrides (Tier 1)
+│   │   ├── overrides.ts          # Deterministic local overrides
+│   │   └── overrides.test.ts     # Unit tests
 │   ├── password-reset/     # Password reset helpers (Tier 1)
 │   │   ├── password-reset-utils.ts
 │   │   └── password-reset-utils.test.ts
@@ -180,12 +186,17 @@ The app uses `FeatureFlagsProvider` from `@xynes/auth-sdk` to dynamically fetch 
 
 // src/app/providers.tsx
 import { FeatureFlagsProvider } from "@xynes/auth-sdk";
+import { getFeatureFlagOverrides } from "@/lib/feature-flags/overrides";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100";
 
   return (
-    <FeatureFlagsProvider apiBaseUrl={apiBaseUrl} fetchOnMount={true}>
+    <FeatureFlagsProvider
+      apiBaseUrl={apiBaseUrl}
+      fetchOnMount={true}
+      flagOverrides={getFeatureFlagOverrides()}
+    >
       {children}
     </FeatureFlagsProvider>
   );
@@ -207,6 +218,17 @@ export function LoginForm() {
   );
 }
 ```
+
+### Deterministic Feature Flag Overrides (Local)
+
+For QA and local testing, you can force feature flags via environment variables:
+
+- `NEXT_PUBLIC_ENABLE_OAUTH_GOOGLE`
+- `NEXT_PUBLIC_ENABLE_OAUTH_GITHUB`
+- `NEXT_PUBLIC_ENABLE_OAUTH_APPLE`
+- `NEXT_PUBLIC_FEATURE_FLAGS_OVERRIDE` (JSON; supports gateway or SDK keys)
+
+Overrides always win over remote flags and ensure UI reflects the intended state.
 
 ### Utility Re-exports
 
@@ -256,7 +278,7 @@ import { renderWithProviders, mockFeatureFlags } from "@/test/test-utils";
 describe("LoginForm", () => {
   it("renders OAuth buttons when enabled", () => {
     renderWithProviders(<LoginForm />, {
-      flags: {
+      featureFlags: {
         ...mockFeatureFlags,
         xynes_auth_oauth_google: true,
         xynes_auth_oauth_github: true,
@@ -297,6 +319,7 @@ describe("LoginForm", () => {
 ## Related Documentation
 
 - [Auth SDK](../xynes-auth-sdk/README.md) - Shared auth utilities
+- [Developer Guide](docs/DEVELOPER.md) - Global standards for Next.js/React
 - [ADR-001 Testing Standards](../lumia-ds/docs/ADR-001-testing-standards.md)
 - [Docker Infrastructure](../infra/README.md)
 

@@ -41,6 +41,23 @@ describe("LoginForm", () => {
     mockSignInWithOAuth.mockResolvedValue({ data: {}, error: null });
   });
 
+  it("should log feature flag state when auth debug is enabled", () => {
+    const consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const originalDebug = process.env.NEXT_PUBLIC_AUTH_DEBUG;
+    process.env.NEXT_PUBLIC_AUTH_DEBUG = "true";
+
+    renderWithProviders(<LoginForm />);
+
+    const hasFlagLog = consoleSpy.mock.calls.some(
+      (call) => call[0] === "[auth-flags]",
+    );
+
+    expect(hasFlagLog).toBe(true);
+
+    process.env.NEXT_PUBLIC_AUTH_DEBUG = originalDebug;
+    consoleSpy.mockRestore();
+  });
+
   describe("rendering", () => {
     it("should render the login form with all required elements", () => {
       renderWithProviders(<LoginForm />);
@@ -48,7 +65,7 @@ describe("LoginForm", () => {
       expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /sign in/i })
+        screen.getByRole("button", { name: /sign in/i }),
       ).toBeInTheDocument();
     });
 
@@ -58,16 +75,17 @@ describe("LoginForm", () => {
       expect(form).not.toBeNull();
       expect(form).not.toHaveAttribute("action");
       expect(form).not.toHaveAttribute("method");
-      expect(
-        screen.getByRole("button", { name: /sign in/i })
-      ).toHaveAttribute("type", "button");
+      expect(screen.getByRole("button", { name: /sign in/i })).toHaveAttribute(
+        "type",
+        "button",
+      );
     });
 
     it("should cap password input with a maxLength", () => {
       renderWithProviders(<LoginForm />);
       expect(screen.getByLabelText(/password/i)).toHaveAttribute(
         "maxLength",
-        "256"
+        "256",
       );
     });
 
@@ -75,10 +93,10 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       expect(
-        screen.getByRole("button", { name: /google/i })
+        screen.getByRole("button", { name: /google/i }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /github/i })
+        screen.getByRole("button", { name: /github/i }),
       ).toBeInTheDocument();
     });
 
@@ -86,7 +104,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       expect(
-        screen.getByRole("link", { name: /forgot password/i })
+        screen.getByRole("link", { name: /forgot password/i }),
       ).toHaveAttribute("href", "/forgot-password");
     });
 
@@ -96,7 +114,7 @@ describe("LoginForm", () => {
       expect(screen.getByText(/don't have an account/i)).toBeInTheDocument();
       expect(screen.getByRole("link", { name: /sign up/i })).toHaveAttribute(
         "href",
-        "/signup"
+        "/signup",
       );
     });
   });
@@ -190,9 +208,9 @@ describe("LoginForm", () => {
                   data: { user: mockSession.user, session: mockSession },
                   error: null,
                 }),
-              100
-            )
-          )
+              100,
+            ),
+          ),
       );
 
       const user = userEvent.setup();
@@ -203,7 +221,7 @@ describe("LoginForm", () => {
       await user.click(screen.getByRole("button", { name: /sign in/i }));
 
       expect(
-        screen.getByRole("button", { name: /signing in/i })
+        screen.getByRole("button", { name: /signing in/i }),
       ).toBeDisabled();
     });
 
@@ -241,7 +259,7 @@ describe("LoginForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/invalid email or password/i)
+          screen.getByText(/invalid email or password/i),
         ).toBeInTheDocument();
       });
     });
@@ -283,7 +301,7 @@ describe("LoginForm", () => {
     it("should include redirect URL in OAuth options when provided", async () => {
       const user = userEvent.setup();
       renderWithProviders(
-        <LoginForm redirectUrl="https://cms.xynes.com/dashboard" />
+        <LoginForm redirectUrl="https://cms.xynes.com/dashboard" />,
       );
 
       await user.click(screen.getByRole("button", { name: /google/i }));
@@ -293,7 +311,7 @@ describe("LoginForm", () => {
           provider: "google",
           options: expect.objectContaining({
             redirectTo: expect.stringContaining(
-              encodeURIComponent("https://cms.xynes.com/dashboard")
+              encodeURIComponent("https://cms.xynes.com/dashboard"),
             ),
           }),
         });
@@ -361,9 +379,9 @@ describe("LoginForm", () => {
                   data: { user: mockSession.user, session: mockSession },
                   error: null,
                 }),
-              500
-            )
-          )
+              500,
+            ),
+          ),
       );
 
       const user = userEvent.setup();
@@ -425,7 +443,7 @@ describe("LoginForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText(/invalid email or password/i)
+          screen.getByText(/invalid email or password/i),
         ).toBeInTheDocument();
       });
 
@@ -434,7 +452,7 @@ describe("LoginForm", () => {
 
       await waitFor(() => {
         expect(
-          screen.queryByText(/invalid email or password/i)
+          screen.queryByText(/invalid email or password/i),
         ).not.toBeInTheDocument();
       });
     });
