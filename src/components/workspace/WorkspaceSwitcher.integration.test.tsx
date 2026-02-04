@@ -28,14 +28,46 @@ vi.mock("next/navigation", () => ({
 
 // Mock Lumia components to avoid React version mismatch
 vi.mock("@lumia-ui/components", () => ({
-  Menu: ({ children, open }: { children: React.ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void }) => (
-    <div data-testid="menu" data-open={open}>{children}</div>
+  Menu: ({
+    children,
+    open,
+  }: {
+    children: React.ReactNode;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
+  }) => (
+    <div data-testid="menu" data-open={open}>
+      {children}
+    </div>
   ),
-  MenuTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="menu-trigger">{children}</div>,
-  MenuContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
-    <div data-testid="workspace-switcher-menu" className={className}>{children}</div>
+  MenuTrigger: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="menu-trigger">{children}</div>
   ),
-  MenuItem: ({ children, onSelect, onClick, label, icon, ...props }: { children?: React.ReactNode; onSelect?: () => void; onClick?: () => void; label?: string; icon?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+  MenuContent: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => (
+    <div data-testid="workspace-switcher-menu" className={className}>
+      {children}
+    </div>
+  ),
+  MenuItem: ({
+    children,
+    onSelect,
+    onClick,
+    label,
+    icon,
+    ...props
+  }: {
+    children?: React.ReactNode;
+    onSelect?: () => void;
+    onClick?: () => void;
+    label?: string;
+    icon?: string;
+  } & React.ButtonHTMLAttributes<HTMLButtonElement>) => (
     <button
       onClick={() => {
         onSelect?.();
@@ -49,20 +81,48 @@ vi.mock("@lumia-ui/components", () => ({
       {children ?? label}
     </button>
   ),
-  MenuLabel: ({ children }: { children: React.ReactNode }) => <div data-testid="menu-label">{children}</div>,
+  MenuLabel: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="menu-label">{children}</div>
+  ),
   MenuSeparator: () => <hr data-testid="menu-separator" />,
-  Button: ({ children, onClick, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode; variant?: string }) => (
+  Button: ({
+    children,
+    onClick,
+    className,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    children: React.ReactNode;
+    variant?: string;
+  }) => (
     <button onClick={onClick} className={className} {...props}>
       {children}
     </button>
   ),
-  Avatar: ({ alt, fallbackInitials, size }: { alt?: string; fallbackInitials?: string; size?: string }) => (
+  Avatar: ({
+    alt,
+    fallbackInitials,
+    size,
+  }: {
+    alt?: string;
+    fallbackInitials?: string;
+    size?: string;
+  }) => (
     <div data-testid="avatar" data-size={size} aria-label={alt}>
       {fallbackInitials}
     </div>
   ),
-  Spinner: ({ size }: { size?: string }) => <div data-testid="spinner" data-size={size}>Loading...</div>,
-  Flex: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+  Spinner: ({ size }: { size?: string }) => (
+    <div data-testid="spinner" data-size={size}>
+      Loading...
+    </div>
+  ),
+  Flex: ({
+    children,
+    className,
+  }: {
+    children?: React.ReactNode;
+    className?: string;
+  }) => (
     <div data-testid="flex" className={className}>
       {children}
     </div>
@@ -121,7 +181,8 @@ vi.mock("@xynes/auth-sdk", () => ({
     if (!name) return "Select workspace";
     const otherCount = count - 1;
     if (otherCount === 0) return `Current workspace: ${name}`;
-    if (otherCount === 1) return `Current workspace: ${name}. 1 other workspace available.`;
+    if (otherCount === 1)
+      return `Current workspace: ${name}. 1 other workspace available.`;
     return `Current workspace: ${name}. ${otherCount} other workspaces available.`;
   },
   // Security utility - validates redirect URLs against allowed domains
@@ -146,7 +207,7 @@ vi.mock("@xynes/auth-sdk", () => ({
 
 // Factory function for creating test workspaces
 function createWorkspace(
-  overrides: Partial<MockWorkspace> = {}
+  overrides: Partial<MockWorkspace> = {},
 ): MockWorkspace {
   return {
     id: "ws-1",
@@ -201,7 +262,7 @@ describe("WorkspaceSwitcher", () => {
       render(<WorkspaceSwitcher />);
 
       expect(
-        screen.getByTestId("workspace-switcher-loading")
+        screen.getByTestId("workspace-switcher-loading"),
       ).toBeInTheDocument();
       // There are two "Loading..." texts: one from Spinner mock, one from the component
       const loadingTexts = screen.getAllByText("Loading...");
@@ -214,7 +275,7 @@ describe("WorkspaceSwitcher", () => {
       render(<WorkspaceSwitcher />);
 
       expect(
-        screen.getByTestId("workspace-switcher-loading")
+        screen.getByTestId("workspace-switcher-loading"),
       ).toBeInTheDocument();
     });
   });
@@ -226,7 +287,7 @@ describe("WorkspaceSwitcher", () => {
       // Workspace name appears in both trigger and menu (since menu is always visible in mock)
       const workspaceNameElements = screen.getAllByText("Workspace One");
       expect(workspaceNameElements.length).toBeGreaterThanOrEqual(1);
-      
+
       // Check the trigger specifically
       const trigger = screen.getByTestId("workspace-switcher-trigger");
       expect(trigger).toHaveTextContent("Workspace One");
@@ -247,7 +308,7 @@ describe("WorkspaceSwitcher", () => {
       const trigger = screen.getByTestId("workspace-switcher-trigger");
       expect(trigger).toHaveAttribute(
         "aria-label",
-        "Current workspace: Workspace One. 2 other workspaces available."
+        "Current workspace: Workspace One. 2 other workspaces available.",
       );
     });
 
@@ -275,7 +336,7 @@ describe("WorkspaceSwitcher", () => {
 
       expect(screen.getByText("Current Workspace")).toBeInTheDocument();
       expect(
-        screen.getByTestId("workspace-switcher-current")
+        screen.getByTestId("workspace-switcher-current"),
       ).toBeInTheDocument();
     });
 
@@ -309,10 +370,10 @@ describe("WorkspaceSwitcher", () => {
       render(<WorkspaceSwitcher />);
 
       expect(
-        screen.getByTestId("workspace-switcher-item-ws-2")
+        screen.getByTestId("workspace-switcher-item-ws-2"),
       ).toHaveAttribute("data-lumia-menu-item");
       expect(
-        screen.getByTestId("workspace-switcher-create-new")
+        screen.getByTestId("workspace-switcher-create-new"),
       ).toHaveAttribute("data-lumia-menu-item");
     });
 
@@ -331,8 +392,9 @@ describe("WorkspaceSwitcher", () => {
 
       // Current workspace is Workspace One, should not appear in switch items
       const switchItems = screen.queryAllByTestId(/workspace-switcher-item-/);
-      const ws1Item = switchItems.find(item => 
-        item.getAttribute('data-testid') === 'workspace-switcher-item-ws-1'
+      const ws1Item = switchItems.find(
+        (item) =>
+          item.getAttribute("data-testid") === "workspace-switcher-item-ws-1",
       );
       expect(ws1Item).toBeUndefined();
     });
@@ -341,7 +403,7 @@ describe("WorkspaceSwitcher", () => {
       render(<WorkspaceSwitcher />);
 
       expect(
-        screen.getByTestId("workspace-switcher-create-new")
+        screen.getByTestId("workspace-switcher-create-new"),
       ).toBeInTheDocument();
       expect(screen.getByText("Create new workspace")).toBeInTheDocument();
     });
@@ -381,7 +443,7 @@ describe("WorkspaceSwitcher", () => {
       await user.click(ws2Item);
 
       expect(onWorkspaceSelect).toHaveBeenCalledWith(
-        expect.objectContaining({ id: "ws-2", name: "Workspace Two" })
+        expect.objectContaining({ id: "ws-2", name: "Workspace Two" }),
       );
       // Should not call default selectWorkspace
       expect(mockSelectWorkspace).not.toHaveBeenCalled();
@@ -449,7 +511,7 @@ describe("WorkspaceSwitcher", () => {
           customTrigger={
             <button data-testid="custom-trigger">Custom Trigger</button>
           }
-        />
+        />,
       );
 
       expect(screen.getByTestId("custom-trigger")).toBeInTheDocument();
@@ -487,7 +549,7 @@ describe("WorkspaceSwitcher", () => {
       const trigger = screen.getByTestId("workspace-switcher-trigger");
       expect(trigger).toHaveAttribute(
         "aria-label",
-        "Current workspace: Workspace One"
+        "Current workspace: Workspace One",
       );
     });
   });
