@@ -357,8 +357,10 @@ export function WorkspaceSwitcher({
           aria-label="Create new workspace"
           className="cursor-pointer"
         >
-          <PlusIcon className="shrink-0 text-muted-foreground" />
-          <span>Create new workspace</span>
+          <Flex className="items-center gap-2">
+            <PlusIcon className="shrink-0 text-muted-foreground" />
+            <span>Create new workspace</span>
+          </Flex>
         </MenuItem>
       </MenuContent>
     </Menu>
