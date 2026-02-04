@@ -134,6 +134,13 @@ Rules:
 - Use `encodeURIComponent` for tokens to prevent path injection.
 - Provide accessible error messaging with `role="alert"` and `aria-describedby`.
 
+## Dashboard UX Standards
+
+- Dashboard routes live under `src/app/dashboard/*` and should compose `AuthDashboardShell` for layout consistency.
+- Workspace switching inside the dashboard must **not** navigate away from the auth app.
+- Use `WorkspaceSwitcher` with `stayOnCurrentPage` to keep the user on the current dashboard route after switching.
+- Only redirect to the console when explicitly required by flow (e.g., post-login destination outside auth app).
+
 ## Testing Standards (ADR-001)
 
 - Follow the three-tier testing architecture (Tier 1 = 100%, Tier 2 = 70%, Tier 3 = smoke).

@@ -6,11 +6,13 @@ import {
   Menu,
   MenuTrigger,
   MenuContent,
+  MenuItem,
   MenuLabel,
   MenuSeparator,
   Button,
   Avatar,
   Spinner,
+  Flex,
 } from "@lumia-ui/components";
 import {
   useAuth,
@@ -104,6 +106,11 @@ export interface WorkspaceSwitcherProps {
    * CSS class name for the trigger button
    */
   className?: string;
+  /**
+   * Keep user on current page when switching workspaces
+   * @default false
+   */
+  stayOnCurrentPage?: boolean;
 }
 
 /**
@@ -135,6 +142,7 @@ export function WorkspaceSwitcher({
   showRole = false,
   consoleUrl,
   className,
+  stayOnCurrentPage = false,
 }: WorkspaceSwitcherProps) {
   const router = useRouter();
   const { workspaces, isLoading: isAuthLoading } = useAuth();
@@ -157,11 +165,17 @@ export function WorkspaceSwitcher({
     (workspace: Workspace) => {
       if (onWorkspaceSelect) {
         onWorkspaceSelect(workspace);
+        setIsOpen(false);
         return;
       }
 
       // Default behavior: select and navigate
       selectWorkspace(workspace.id);
+
+      if (stayOnCurrentPage) {
+        setIsOpen(false);
+        return;
+      }
 
       // Navigate to workspace dashboard
       const safeSlug = sanitizeWorkspaceSlug(workspace.slug);
@@ -171,8 +185,11 @@ export function WorkspaceSwitcher({
       // Security: Validate the console URL before redirecting
       // Only allow xynes.com domains and localhost in development
       const allowedDomains = ["xynes.com", "localhost:3000", "localhost:3001"];
-      
-      if (targetConsoleUrl && isValidRedirectUrl(targetConsoleUrl, allowedDomains)) {
+
+      if (
+        targetConsoleUrl &&
+        isValidRedirectUrl(targetConsoleUrl, allowedDomains)
+      ) {
         const baseUrl = targetConsoleUrl.replace(/\/$/, "");
         window.location.href = `${baseUrl}/${safeSlug}`;
       } else {
@@ -182,7 +199,7 @@ export function WorkspaceSwitcher({
 
       setIsOpen(false);
     },
-    [onWorkspaceSelect, selectWorkspace, consoleUrl, router]
+    [onWorkspaceSelect, selectWorkspace, consoleUrl, router, stayOnCurrentPage],
   );
 
   // Handle create new workspace
@@ -213,7 +230,7 @@ export function WorkspaceSwitcher({
   // Aria label for accessibility
   const ariaLabel = getWorkspaceSwitcherAriaLabel(
     currentWorkspace?.name ?? null,
-    workspaces.length
+    workspaces.length,
   );
 
   // Size-dependent styles
@@ -221,46 +238,72 @@ export function WorkspaceSwitcher({
   const avatarSize = size === "sm" ? "sm" : "md";
   const textSize = size === "sm" ? "text-sm" : "text-base";
 
+  const renderWorkspaceItem = (
+    workspace: Workspace,
+    options?: { showOwnerBadge?: boolean },
+  ) => (
+    <div className="flex w-full items-center gap-3">
+      <Avatar
+        size="sm"
+        alt={workspace.name}
+        fallbackInitials={getWorkspaceInitials(workspace.name)}
+      />
+      <div className="flex-1 min-w-0 text-left">
+        <div className="font-medium truncate">{workspace.name}</div>
+        <div className="text-xs text-muted-foreground truncate">
+          {workspace.slug}
+        </div>
+      </div>
+      {options?.showOwnerBadge && workspace.role === "workspace_owner" && (
+        <span className="text-[10px] font-medium uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded-full shrink-0">
+          Owner
+        </span>
+      )}
+    </div>
+  );
+
   return (
     <Menu open={isOpen} onOpenChange={setIsOpen}>
       <MenuTrigger>
         {customTrigger ?? (
           <Button
             variant="ghost"
-            className={`flex items-center gap-2 ${triggerPadding} hover:bg-muted/50 ${className ?? ""}`}
+            className={`flex w-full flex-nowrap items-center justify-between gap-3 ${triggerPadding} hover:bg-muted/50 ${className ?? ""}`}
             aria-label={ariaLabel}
             aria-haspopup="menu"
             data-testid="workspace-switcher-trigger"
           >
-            {/* Current workspace avatar/initials */}
-            <Avatar
-              size={avatarSize}
-              alt={currentWorkspace?.name ?? "Workspace"}
-              fallbackInitials={
-                currentWorkspace
-                  ? getWorkspaceInitials(currentWorkspace.name)
-                  : "?"
-              }
-            />
+            <Flex
+              dir="row"
+              className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden"
+            >
+              {/* Current workspace avatar/initials */}
+              <Avatar
+                size={avatarSize}
+                alt={currentWorkspace?.name ?? "Workspace"}
+                fallbackInitials={
+                  currentWorkspace
+                    ? getWorkspaceInitials(currentWorkspace.name)
+                    : "?"
+                }
+              />
 
-            {/* Workspace name and optional role */}
-            <div className="flex flex-col items-start min-w-0">
-              <span
-                className={`font-medium ${textSize} truncate max-w-[120px]`}
-              >
-                {currentWorkspace?.name ?? "Select workspace"}
-              </span>
-              {showRole && currentWorkspace && (
-                <span className="text-xs text-muted-foreground">
-                  {formatWorkspaceRole(currentWorkspace.role)}
+              {/* Workspace name and optional role */}
+              <div className="flex min-w-0 items-center gap-2">
+                <span className={`font-medium ${textSize} truncate`}>
+                  {currentWorkspace?.name ?? "Select workspace"}
                 </span>
-              )}
-            </div>
-
-            {/* Chevron icon */}
-            <ChevronDownIcon
-              className={`text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
-            />
+                {showRole && currentWorkspace && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {formatWorkspaceRole(currentWorkspace.role)}
+                  </span>
+                )}
+              </div>
+              {/* Chevron icon */}
+              <ChevronDownIcon
+                className={`shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+              />
+            </Flex>
           </Button>
         )}
       </MenuTrigger>
@@ -274,30 +317,14 @@ export function WorkspaceSwitcher({
         {currentWorkspace && (
           <>
             <MenuLabel>Current Workspace</MenuLabel>
-            <div
-              className="px-3 py-2 flex items-center gap-3"
+            <MenuItem
+              aria-current="true"
+              disabled
               data-testid="workspace-switcher-current"
+              className="cursor-default"
             >
-              <Avatar
-                size="md"
-                alt={currentWorkspace.name}
-                fallbackInitials={getWorkspaceInitials(currentWorkspace.name)}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">
-                  {currentWorkspace.name}
-                </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  <span className="opacity-60">xynes.com/</span>
-                  <span className="truncate">{currentWorkspace.slug}</span>
-                </div>
-              </div>
-              {currentWorkspace.role === "workspace_owner" && (
-                <span className="text-[10px] font-medium uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded-full shrink-0">
-                  Owner
-                </span>
-              )}
-            </div>
+              {renderWorkspaceItem(currentWorkspace, { showOwnerBadge: true })}
+            </MenuItem>
             <MenuSeparator />
           </>
         )}
@@ -307,40 +334,32 @@ export function WorkspaceSwitcher({
           <>
             <MenuLabel>Switch to</MenuLabel>
             {otherWorkspaces.map((workspace) => (
-              <button
+              <MenuItem
                 key={workspace.id}
-                onClick={() => handleSelect(workspace)}
+                label={workspace.name}
+                onSelect={() => handleSelect(workspace)}
                 data-testid={`workspace-switcher-item-${workspace.id}`}
                 aria-label={`Switch to ${workspace.name}`}
-                className="relative flex w-full cursor-default select-none items-center gap-3 rounded-md px-3 py-2 text-sm font-medium outline-none transition-colors hover:bg-muted focus:bg-muted text-foreground"
+                className="cursor-pointer"
               >
-                <Avatar
-                  size="sm"
-                  alt={workspace.name}
-                  fallbackInitials={getWorkspaceInitials(workspace.name)}
-                />
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="font-medium truncate">{workspace.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {workspace.slug}
-                  </div>
-                </div>
-              </button>
+                {renderWorkspaceItem(workspace)}
+              </MenuItem>
             ))}
             <MenuSeparator />
           </>
         )}
 
         {/* Create new workspace option */}
-        <button
-          onClick={handleCreateNew}
+        <MenuItem
+          label="Create new workspace"
+          onSelect={handleCreateNew}
           data-testid="workspace-switcher-create-new"
           aria-label="Create new workspace"
-          className="relative flex w-full cursor-default select-none items-center gap-3 rounded-md px-3 py-2 text-sm font-medium outline-none transition-colors hover:bg-muted focus:bg-muted text-foreground"
+          className="cursor-pointer"
         >
           <PlusIcon className="shrink-0 text-muted-foreground" />
           <span>Create new workspace</span>
-        </button>
+        </MenuItem>
       </MenuContent>
     </Menu>
   );

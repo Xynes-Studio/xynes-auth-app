@@ -121,7 +121,7 @@ describe("WorkspacesPage redirect behavior", () => {
     });
   });
 
-  it("does not redirect to CMS by default when redirect param is missing", async () => {
+  it("routes to dashboard when redirect param is missing", async () => {
     redirectValue = null;
 
     render(<WorkspaceSelectorPage />);
@@ -130,7 +130,7 @@ describe("WorkspacesPage redirect behavior", () => {
     await waitFor(() => {
       expect(mockSelectWorkspace).toHaveBeenCalledWith("ws-1");
       expect(assignSpy).not.toHaveBeenCalled();
-      expect(mockPush).toHaveBeenCalledWith("/workspaces/selected");
+      expect(mockPush).toHaveBeenCalledWith("/dashboard/users");
     });
   });
 
