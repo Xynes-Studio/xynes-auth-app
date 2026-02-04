@@ -43,20 +43,36 @@ export default function UsersDashboardPage() {
   );
 
   const memberCount = members.length;
-  const memberCountLabel = `${memberCount} ${memberCount === 1 ? "User" : "Users"}`;
+  const memberCountLabel = `${memberCount} ${memberCount === 1 ? "member" : "members"}`;
 
   return (
     <AuthGuard>
       <AuthDashboardShell activeNav="users">
         <div className="flex h-full flex-col gap-8">
+          <PageHeader
+            title="Users"
+            subtitle="Invite and manage workspace members."
+          />
+
           <Card className="flex-1">
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-red-300 gap-4 mb-4">
-              <Flex className="w-full sm:w-[260px] align-middle">
-                <div className="flex items-center">
+            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Workspace members
+                  </h2>
                   <span className="text-xs font-medium text-muted-foreground">
                     {memberCountLabel}
                   </span>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  Manage roles and access for this workspace.
+                </p>
+              </div>
+              <div className="w-full sm:w-[260px]">
+                <label htmlFor="user-search" className="sr-only">
+                  Search users
+                </label>
                 <Input
                   id="user-search"
                   name="userSearch"
@@ -67,7 +83,7 @@ export default function UsersDashboardPage() {
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                 />
-              </Flex>
+              </div>
             </CardHeader>
 
             <CardContent className="min-h-[320px]">

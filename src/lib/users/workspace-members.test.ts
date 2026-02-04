@@ -96,4 +96,21 @@ describe("filterWorkspaceMembers", () => {
     expect(filterWorkspaceMembers(members, "owner")).toHaveLength(1);
     expect(filterWorkspaceMembers(members, "@xynes.com")).toHaveLength(2);
   });
+
+  it("handles members without role values", () => {
+    const members = [
+      {
+        id: "user-3",
+        email: "edge@xynes.com",
+        displayName: null,
+        avatarUrl: null,
+        role: undefined as unknown as WorkspaceRole,
+        status: "active" as const,
+        isCurrentUser: false,
+      },
+    ];
+
+    expect(() => filterWorkspaceMembers(members, "edge")).not.toThrow();
+    expect(filterWorkspaceMembers(members, "edge")).toHaveLength(1);
+  });
 });
