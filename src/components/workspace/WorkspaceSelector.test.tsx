@@ -137,4 +137,27 @@ describe("WorkspaceSelector", () => {
     );
     expect(screen.getByText("Loading workspaces...")).toBeInTheDocument();
   });
+
+  it("disables workspace actions while loading", () => {
+    render(
+      <WorkspaceSelector
+        workspaces={mockWorkspaces}
+        isLoading={true}
+        loadingText="Selecting workspace..."
+        onSelect={onSelectMock}
+        onCreateNew={onCreateNewMock}
+      />,
+    );
+
+    const workspaceButton = screen.getByRole("button", {
+      name: /acme corp/i,
+    });
+    const createButton = screen.getByRole("button", {
+      name: /create new workspace/i,
+    });
+
+    expect(workspaceButton).toBeDisabled();
+    expect(createButton).toBeDisabled();
+    expect(screen.getByText(/selecting workspace/i)).toBeInTheDocument();
+  });
 });

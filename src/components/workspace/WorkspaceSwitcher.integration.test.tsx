@@ -35,8 +35,16 @@ vi.mock("@lumia-ui/components", () => ({
   MenuContent: ({ children, className }: { children: React.ReactNode; className?: string }) => (
     <div data-testid="workspace-switcher-menu" className={className}>{children}</div>
   ),
-  MenuItem: ({ children, onClick, label, icon }: { children?: React.ReactNode; onClick?: () => void; label?: string; icon?: string }) => (
-    <button onClick={onClick} data-testid={`menu-item-${label ?? 'default'}`}>
+  MenuItem: ({ children, onSelect, onClick, label, icon, ...props }: { children?: React.ReactNode; onSelect?: () => void; onClick?: () => void; label?: string; icon?: string } & React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button
+      onClick={() => {
+        onSelect?.();
+        onClick?.();
+      }}
+      data-testid={props["data-testid"] ?? `menu-item-${label ?? "default"}`}
+      data-lumia-menu-item="true"
+      {...props}
+    >
       {icon && <span data-testid={`icon-${icon}`} />}
       {children ?? label}
     </button>
@@ -54,6 +62,11 @@ vi.mock("@lumia-ui/components", () => ({
     </div>
   ),
   Spinner: ({ size }: { size?: string }) => <div data-testid="spinner" data-size={size}>Loading...</div>,
+  Flex: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="flex" className={className}>
+      {children}
+    </div>
+  ),
 }));
 
 // Mock auth SDK hooks
@@ -266,6 +279,13 @@ describe("WorkspaceSwitcher", () => {
       ).toBeInTheDocument();
     });
 
+    it("should mark current workspace item as aria-current", () => {
+      render(<WorkspaceSwitcher />);
+
+      const currentItem = screen.getByTestId("workspace-switcher-current");
+      expect(currentItem).toHaveAttribute("aria-current", "true");
+    });
+
     it("should show slug in current workspace section", () => {
       render(<WorkspaceSwitcher />);
 
@@ -283,6 +303,27 @@ describe("WorkspaceSwitcher", () => {
 
       expect(screen.getByText("Workspace Two")).toBeInTheDocument();
       expect(screen.getByText("Workspace Three")).toBeInTheDocument();
+    });
+
+    it("should render switch options using MenuItem", () => {
+      render(<WorkspaceSwitcher />);
+
+      expect(
+        screen.getByTestId("workspace-switcher-item-ws-2")
+      ).toHaveAttribute("data-lumia-menu-item");
+      expect(
+        screen.getByTestId("workspace-switcher-create-new")
+      ).toHaveAttribute("data-lumia-menu-item");
+    });
+
+    it("should show pointer cursor for switch options", () => {
+      render(<WorkspaceSwitcher />);
+
+      const switchItem = screen.getByTestId("workspace-switcher-item-ws-2");
+      const createNew = screen.getByTestId("workspace-switcher-create-new");
+
+      expect(switchItem.className).toContain("cursor-pointer");
+      expect(createNew.className).toContain("cursor-pointer");
     });
 
     it("should not show current workspace in switch list", () => {
@@ -344,6 +385,18 @@ describe("WorkspaceSwitcher", () => {
       );
       // Should not call default selectWorkspace
       expect(mockSelectWorkspace).not.toHaveBeenCalled();
+    });
+
+    it("should stay on current page when stayOnCurrentPage is true", async () => {
+      const user = userEvent.setup();
+
+      render(<WorkspaceSwitcher stayOnCurrentPage />);
+
+      const ws2Item = screen.getByTestId("workspace-switcher-item-ws-2");
+      await user.click(ws2Item);
+
+      expect(mockSelectWorkspace).toHaveBeenCalledWith("ws-2");
+      expect(mockPush).not.toHaveBeenCalled();
     });
   });
 

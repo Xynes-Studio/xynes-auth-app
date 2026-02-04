@@ -136,6 +136,8 @@ src/
 │   ├── callback/          # OAuth callback handling
 │   │   ├── route.ts       # OAuth callback route handler
 │   │   └── route.test.ts  # Route integration tests (Tier 2)
+│   ├── dashboard/          # Auth dashboard (workspace users/settings)
+│   │   └── users/          # Users panel
 │   ├── providers.tsx      # App-level providers (FeatureFlagsProvider)
 │   └── layout.tsx         # Root layout
 ├── components/            # React components

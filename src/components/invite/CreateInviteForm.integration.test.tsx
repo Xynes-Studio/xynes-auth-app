@@ -1,3 +1,8 @@
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  ReactNode,
+} from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -9,18 +14,28 @@ vi.mock("next/navigation", () => ({
 }));
 
 // Mock Lumia components to basic HTML controls
+type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+};
+
+type CardProps = {
+  children: ReactNode;
+};
+
+type InputProps = InputHTMLAttributes<HTMLInputElement>;
+
 vi.mock("@lumia-ui/components", () => ({
   Alert: ({ description }: { description: string }) => <div>{description}</div>,
-  Button: ({ children, ...props }: any) => (
+  Button: ({ children, ...props }: ButtonProps) => (
     <button {...props}>{children}</button>
   ),
-  Card: ({ children }: any) => <div>{children}</div>,
-  CardHeader: ({ children }: any) => <div>{children}</div>,
-  CardTitle: ({ children }: any) => <h2>{children}</h2>,
-  CardDescription: ({ children }: any) => <p>{children}</p>,
-  CardContent: ({ children }: any) => <div>{children}</div>,
-  CardFooter: ({ children }: any) => <div>{children}</div>,
-  Input: (props: any) => <input {...props} />,
+  Card: ({ children }: CardProps) => <div>{children}</div>,
+  CardHeader: ({ children }: CardProps) => <div>{children}</div>,
+  CardTitle: ({ children }: CardProps) => <h2>{children}</h2>,
+  CardDescription: ({ children }: CardProps) => <p>{children}</p>,
+  CardContent: ({ children }: CardProps) => <div>{children}</div>,
+  CardFooter: ({ children }: CardProps) => <div>{children}</div>,
+  Input: (props: InputProps) => <input {...props} />,
 }));
 
 let mockWorkspaceRole: "workspace_owner" | "workspace_member" =
