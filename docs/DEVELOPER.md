@@ -140,6 +140,7 @@ Rules:
 - Workspace switching inside the dashboard must **not** navigate away from the auth app.
 - Use `WorkspaceSwitcher` with `stayOnCurrentPage` to keep the user on the current dashboard route after switching.
 - Only redirect to the console when explicitly required by flow (e.g., post-login destination outside auth app).
+- Users list UI should show a visible member count, avoid duplicate email rows (only show secondary email when a display name exists), and use a `type="search"` input with clear placeholder text.
 
 ## Testing Standards (ADR-001)
 
