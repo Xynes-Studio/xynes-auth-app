@@ -20,6 +20,9 @@ export function AuthDashboardShell({
   children,
   activeNav,
 }: AuthDashboardShellProps) {
+  const settingsNavEnabled =
+    process.env.NEXT_PUBLIC_AUTH_DASHBOARD_SETTINGS_ENABLED !== "false";
+
   return (
     <div className="relative min-h-screen w-full bg-background px-6 py-6">
       <div
@@ -45,12 +48,14 @@ export function AuthDashboardShell({
                     icon="users"
                     active={activeNav === "users"}
                   />
-                  <SideNavItem
-                    label="Settings"
-                    href="/dashboard/settings"
-                    icon="settings"
-                    active={activeNav === "settings"}
-                  />
+                  {settingsNavEnabled ? (
+                    <SideNavItem
+                      label="Settings"
+                      href="/dashboard/settings"
+                      icon="settings"
+                      active={activeNav === "settings"}
+                    />
+                  ) : null}
                 </nav>
                 <div className="mt-auto pt-6 text-xs text-muted-foreground">
                   Need access? Contact your workspace owner.
