@@ -76,6 +76,13 @@ export default function WorkspaceSelectedPage() {
               <Button
                 variant="outline"
                 className="w-full"
+                onClick={() => router.push("/workspaces/invites/new")}
+              >
+                Invite teammates
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full"
                 onClick={() => router.push("/workspaces")}
               >
                 Back to workspaces
