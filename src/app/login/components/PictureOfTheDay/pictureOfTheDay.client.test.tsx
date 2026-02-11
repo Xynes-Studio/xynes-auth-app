@@ -28,7 +28,8 @@ describe("PictureOfTheDay", () => {
           imageUrl: "https://images.pexels.com/photos/1/pexels-photo-1.jpeg",
           photographerName: "Updated Author",
           photographerProfileUrl: "https://www.pexels.com/@updated-author",
-          pexelsPhotoUrl: "https://images.pexels.com/photos/1/pexels-photo-1.jpeg",
+          pexelsPhotoUrl:
+            "https://images.pexels.com/photos/1/pexels-photo-1.jpeg",
         },
       }),
     });
@@ -50,7 +51,8 @@ describe("PictureOfTheDay", () => {
           imageUrl: "https://images.pexels.com/photos/9/pexels-photo-9.jpeg",
           photographerName: "Fresh Author",
           photographerProfileUrl: "https://www.pexels.com/@fresh-author",
-          pexelsPhotoUrl: "https://images.pexels.com/photos/9/pexels-photo-9.jpeg",
+          pexelsPhotoUrl:
+            "https://images.pexels.com/photos/9/pexels-photo-9.jpeg",
         },
       }),
     });
@@ -69,8 +71,9 @@ describe("PictureOfTheDay", () => {
     expect(
       screen.getByRole("link", { name: /view on pexels/i }),
     ).toHaveAttribute("target", "_blank");
-    expect(
-      screen.getByRole("link", { name: /fresh author/i }),
-    ).toHaveAttribute("href", "https://www.pexels.com/@fresh-author");
+    expect(screen.getByRole("link", { name: /fresh author/i })).toHaveAttribute(
+      "href",
+      "https://www.pexels.com/@fresh-author",
+    );
   });
 });
