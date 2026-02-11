@@ -56,7 +56,7 @@ describe("PictureOfTheDay", () => {
 
     render(<PictureOfTheDay />);
 
-    expect(await screen.findByText("Cached Author")).toBeInTheDocument();
+    expect(screen.getByText("Cached Author")).toBeInTheDocument();
     expect(await screen.findByText("Updated Author")).toBeInTheDocument();
     expect(mockFetch).toHaveBeenCalledTimes(1);
 
