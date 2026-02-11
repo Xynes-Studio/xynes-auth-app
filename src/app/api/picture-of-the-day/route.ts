@@ -7,7 +7,8 @@ import {
   type PictureOfTheDayData,
 } from "@/lib/picture-of-the-day";
 
-const PEXELS_CURATED_ENDPOINT = "https://api.pexels.com/v1/curated?per_page=40&page=1";
+const PEXELS_CURATED_ENDPOINT =
+  "https://api.pexels.com/v1/curated?per_page=40&page=1";
 
 type PexelsPhoto = {
   id?: number;
@@ -33,7 +34,9 @@ type ServerCachedPicture = {
 
 let serverCachedPicture: ServerCachedPicture | null = null;
 
-function selectPictureOfTheDay(photos: PexelsPhoto[]): PictureOfTheDayData | null {
+function selectPictureOfTheDay(
+  photos: PexelsPhoto[],
+): PictureOfTheDayData | null {
   if (!photos.length) {
     return null;
   }
@@ -51,15 +54,17 @@ function selectPictureOfTheDay(photos: PexelsPhoto[]): PictureOfTheDayData | nul
       selected.src?.large ||
       selected.src?.original ||
       FALLBACK_PICTURE_OF_THE_DAY.imageUrl,
-    photographerName:
-      (selected.photographer || FALLBACK_PICTURE_OF_THE_DAY.photographerName).trim(),
+    photographerName: (
+      selected.photographer || FALLBACK_PICTURE_OF_THE_DAY.photographerName
+    ).trim(),
     photographerProfileUrl:
-      selected.photographer_url || FALLBACK_PICTURE_OF_THE_DAY.photographerProfileUrl,
+      selected.photographer_url ||
+      FALLBACK_PICTURE_OF_THE_DAY.photographerProfileUrl,
     pexelsPhotoUrl:
+      selected.url ||
       selected.src?.original ||
       selected.src?.large2x ||
       selected.src?.large ||
-      selected.url ||
       FALLBACK_PICTURE_OF_THE_DAY.pexelsPhotoUrl,
   };
 

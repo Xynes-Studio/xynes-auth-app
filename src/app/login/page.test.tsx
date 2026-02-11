@@ -132,7 +132,8 @@ describe("LoginPage", () => {
 
       // Mock window.location
       const originalLocation = window.location;
-      const mockLocation = { href: "" };
+      const assign = vi.fn();
+      const mockLocation = { href: "", assign };
       Object.defineProperty(window, "location", {
         value: mockLocation,
         writable: true,
@@ -147,7 +148,7 @@ describe("LoginPage", () => {
       await user.click(screen.getByTestId("mock-login-button"));
 
       await waitFor(() => {
-        expect(mockLocation.href).toBe("https://cms.xynes.com/dashboard");
+        expect(assign).toHaveBeenCalledWith("https://cms.xynes.com/dashboard");
       });
 
       // Restore

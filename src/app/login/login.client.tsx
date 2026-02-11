@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Alert, Flex, cn } from "@lumia-ui/components";
+import { Alert, Flex } from "@lumia-ui/components";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { AuthPageSkeleton } from "@/components/ui";
 import { useAuth } from "@xynes/auth-sdk";
@@ -40,9 +40,24 @@ function LoginContent() {
     : null;
 
   const handleSuccess = useCallback(() => {
-    // Redirect to the validated URL after successful login
-    window.location.href = redirectUrl;
-  }, [redirectUrl]);
+    const consoleBaseUrl =
+      process.env.NEXT_PUBLIC_CONSOLE_URL ||
+      process.env.NEXT_PUBLIC_CMS_CONSOLE_URL ||
+      "";
+
+    const destination = determinePostLoginDestination({
+      workspaces: workspaces ?? [],
+      redirectParam,
+      consoleBaseUrl,
+      allowedRedirectDomains: allowedDomains,
+    });
+
+    if (/^https?:\/\//i.test(destination) || destination.startsWith("//")) {
+      window.location.assign(destination);
+    } else {
+      router.replace(destination);
+    }
+  }, [allowedDomains, redirectParam, router, workspaces]);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -87,7 +102,7 @@ function LoginContent() {
   return (
     <Flex className={styles.container}>
       <Flex
-        className={cn(styles.leftPanel, "accent-bg")}
+        className={`${styles.leftPanel} accent-bg`}
         align="center"
         justify="center"
       >
@@ -95,14 +110,14 @@ function LoginContent() {
       </Flex>
       <Flex
         direction="col"
-        className={cn(styles.rightPanel, "bg-slate-50 dark:bg-slate-900")}
+        className={`${styles.rightPanel} bg-slate-50 dark:bg-slate-900`}
         align="center"
         justify="center"
       >
         <div className={styles.tickerContainer}>
           <XynesTicker />
         </div>
-        <Flex direction="col" className={cn(styles.formSection, "gap-6")}>
+        <Flex direction="col" className={`${styles.formSection} gap-6`}>
           <Flex direction="row" className={"font-title-serif"}>
             <Link href="/login">Log In/</Link>
             <Link href="/signup">Sign Up</Link>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { Flex, cn } from "@lumia-ui/components";
+import { Flex } from "@lumia-ui/components";
 import { Icon } from "@lumia-ui/icons";
 import {
   FALLBACK_PICTURE_OF_THE_DAY,
@@ -54,7 +54,7 @@ const PictureOfTheDay = () => {
   );
 
   return (
-    <Flex direction="col" className={cn(styles.container)}>
+    <Flex direction="col" className={styles.container}>
       <div className={styles.imageFrame}>
         <Image
           src={picture.imageUrl}
@@ -69,14 +69,14 @@ const PictureOfTheDay = () => {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="View on Pexels"
-            className={cn(styles.hoverLink, "text-slate-50")}
+            className={`${styles.hoverLink} text-slate-50`}
           >
             Pexels
             <Icon
               name="external-link"
               size="sm"
               color="bg-slate-50"
-              className={cn(styles.hoverIcon)}
+              className={styles.hoverIco}
               aria-hidden="true"
             />
           </a>
@@ -84,7 +84,7 @@ const PictureOfTheDay = () => {
       </div>
 
       <h1
-        className={cn("font-title-serif mt-4", styles.titleSingleLine)}
+        className={`font-title-serif mt-4 ${styles.titleSingleLine}`}
         title={picture.alt}
       >
         {picture.alt}
@@ -96,7 +96,7 @@ const PictureOfTheDay = () => {
           href={picture.photographerProfileUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={cn(styles.authorLink, styles.authorSingleLine)}
+          className={`${styles.authorLink} ${styles.authorSingleLine}`}
           title={photographerLabel}
         >
           {photographerLabel}

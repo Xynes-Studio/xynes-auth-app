@@ -38,7 +38,8 @@ describe("GET /api/picture-of-the-day", () => {
             photographer: "Alex Doe",
             photographer_url: "https://www.pexels.com/@alex-doe",
             src: {
-              large2x: "https://images.pexels.com/photos/42/pexels-photo-42.jpeg",
+              large2x:
+                "https://images.pexels.com/photos/42/pexels-photo-42.jpeg",
             },
           },
         ],
@@ -63,7 +64,7 @@ describe("GET /api/picture-of-the-day", () => {
       imageUrl: "https://images.pexels.com/photos/42/pexels-photo-42.jpeg",
       photographerName: "Alex Doe",
       photographerProfileUrl: "https://www.pexels.com/@alex-doe",
-      pexelsPhotoUrl: "https://images.pexels.com/photos/42/pexels-photo-42.jpeg",
+      pexelsPhotoUrl: "https://www.pexels.com/photo/golden-hour-cliffs-42/",
     });
   });
 
@@ -85,7 +86,8 @@ describe("GET /api/picture-of-the-day", () => {
             photographer: "Server Cache",
             photographer_url: "https://www.pexels.com/@server-cache",
             src: {
-              original: "https://images.pexels.com/photos/77/pexels-photo-77.jpeg",
+              original:
+                "https://images.pexels.com/photos/77/pexels-photo-77.jpeg",
             },
           },
         ],

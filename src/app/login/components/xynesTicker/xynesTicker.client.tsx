@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, cn, Flex, Spinner, Ticker } from "@lumia-ui/components";
+import { Button, Flex, Spinner, Ticker } from "@lumia-ui/components";
 import { Icon, getIcon, registerIcon } from "@lumia-ui/icons";
 import styles from "./xynesTicker.module.css";
 import XynesLogoIcon from "@/icons/local/xynesLogo";
@@ -46,7 +46,14 @@ const XynesTicker = () => {
         );
 
         const storyData = await Promise.all(
-          storyResponses.map((response) => response.json()),
+          storyResponses.map(async (response) => {
+            if (!response.ok) return null;
+            try {
+              return await response.json();
+            } catch {
+              return null;
+            }
+          }),
         );
 
         const normalized = storyData
@@ -83,13 +90,10 @@ const XynesTicker = () => {
 
   return (
     <Flex
-      className={cn(
-        "bg-slate-50 dark:bg-slate-900 px-4 py-2",
-        styles.container,
-      )}
+      className={`${styles.container} bg-slate-50 dark:bg-slate-900 px-4 py-2`}
       align="center"
     >
-      <div className={cn(styles.logo, "mr-2")}>
+      <div className={`${styles.logo} mr-2`}>
         <Icon
           name="xynes-logo"
           width={69}
@@ -101,21 +105,21 @@ const XynesTicker = () => {
       </div>
 
       <Ticker
-        className={cn(styles.ticker, "gap-2")}
+        className={`${styles.ticker} gap-2`}
         alignment="center"
         direction="row"
         speed={30}
         pauseOnHover
       >
         {isLoading ? (
-          <Flex className={cn(styles.newsTicker, "items-center gap-2")}>
+          <Flex className={`${styles.newsTicker} items-center gap-2`}>
             <Spinner size="sm" />
             <span className="text-sm text-muted-foreground">
               Loading Top News...
             </span>
           </Flex>
         ) : items.length > 0 ? (
-          <Flex className={cn(styles.newsTicker, "items-center gap-2")}>
+          <Flex className={`${styles.newsTicker} items-center gap-2`}>
             {items.map((story) => (
               <Button
                 key={story.id}

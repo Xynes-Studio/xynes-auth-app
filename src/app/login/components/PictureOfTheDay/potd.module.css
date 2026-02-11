@@ -29,8 +29,8 @@
   opacity: 0;
   background: linear-gradient(
     180deg,
-    rgba(2, 6, 23, 0) 45%,
-    rgba(2, 6, 23, 0.72) 100%
+    rgb(2 6 23 / 0%) 45%,
+    rgb(2 6 23 / 72%) 100%
   );
   transition: opacity 220ms ease;
 }

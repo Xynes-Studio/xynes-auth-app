@@ -144,7 +144,6 @@ export default function UsersDashboardPage() {
 
   const handleTabChange = (tab: "users" | "teams") => {
     setActiveTab(tab);
-    router.push(tab === "teams" ? "/dashboard/users?tab=teams" : "/dashboard/users");
   };
 
   return (

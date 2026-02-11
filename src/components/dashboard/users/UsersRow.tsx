@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { formatWorkspaceRole } from "@xynes/auth-sdk";
 import {
   Avatar,
   Badge,
@@ -29,8 +28,7 @@ export function UsersRow({
   onDelete,
 }: UsersRowProps) {
   const dialog = useConfirmDialog();
-  const roleLabel = formatWorkspaceRole(member.role);
-  const roleValue = roleLabel.toLowerCase();
+  const roleValue = member.role.replace("workspace_", "");
   const statusLabel = useMemo(
     () =>
       member.status.charAt(0).toUpperCase() +
