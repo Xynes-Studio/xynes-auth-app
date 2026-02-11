@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button, Card } from "@lumia-ui/components";
 import { createPasswordResetClient } from "@/lib/supabase/client";
-import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
+import { ResetPasswordForm } from "@/components/auth/forms/ResetPasswordForm";
 import { AuthPageSkeleton } from "@/components/ui";
 
 type DebugAttempt = {

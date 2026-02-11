@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 
 // Mock next/navigation
 const mockReplace = vi.fn();
@@ -15,6 +16,7 @@ vi.mock("next/navigation", () => ({
       return null;
     }),
   }),
+  usePathname: () => "/login",
   useRouter: () => ({
     replace: mockReplace,
     push: mockPush,
@@ -38,7 +40,7 @@ vi.mock("@xynes/auth-sdk", () => ({
 }));
 
 // Mock LoginForm component
-vi.mock("@/components/auth/LoginForm", () => ({
+vi.mock("@/components/auth/forms/LoginForm", () => ({
   LoginForm: ({
     onSuccess,
     redirectUrl,
@@ -51,6 +53,12 @@ vi.mock("@/components/auth/LoginForm", () => ({
         Mock Login
       </button>
     </div>
+  ),
+}));
+
+vi.mock("@/components/auth/layout/AuthSplitLayout", () => ({
+  AuthSplitLayout: ({ children }: { children: ReactNode }) => (
+    <div data-testid="auth-split-layout">{children}</div>
   ),
 }));
 

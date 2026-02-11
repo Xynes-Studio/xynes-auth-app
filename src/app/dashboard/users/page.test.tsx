@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import React, { useEffect, useMemo, useState } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { WorkspaceRole } from "@xynes/auth-sdk";
 import UsersDashboardPage from "./page";
 
@@ -305,7 +305,7 @@ describe("UsersDashboardPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("filters members via search input", () => {
+  it("filters members via search input", async () => {
     render(<UsersDashboardPage />);
 
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
@@ -313,7 +313,9 @@ describe("UsersDashboardPage", () => {
     const input = screen.getByLabelText(/search for users/i);
     fireEvent.change(input, { target: { value: "nope" } });
 
-    expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument();
+    });
   });
 
   it("renders row badges, role dropdown, and delete confirmation", () => {

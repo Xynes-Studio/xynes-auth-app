@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
-vi.mock("@/components/auth/ForgotPasswordForm", () => ({
+vi.mock("@/components/auth/forms/ForgotPasswordForm", () => ({
   ForgotPasswordForm: () => <div data-testid="forgot-password-form" />,
 }));
 
