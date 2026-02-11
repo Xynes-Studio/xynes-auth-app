@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { ImgHTMLAttributes } from "react";
-import PictureOfTheDay from "./pictureOfTheDay.client";
+import PictureOfTheDay from "./PictureOfTheDay";
 
 const mockFetch = vi.fn();
 

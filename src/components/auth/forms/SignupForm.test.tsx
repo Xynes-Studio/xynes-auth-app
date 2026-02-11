@@ -40,8 +40,8 @@ vi.mock("@xynes/auth-sdk", () => ({
   },
 }));
 
-vi.mock("../ui", async () => {
-  const actual = await vi.importActual<typeof import("../ui")>("../ui");
+vi.mock("../../ui", async () => {
+  const actual = await vi.importActual<typeof import("../../ui")>("../../ui");
   return {
     ...actual,
     OAuthButtons: ({ redirectUrl }: { redirectUrl?: string }) => (

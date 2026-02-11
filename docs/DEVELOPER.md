@@ -74,6 +74,18 @@ Feature-level details:
 - `docs/features/logout-flow.md`
 - `docs/features/auth-workspace-selector.md`
 
+### Shared Auth Route Navigation (Global Standard)
+- Reuse `AuthRouteSwitch` (`src/components/auth/navigation/AuthRouteSwitch.tsx`) across auth entry routes (`/login`, `/signup`) instead of duplicating link markup.
+- Reuse `AuthSplitLayout` (`src/components/auth/layout/AuthSplitLayout.tsx`) as the common page scaffold for `/login` and `/signup`; only the form section content should vary by route.
+- Keep route-state logic in a Tier 1 utility (`src/lib/auth/route-switch.ts`) to make routing behavior deterministic and unit-testable.
+- Active route treatment must be route-aware and accessible:
+	- set `aria-current="page"` on the active link
+	- maintain sufficient light/dark contrast for active and inactive states
+	- preserve keyboard focus visibility with `focus-visible` styles
+- Auth layout visuals used by auth entry routes should live in shared auth components:
+	- `src/components/auth/layout/PictureOfTheDay.tsx`
+	- `src/components/auth/layout/XynesTicker.tsx`
+
 ## Feature Flags
 
 ### Source of Truth
@@ -96,7 +108,10 @@ src/
 ├── app/                # Next.js routes, layouts, providers
 │   ├── <route>/components/  # Route-scoped UI (only used by that route)
 ├── components/         # React UI components (Tier 2)
-│   ├── auth/            # Auth form suite (Login/Signup/Forgot/Reset)
+│   ├── auth/
+│   │   ├── forms/       # Auth forms (Login/Signup/Forgot/Reset)
+│   │   ├── navigation/  # Auth route navigation primitives
+│   │   └── layout/      # Shared auth entry layout + visuals
 ├── lib/                # Pure utilities & SDK re-exports (Tier 1)
 └── test/               # Shared test utilities
 ```
@@ -153,7 +168,7 @@ Rules:
 - Always validate external URLs before returning payloads.
 - Use `src/lib/picture-of-the-day` for shared validation and fallback content
 	(Tier 1 unit tests required).
-- Client UI belongs in `src/app/login/components/PictureOfTheDay`.
+- Client UI lives in `src/components/auth/layout/PictureOfTheDay.tsx` and is consumed by the shared auth entry layout.
 
 ## Testing Standards (ADR-001)
 

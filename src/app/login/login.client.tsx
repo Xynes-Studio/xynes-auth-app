@@ -2,17 +2,15 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Alert, Flex } from "@lumia-ui/components";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { Alert } from "@lumia-ui/components";
+import { LoginForm } from "@/components/auth/forms/LoginForm";
+import { AuthSplitLayout } from "@/components/auth/layout/AuthSplitLayout";
+import { AuthRouteSwitch } from "@/components/auth/navigation/AuthRouteSwitch";
 import { AuthPageSkeleton } from "@/components/ui";
 import { useAuth } from "@xynes/auth-sdk";
 import { getAllowedRedirectDomains, getSafeRedirectUrl } from "@/lib/redirect";
 import { getOAuthErrorMessage } from "@/lib/oauth/errors";
 import { determinePostLoginDestination } from "@/lib/auth/post-login-destination";
-import styles from "./login.module.css";
-import XynesTicker from "./components/xynesTicker/xynesTicker.client";
-import Link from "next/link";
-import PictureOfTheDay from "./components/PictureOfTheDay/pictureOfTheDay.client";
 
 /**
  * Default redirect URL after successful login.
@@ -109,46 +107,20 @@ function LoginContent() {
   }
 
   return (
-    <Flex className={styles.container}>
-      <Flex
-        className={`${styles.leftPanel} accent-bg`}
-        align="center"
-        justify="center"
-      >
-        <PictureOfTheDay />
-      </Flex>
-      <Flex
-        direction="col"
-        className={`${styles.rightPanel} bg-slate-50 dark:bg-slate-900`}
-        align="center"
-        justify="center"
-      >
-        <div className={styles.tickerContainer}>
-          <XynesTicker />
+    <AuthSplitLayout>
+      <AuthRouteSwitch />
+      {oauthErrorMessage ? (
+        <div role="alert">
+          <Alert
+            variant="error"
+            title="Sign-in failed"
+            description={oauthErrorMessage}
+            className="text-left"
+          />
         </div>
-        <Flex direction="col" className={`${styles.formSection} gap-6`}>
-          <Flex direction="row" className={"font-title-serif"}>
-            <Link href="/login">Log In</Link>
-            <span aria-hidden="true">/</span>
-            <Link href="/signup">Sign Up</Link>
-          </Flex>
-          {oauthErrorMessage ? (
-            <div role="alert">
-              <Alert
-                variant="error"
-                title="Sign-in failed"
-                description={oauthErrorMessage}
-                className="text-left"
-              />
-            </div>
-          ) : (
-            <>
-              <LoginForm onSuccess={handleSuccess} redirectUrl={redirectUrl} />
-            </>
-          )}
-        </Flex>
-      </Flex>
-    </Flex>
+      ) : null}
+      <LoginForm onSuccess={handleSuccess} redirectUrl={redirectUrl} />
+    </AuthSplitLayout>
   );
 }
 
