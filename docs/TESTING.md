@@ -27,6 +27,7 @@ Following the global ADR, we implement a three-tier testing approach:
 | `lib/validation/index.ts` | 100% | - |
 | `lib/password-reset/password-reset-utils.ts` | 100% | - |
 | `lib/auth/route-switch.ts` | 100% | 8 |
+| `lib/hacker-news/ticker-data.ts` | 91.78% | 3 |
 
 ### Tier 2: Integration Tests (70% coverage target)
 
@@ -70,6 +71,9 @@ src/
 │   │   ├── validation.test.ts      # Unit tests
 │   │   └── schemas.ts              # Zod schemas
 │   └── ...
+│   ├── hacker-news/
+│   │   ├── ticker-data.ts          # Tier 1 cached ticker data loader
+│   │   └── ticker-data.test.ts     # Unit tests for TTL + dedupe behavior
 ├── components/             # UI components (Tier 2)
 │   ├── onboarding/
 │   │   ├── CreateWorkspaceForm.tsx

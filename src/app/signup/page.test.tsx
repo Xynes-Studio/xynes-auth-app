@@ -8,6 +8,10 @@ vi.mock("next/navigation", () => ({
     get: vi.fn(() => null),
   }),
   usePathname: () => "/signup",
+  useRouter: () => ({
+    push: vi.fn(),
+    back: vi.fn(),
+  }),
 }));
 
 vi.mock("@/components/auth/forms/SignupForm", () => ({

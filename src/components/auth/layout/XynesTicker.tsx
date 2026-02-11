@@ -5,12 +5,10 @@ import { Button, Flex, Spinner, Ticker } from "@lumia-ui/components";
 import { Icon, getIcon, registerIcon } from "@lumia-ui/icons";
 import styles from "./xynesTicker.module.css";
 import XynesLogoIcon from "@/icons/local/xynesLogo";
-
-type HackerNewsItem = {
-  id: number;
-  title: string;
-  url?: string;
-};
+import {
+  getCachedHackerNewsItems,
+  type HackerNewsItem,
+} from "@/lib/hacker-news/ticker-data";
 
 if (!getIcon("xynes-logo")) {
   registerIcon("xynes-logo", XynesLogoIcon);
@@ -26,45 +24,10 @@ const XynesTicker = () => {
     const loadTopStories = async () => {
       try {
         setIsLoading(true);
-        const topStoriesResponse = await fetch(
-          "https://hacker-news.firebaseio.com/v0/topstories.json",
-          { signal: controller.signal },
-        );
-        if (!topStoriesResponse.ok) {
-          throw new Error("Failed to load Hacker News stories");
-        }
-
-        const topIds = (await topStoriesResponse.json()) as number[];
-        const topTen = topIds.slice(0, 10);
-
-        const storyResponses = await Promise.all(
-          topTen.map((id) =>
-            fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`, {
-              signal: controller.signal,
-            }),
-          ),
-        );
-
-        const storyData = await Promise.all(
-          storyResponses.map(async (response) => {
-            if (!response.ok) return null;
-            try {
-              return await response.json();
-            } catch {
-              return null;
-            }
-          }),
-        );
-
-        const normalized = storyData
-          .filter((story) => story && story.title)
-          .map((story) => ({
-            id: story.id as number,
-            title: story.title as string,
-            url: story.url as string | undefined,
-          }));
-
-        setItems(normalized);
+        const cachedStories = await getCachedHackerNewsItems({
+          signal: controller.signal,
+        });
+        setItems(cachedStories);
       } catch (error) {
         if ((error as Error).name !== "AbortError") {
           setItems([]);
@@ -82,9 +45,20 @@ const XynesTicker = () => {
   }, []);
 
   const handleOpenStory = (story: HackerNewsItem) => {
-    const destination = story.url
-      ? story.url
-      : `https://news.ycombinator.com/item?id=${story.id}`;
+    const fallbackDestination = `https://news.ycombinator.com/item?id=${story.id}`;
+    let destination = fallbackDestination;
+
+    if (story.url) {
+      try {
+        const parsed = new URL(story.url);
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+          destination = parsed.toString();
+        }
+      } catch {
+        destination = fallbackDestination;
+      }
+    }
+
     window.open(destination, "_blank", "noopener,noreferrer");
   };
 

@@ -1,13 +1,15 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ComponentProps } from "react";
 import { Flex } from "@lumia-ui/components";
 import PictureOfTheDay from "./PictureOfTheDay";
 import XynesTicker from "./XynesTicker";
 import styles from "./authSplitLayout.module.css";
 
+type FlexChildren = ComponentProps<typeof Flex>["children"];
+
 interface AuthSplitLayoutProps {
-  children: ReactNode;
+  children: FlexChildren;
 }
 
 export function AuthSplitLayout({ children }: AuthSplitLayoutProps) {
