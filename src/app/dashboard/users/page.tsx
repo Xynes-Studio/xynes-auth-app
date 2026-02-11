@@ -41,14 +41,14 @@ export default function UsersDashboardPage() {
   );
 
   const filteredMembers = useMemo(() => {
-    const queryFiltered = filterWorkspaceMembers(members, query);
+    const queryFiltered = filterWorkspaceMembers(members, debouncedQuery);
     return queryFiltered.filter((member) => {
       const normalizedRole = formatWorkspaceRole(member.role).toLowerCase();
       const roleMatches = roleFilter === "all" || normalizedRole === roleFilter;
       const typeMatches = typeFilter === "all" || member.status === typeFilter;
       return roleMatches && typeMatches;
     });
-  }, [members, query, roleFilter, typeFilter]);
+  }, [members, debouncedQuery, roleFilter, typeFilter]);
 
   const visibleMemberIds = useMemo(
     () => filteredMembers.map((member) => member.id),
@@ -116,15 +116,8 @@ export default function UsersDashboardPage() {
         scroll: false,
       });
     }
-  }, [
-    activeTab,
-    debouncedQuery,
-    pathname,
-    roleFilter,
-    router,
-    searchParams,
-    typeFilter,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- exclude searchParams to avoid redundant effect run caused by router.replace updating the searchParams object
+  }, [activeTab, debouncedQuery, pathname, roleFilter, router, typeFilter]);
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {

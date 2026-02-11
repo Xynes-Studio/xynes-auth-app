@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Alert, Flex } from "@lumia-ui/components";
 import { LoginForm } from "@/components/auth/LoginForm";
@@ -25,6 +25,7 @@ function LoginContent() {
   const { isAuthenticated, isLoading: isAuthLoading, workspaces } = useAuth();
   const redirectParam = searchParams.get("redirect");
   const errorParam = searchParams.get("error");
+  const [postLoginPending, setPostLoginPending] = useState(false);
 
   const allowedDomains = useMemo(() => getAllowedRedirectDomains(), []);
 
@@ -40,6 +41,11 @@ function LoginContent() {
     : null;
 
   const handleSuccess = useCallback(() => {
+    if (!redirectParam && (workspaces ?? []).length === 0) {
+      setPostLoginPending(true);
+      return;
+    }
+
     const consoleBaseUrl =
       process.env.NEXT_PUBLIC_CONSOLE_URL ||
       process.env.NEXT_PUBLIC_CMS_CONSOLE_URL ||
@@ -76,8 +82,10 @@ function LoginContent() {
     });
 
     if (/^https?:\/\//i.test(destination) || destination.startsWith("//")) {
+      setPostLoginPending(false);
       window.location.assign(destination);
     } else {
+      setPostLoginPending(false);
       router.replace(destination);
     }
   }, [
@@ -87,6 +95,7 @@ function LoginContent() {
     redirectParam,
     allowedDomains,
     router,
+    postLoginPending,
   ]);
 
   if (isAuthLoading || isAuthenticated) {
@@ -119,7 +128,8 @@ function LoginContent() {
         </div>
         <Flex direction="col" className={`${styles.formSection} gap-6`}>
           <Flex direction="row" className={"font-title-serif"}>
-            <Link href="/login">Log In/</Link>
+            <Link href="/login">Log In</Link>
+            <span aria-hidden="true">/</span>
             <Link href="/signup">Sign Up</Link>
           </Flex>
           {oauthErrorMessage ? (

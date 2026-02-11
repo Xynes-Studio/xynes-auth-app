@@ -76,7 +76,7 @@ const PictureOfTheDay = () => {
               name="external-link"
               size="sm"
               color="bg-slate-50"
-              className={styles.hoverIco}
+              className={styles.hoverIcon}
               aria-hidden="true"
             />
           </a>
