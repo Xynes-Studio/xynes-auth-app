@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { isAuthRouteActive } from "@/lib/auth/route-switch";
 
 const baseLinkClasses =
@@ -16,35 +16,74 @@ function linkClasses(isActive: boolean): string {
   }`;
 }
 
-export function AuthRouteSwitch() {
+interface AuthRouteSwitchProps {
+  showBackButton?: boolean;
+  showRouteLinks?: boolean;
+  backHref?: string;
+  backLabel?: string;
+  backMode?: "history-or-href" | "href";
+}
+
+export function AuthRouteSwitch({
+  showBackButton = false,
+  showRouteLinks = true,
+  backHref = "/login",
+  backLabel = "Back",
+  backMode = "href",
+}: AuthRouteSwitchProps = {}) {
   const pathname = usePathname() ?? "/login";
+  const router = useRouter();
   const isLoginActive = isAuthRouteActive(pathname, "login");
   const isSignupActive = isAuthRouteActive(pathname, "signup");
+
+  const handleBack = () => {
+    if (backMode === "history-or-href" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push(backHref);
+  };
 
   return (
     <nav
       aria-label="Auth route switch"
-      className="font-title-serif text-lg text-foreground"
+      className="font-title-serif text-lg text-foreground space-y-2"
     >
-      <div className="flex items-center gap-2">
-        <Link
-          href="/login"
-          aria-current={isLoginActive ? "page" : undefined}
-          className={linkClasses(isLoginActive)}
+      {showBackButton ? (
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex items-center gap-1 text-sm font-medium text-foreground/80 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/50 focus-visible:ring-offset-2"
         >
-          Log In
-        </Link>
-        <span aria-hidden="true" className="text-slate-500 dark:text-slate-400">
-          /
-        </span>
-        <Link
-          href="/signup"
-          aria-current={isSignupActive ? "page" : undefined}
-          className={linkClasses(isSignupActive)}
-        >
-          Sign Up
-        </Link>
-      </div>
+          <span aria-hidden="true">←</span>
+          <span>{backLabel}</span>
+        </button>
+      ) : null}
+      {showRouteLinks ? (
+        <div className="flex items-center gap-2">
+          <Link
+            href="/login"
+            aria-current={isLoginActive ? "page" : undefined}
+            className={linkClasses(isLoginActive)}
+          >
+            Log In
+          </Link>
+          <span
+            aria-hidden="true"
+            className="text-slate-500 dark:text-slate-400"
+          >
+            /
+          </span>
+          <Link
+            href="/signup"
+            aria-current={isSignupActive ? "page" : undefined}
+            className={linkClasses(isSignupActive)}
+          >
+            Sign Up
+          </Link>
+        </div>
+      ) : null}
     </nav>
   );
 }

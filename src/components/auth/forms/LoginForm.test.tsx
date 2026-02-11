@@ -87,7 +87,7 @@ describe("LoginForm", () => {
 
     it("should cap password input with a maxLength", () => {
       renderWithProviders(<LoginForm />);
-      expect(screen.getByLabelText(/password/i)).toHaveAttribute(
+      expect(screen.getByLabelText(/^password$/i)).toHaveAttribute(
         "maxLength",
         "256",
       );
@@ -160,7 +160,7 @@ describe("LoginForm", () => {
 
       const longPassword = "A1a".padEnd(129, "x");
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
-      await user.type(screen.getByLabelText(/password/i), longPassword);
+      await user.type(screen.getByLabelText(/^password$/i), longPassword);
       await user.tab(); // Trigger blur validation
 
       await waitFor(() => {
@@ -181,7 +181,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
-      await user.type(screen.getByLabelText(/password/i), "password123");
+      await user.type(screen.getByLabelText(/^password$/i), "password123");
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
@@ -211,7 +211,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
-      await user.type(screen.getByLabelText(/password/i), "password123");
+      await user.type(screen.getByLabelText(/^password$/i), "password123");
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       expect(
@@ -230,7 +230,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm onSuccess={onSuccess} />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
-      await user.type(screen.getByLabelText(/password/i), "password123");
+      await user.type(screen.getByLabelText(/^password$/i), "password123");
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
@@ -248,7 +248,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
-      await user.type(screen.getByLabelText(/password/i), "wrongpassword");
+      await user.type(screen.getByLabelText(/^password$/i), "wrongpassword");
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
@@ -333,7 +333,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/password/i);
+      const passwordInput = screen.getByLabelText(/^password$/i);
 
       expect(emailInput).toHaveAttribute("type", "email");
       expect(passwordInput).toHaveAttribute("type", "password");
@@ -343,7 +343,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       const emailInput = screen.getByLabelText(/email/i);
-      const passwordInput = screen.getByLabelText(/password/i);
+      const passwordInput = screen.getByLabelText(/^password$/i);
 
       expect(emailInput).toHaveAttribute("autocomplete", "email");
       expect(passwordInput).toHaveAttribute("autocomplete", "current-password");
@@ -382,7 +382,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
-      await user.type(screen.getByLabelText(/password/i), "password123");
+      await user.type(screen.getByLabelText(/^password$/i), "password123");
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       const submitButton = screen.getByRole("button", { name: /signing in/i });
@@ -396,7 +396,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "  test@example.com  ");
-      await user.type(screen.getByLabelText(/password/i), "password123");
+      await user.type(screen.getByLabelText(/^password$/i), "password123");
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
@@ -414,7 +414,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
-      await user.type(screen.getByLabelText(/password/i), "password123");
+      await user.type(screen.getByLabelText(/^password$/i), "password123");
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
@@ -432,7 +432,7 @@ describe("LoginForm", () => {
       renderWithProviders(<LoginForm />);
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
-      await user.type(screen.getByLabelText(/password/i), "wrongpassword");
+      await user.type(screen.getByLabelText(/^password$/i), "wrongpassword");
       await user.click(screen.getByRole("button", { name: /continue/i }));
 
       await waitFor(() => {
@@ -442,7 +442,7 @@ describe("LoginForm", () => {
       });
 
       // Start typing again
-      await user.type(screen.getByLabelText(/password/i), "a");
+      await user.type(screen.getByLabelText(/^password$/i), "a");
 
       await waitFor(() => {
         expect(

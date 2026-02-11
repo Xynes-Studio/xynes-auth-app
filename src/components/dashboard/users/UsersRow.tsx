@@ -28,7 +28,7 @@ export function UsersRow({
   onDelete,
 }: UsersRowProps) {
   const dialog = useConfirmDialog();
-  const roleValue = member.role.replace("workspace_", "");
+  const roleValue = member.role?.replace("workspace_", "") ?? "member";
   const statusLabel = useMemo(
     () =>
       member.status.charAt(0).toUpperCase() +

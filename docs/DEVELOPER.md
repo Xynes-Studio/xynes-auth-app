@@ -85,6 +85,10 @@ Feature-level details:
 - Auth layout visuals used by auth entry routes should live in shared auth components:
 	- `src/components/auth/layout/PictureOfTheDay.tsx`
 	- `src/components/auth/layout/XynesTicker.tsx`
+- Hacker News ticker data-fetching logic must remain in Tier 1 utilities:
+	- `src/lib/hacker-news/ticker-data.ts`
+	- Keep component code (`XynesTicker`) focused on rendering and interaction only.
+	- Use in-memory TTL caching + in-flight request deduplication to avoid repeated API calls when moving between auth routes that share `AuthSplitLayout`.
 
 ## Feature Flags
 
@@ -171,6 +175,15 @@ Rules:
 - Client UI lives in `src/components/auth/layout/PictureOfTheDay.tsx` and is consumed by the shared auth entry layout.
 - Client cache lives in `src/components/auth/hooks/usePictureOfTheDay.ts` and stores validated payloads in `localStorage` using a TTL for faster repeat visits.
 - Client rendering should not rely on `FALLBACK_PICTURE_OF_THE_DAY`; fallback remains server-side only.
+
+## Hacker News Ticker (Auth Layout)
+
+- Shared auth routes (`/login`, `/signup`, `/forgot-password`) mount the same ticker visual via `AuthSplitLayout`.
+- To prevent redundant calls on route transitions, ticker data must be fetched through `src/lib/hacker-news/ticker-data.ts`.
+- Cache policy:
+	- TTL: 5 minutes
+	- Reuse cached stories across remounts
+	- Deduplicate concurrent fetches through a shared in-flight promise
 
 ## Testing Standards (ADR-001)
 

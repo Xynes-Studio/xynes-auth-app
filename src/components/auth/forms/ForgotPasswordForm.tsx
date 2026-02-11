@@ -3,13 +3,14 @@
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@lumia-ui/components";
+import { Button, Input } from "@lumia-ui/components";
 import {
   forgotPasswordFormSchema,
   type ForgotPasswordFormData,
 } from "@/lib/validation";
 import { createPasswordResetClient } from "@/lib/supabase/client";
 import { isAccountEnumerationSensitiveResetError } from "@/lib/password-reset/password-reset-utils";
+import { FormFieldError } from "./FormFieldError";
 
 const GENERIC_SUCCESS_MESSAGE =
   "If an account exists for that email, you’ll receive a password reset link shortly.";
@@ -96,31 +97,20 @@ export function ForgotPasswordForm() {
         >
           Email
         </label>
-        <input
+        <Input
           id="email"
           type="email"
           placeholder="you@example.com"
           autoComplete="email"
           aria-invalid={!!errors.email}
           aria-describedby={errors.email ? "email-error" : undefined}
-          className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-            errors.email ? "border-red-500" : "border-gray-300"
-          }`}
+          invalid={Boolean(errors.email)}
           {...register("email")}
         />
-        {errors.email && (
-          <p id="email-error" className="text-sm text-red-600">
-            {errors.email.message}
-          </p>
-        )}
+        <FormFieldError id="email-error" message={errors.email?.message} />
       </div>
 
-      <Button
-        type="submit"
-        fullWidth
-        isLoading={isLoading}
-        loadingText="Sending..."
-      >
+      <Button type="submit" isLoading={isLoading} loadingText="Sending...">
         Send reset link
       </Button>
     </form>
