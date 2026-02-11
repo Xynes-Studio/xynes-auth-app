@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import type { ImgHTMLAttributes } from "react";
 import PictureOfTheDay from "./PictureOfTheDay";
+import {
+  PICTURE_OF_THE_DAY_CACHE_KEY,
+  createPictureOfTheDayCacheEntry,
+  readPictureOfTheDayCache,
+} from "@/lib/picture-of-the-day";
 
 const mockFetch = vi.fn();
 
@@ -16,9 +21,24 @@ describe("PictureOfTheDay", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", mockFetch);
+    window.localStorage.clear();
   });
 
-  it("renders fallback first and then updates from server response", async () => {
+  it("renders cached picture immediately and refreshes from server response", async () => {
+    const cachedPicture = {
+      id: 7,
+      alt: "Cached valley",
+      imageUrl: "https://images.pexels.com/photos/7/pexels-photo-7.jpeg",
+      photographerName: "Cached Author",
+      photographerProfileUrl: "https://www.pexels.com/@cached-author",
+      pexelsPhotoUrl: "https://images.pexels.com/photos/7/pexels-photo-7.jpeg",
+    };
+
+    window.localStorage.setItem(
+      PICTURE_OF_THE_DAY_CACHE_KEY,
+      JSON.stringify(createPictureOfTheDayCacheEntry(cachedPicture)),
+    );
+
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -36,12 +56,19 @@ describe("PictureOfTheDay", () => {
 
     render(<PictureOfTheDay />);
 
-    expect(screen.getByText("Movement at night")).toBeInTheDocument();
+    expect(await screen.findByText("Cached Author")).toBeInTheDocument();
     expect(await screen.findByText("Updated Author")).toBeInTheDocument();
     expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => {
+      const cached = readPictureOfTheDayCache(
+        window.localStorage.getItem(PICTURE_OF_THE_DAY_CACHE_KEY),
+      );
+      expect(cached?.id).toBe(1);
+    });
   });
 
-  it("fetches and renders fresh picture when cache is stale", async () => {
+  it("fetches and renders picture when no cache exists", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({

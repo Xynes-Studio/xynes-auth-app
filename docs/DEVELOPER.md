@@ -169,6 +169,8 @@ Rules:
 - Use `src/lib/picture-of-the-day` for shared validation and fallback content
 	(Tier 1 unit tests required).
 - Client UI lives in `src/components/auth/layout/PictureOfTheDay.tsx` and is consumed by the shared auth entry layout.
+- Client cache lives in `src/components/auth/hooks/usePictureOfTheDay.ts` and stores validated payloads in `localStorage` using a TTL for faster repeat visits.
+- Client rendering should not rely on `FALLBACK_PICTURE_OF_THE_DAY`; fallback remains server-side only.
 
 ## Testing Standards (ADR-001)
 
