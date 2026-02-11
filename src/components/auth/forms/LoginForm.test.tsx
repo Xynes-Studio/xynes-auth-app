@@ -64,13 +64,15 @@ describe("LoginForm", () => {
 
   describe("rendering", () => {
     it("should render the login form with all required elements", () => {
-      renderWithProviders(<LoginForm />);
+      const { container } = renderWithProviders(<LoginForm />);
 
       expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: /continue/i }),
       ).toBeInTheDocument();
+      expect(container.querySelector("#email-error")).toBeNull();
+      expect(container.querySelector("#password-error")).toBeNull();
     });
 
     it("should use a submit button for form submission", () => {

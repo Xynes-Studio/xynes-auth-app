@@ -58,7 +58,7 @@ describe("SignupForm", () => {
 
   describe("rendering", () => {
     it("should render the signup form", () => {
-      render(<SignupForm />);
+      const { container } = render(<SignupForm />);
 
       expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
@@ -66,6 +66,9 @@ describe("SignupForm", () => {
       expect(
         screen.getByRole("button", { name: /create account/i }),
       ).toBeInTheDocument();
+      expect(container.querySelector("#email-error")).toBeNull();
+      expect(container.querySelector("#password-error")).toBeNull();
+      expect(container.querySelector("#confirmPassword-error")).toBeNull();
     });
 
     it("should cap password inputs with a maxLength", () => {

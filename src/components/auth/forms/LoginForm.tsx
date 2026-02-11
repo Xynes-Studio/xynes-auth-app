@@ -15,6 +15,7 @@ import {
 import { normalizeAuthError, type AuthError } from "@/lib/errors";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { OAuthButtons, AuthDivider, AuthErrorAlert } from "../../ui";
+import { FormFieldError } from "./FormFieldError";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -117,7 +118,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
         className="space-y-4"
         noValidate
       >
-        <div className="space-y-2">
+        <div className="space-y-1">
           <label
             htmlFor="email"
             className="block text-sm font-medium text-foreground"
@@ -137,14 +138,10 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
               onChange: clearError,
             })}
           />
-          {errors.email && (
-            <p id="email-error" className="text-sm text-destructive">
-              {errors.email.message}
-            </p>
-          )}
+          <FormFieldError id="email-error" message={errors.email?.message} />
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1">
           <label
             htmlFor="password"
             className="block text-sm font-medium text-foreground"
@@ -169,11 +166,10 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
               },
             })}
           />
-          {errors.password && (
-            <p id="password-error" className="text-sm text-destructive">
-              {errors.password.message}
-            </p>
-          )}
+          <FormFieldError
+            id="password-error"
+            message={errors.password?.message}
+          />
         </div>
         <Flex align="center" className="gap-4">
           <Button
