@@ -123,13 +123,14 @@ describe("LoginPage", () => {
       });
     });
 
-    it("should show OAuth error banner when error param is present", async () => {
+    it("should show OAuth error banner and keep login form when error param is present", async () => {
       errorValue = "access_denied";
       render(<LoginPage />);
 
       await waitFor(() => {
         expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
         expect(screen.getByText(/you denied the request/i)).toBeInTheDocument();
+        expect(screen.getByTestId("login-form")).toBeInTheDocument();
       });
     });
   });

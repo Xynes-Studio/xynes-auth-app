@@ -118,9 +118,8 @@ function LoginContent() {
             className="text-left"
           />
         </div>
-      ) : (
-        <LoginForm onSuccess={handleSuccess} redirectUrl={redirectUrl} />
-      )}
+      ) : null}
+      <LoginForm onSuccess={handleSuccess} redirectUrl={redirectUrl} />
     </AuthSplitLayout>
   );
 }
