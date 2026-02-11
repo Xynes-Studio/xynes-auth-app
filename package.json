@@ -15,6 +15,7 @@
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@lumia-ui/components": "link:../lumia-ds/packages/components",
+    "@lumia-ui/icons": "link:../lumia-ds/packages/icons",
     "@lumia-ui/forms": "link:../lumia-ds/packages/forms",
     "@xynes/auth-sdk": "link:../xynes-auth-sdk",
     "@supabase/ssr": "^0.8.0",

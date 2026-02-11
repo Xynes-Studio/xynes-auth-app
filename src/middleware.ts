@@ -12,6 +12,7 @@ export async function middleware(req: NextRequest) {
     "'self'",
     'https://*.supabase.co',
     'https://api.xynes.com',
+    'https://hacker-news.firebaseio.com',
   ]);
 
   for (const raw of [

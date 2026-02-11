@@ -28,34 +28,40 @@ export function ForgotPasswordForm() {
     mode: "onBlur",
   });
 
-  const handleRequestReset = useCallback(async (data: ForgotPasswordFormData) => {
-    setIsLoading(true);
-    setDidSucceed(false);
-    setHasUnexpectedError(false);
+  const handleRequestReset = useCallback(
+    async (data: ForgotPasswordFormData) => {
+      setIsLoading(true);
+      setDidSucceed(false);
+      setHasUnexpectedError(false);
 
-    try {
-      const supabase = createPasswordResetClient();
-      const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      try {
+        const supabase = createPasswordResetClient();
+        const { error } = await supabase.auth.resetPasswordForEmail(
+          data.email,
+          {
+            redirectTo: `${window.location.origin}/reset-password`,
+          },
+        );
 
-      if (error) {
-        if (isAccountEnumerationSensitiveResetError(error)) {
-          setDidSucceed(true);
+        if (error) {
+          if (isAccountEnumerationSensitiveResetError(error)) {
+            setDidSucceed(true);
+            return;
+          }
+
+          setHasUnexpectedError(true);
           return;
         }
 
+        setDidSucceed(true);
+      } catch {
         setHasUnexpectedError(true);
-        return;
+      } finally {
+        setIsLoading(false);
       }
-
-      setDidSucceed(true);
-    } catch {
-      setHasUnexpectedError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   if (didSucceed) {
     return (
@@ -84,7 +90,10 @@ export function ForgotPasswordForm() {
       )}
 
       <div className="space-y-2">
-        <label htmlFor="email" className="block text-sm font-medium text-gray-900">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-900"
+        >
           Email
         </label>
         <input
@@ -106,7 +115,12 @@ export function ForgotPasswordForm() {
         )}
       </div>
 
-      <Button type="submit" fullWidth isLoading={isLoading} loadingText="Sending...">
+      <Button
+        type="submit"
+        fullWidth
+        isLoading={isLoading}
+        loadingText="Sending..."
+      >
         Send reset link
       </Button>
     </form>

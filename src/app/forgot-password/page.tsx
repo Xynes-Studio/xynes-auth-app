@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@lumia-ui/components";
-import { ForgotPasswordForm } from "@/components/ForgotPasswordForm";
+import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
 
 export default function ForgotPasswordPage() {
   return (

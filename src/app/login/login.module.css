@@ -1,0 +1,33 @@
+.container {
+  width: 100svw;
+  height: 100svh;
+}
+
+.leftPanel {
+  width: 50%;
+  height: 100svh;
+}
+
+.rightPanel {
+  width: 50%;
+  height: 100svh;
+  position: relative;
+  box-shadow: 6px 6px 30px 0 rgb(0 0 0 / 10%);
+}
+
+.formSection {
+  width: 60%;
+}
+
+.tickerContainer {
+  width: 100%;
+  position: absolute;
+  top: 10%;
+  left: -15%;
+}
+
+@media (prefers-color-scheme: dark) {
+  .rightPanel {
+    box-shadow: 6px 6px 30px 0 color-mix(in srgb, #c8c8ff 10%, transparent);
+  }
+}

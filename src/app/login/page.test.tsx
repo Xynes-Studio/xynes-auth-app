@@ -38,7 +38,7 @@ vi.mock("@xynes/auth-sdk", () => ({
 }));
 
 // Mock LoginForm component
-vi.mock("@/components/LoginForm", () => ({
+vi.mock("@/components/auth/LoginForm", () => ({
   LoginForm: ({
     onSuccess,
     redirectUrl,
@@ -74,10 +74,14 @@ describe("LoginPage", () => {
       render(<LoginPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
-        expect(
-          screen.getByText(/sign in to your account/i),
-        ).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /log in/i })).toHaveAttribute(
+          "href",
+          "/login",
+        );
+        expect(screen.getByRole("link", { name: /sign up/i })).toHaveAttribute(
+          "href",
+          "/signup",
+        );
       });
     });
 
@@ -128,7 +132,8 @@ describe("LoginPage", () => {
 
       // Mock window.location
       const originalLocation = window.location;
-      const mockLocation = { href: "" };
+      const assign = vi.fn();
+      const mockLocation = { href: "", assign };
       Object.defineProperty(window, "location", {
         value: mockLocation,
         writable: true,
@@ -143,7 +148,7 @@ describe("LoginPage", () => {
       await user.click(screen.getByTestId("mock-login-button"));
 
       await waitFor(() => {
-        expect(mockLocation.href).toBe("https://cms.xynes.com/dashboard");
+        expect(assign).toHaveBeenCalledWith("https://cms.xynes.com/dashboard");
       });
 
       // Restore

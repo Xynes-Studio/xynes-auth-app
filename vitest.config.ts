@@ -33,6 +33,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
+      "@lumia-ui/icons": resolve(__dirname, "./src/test/mocks/lumia-icons.ts"),
     },
   },
 });

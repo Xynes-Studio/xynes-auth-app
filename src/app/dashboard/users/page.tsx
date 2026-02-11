@@ -1,34 +1,37 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AuthGuard,
   formatWorkspaceRole,
   useAuth,
   useWorkspace,
 } from "@xynes/auth-sdk";
-import {
-  Avatar,
-  Badge,
-  Card,
-  CardContent,
-  CardHeader,
-  EmptyState,
-  Flex,
-  Input,
-  PageHeader,
-  Spinner,
-} from "@lumia-ui/components";
 import { AuthDashboardShell } from "@/components/dashboard";
+import {
+  UsersTable,
+  UsersTabs,
+  UsersToolbar,
+} from "@/components/dashboard/users";
 import {
   buildWorkspaceMembers,
   filterWorkspaceMembers,
 } from "@/lib/users/workspace-members";
 
 export default function UsersDashboardPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const hasInitialized = useRef(false);
   const { user, isLoading: authLoading } = useAuth();
   const { currentWorkspace, isLoading: workspaceLoading } = useWorkspace();
+  const [activeTab, setActiveTab] = useState<"users" | "teams">("users");
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
 
   const isLoading = authLoading || workspaceLoading;
 
@@ -37,141 +40,135 @@ export default function UsersDashboardPage() {
     [user, currentWorkspace],
   );
 
-  const filteredMembers = useMemo(
-    () => filterWorkspaceMembers(members, query),
-    [members, query],
-  );
+  const filteredMembers = useMemo(() => {
+    const queryFiltered = filterWorkspaceMembers(members, debouncedQuery);
+    return queryFiltered.filter((member) => {
+      const normalizedRole = formatWorkspaceRole(member.role).toLowerCase();
+      const roleMatches = roleFilter === "all" || normalizedRole === roleFilter;
+      const typeMatches = typeFilter === "all" || member.status === typeFilter;
+      return roleMatches && typeMatches;
+    });
+  }, [members, debouncedQuery, roleFilter, typeFilter]);
 
-  const memberCount = members.length;
-  const memberCountLabel = `${memberCount} ${memberCount === 1 ? "member" : "members"}`;
+  const visibleMemberIds = useMemo(
+    () => filteredMembers.map((member) => member.id),
+    [filteredMembers],
+  );
+  const visibleSelectedCount = useMemo(
+    () =>
+      visibleMemberIds.filter((id) => selectedMemberIds.includes(id)).length,
+    [visibleMemberIds, selectedMemberIds],
+  );
+  const allSelected =
+    visibleMemberIds.length > 0 &&
+    visibleSelectedCount === visibleMemberIds.length;
+  const isIndeterminate =
+    visibleSelectedCount > 0 && visibleSelectedCount < visibleMemberIds.length;
+
+  useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+    const tabParam = searchParams.get("tab");
+    const queryParam = searchParams.get("q");
+    const roleParam = searchParams.get("role");
+    const typeParam = searchParams.get("type");
+
+    if (tabParam === "teams") {
+      setActiveTab("teams");
+    }
+    if (queryParam) {
+      setQuery(queryParam);
+      setDebouncedQuery(queryParam);
+    }
+    if (roleParam) {
+      setRoleFilter(roleParam);
+    }
+    if (typeParam) {
+      setTypeFilter(typeParam);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 300);
+
+    return () => clearTimeout(handle);
+  }, [query]);
+
+  useEffect(() => {
+    setSelectedMemberIds((prev) =>
+      prev.filter((id) => visibleMemberIds.includes(id)),
+    );
+  }, [visibleMemberIds]);
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams();
+    if (activeTab === "teams") nextParams.set("tab", "teams");
+    if (debouncedQuery) nextParams.set("q", debouncedQuery);
+    if (roleFilter !== "all") nextParams.set("role", roleFilter);
+    if (typeFilter !== "all") nextParams.set("type", typeFilter);
+
+    const nextQuery = nextParams.toString();
+    const currentQuery = searchParams.toString();
+    if (nextQuery !== currentQuery) {
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+        scroll: false,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- exclude searchParams to avoid redundant effect run caused by router.replace updating the searchParams object
+  }, [activeTab, debouncedQuery, pathname, roleFilter, router, typeFilter]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedMemberIds(visibleMemberIds);
+    } else {
+      setSelectedMemberIds((prev) =>
+        prev.filter((id) => !visibleMemberIds.includes(id)),
+      );
+    }
+  };
+
+  const handleToggleMember = (memberId: string, checked: boolean) => {
+    setSelectedMemberIds((prev) =>
+      checked ? [...prev, memberId] : prev.filter((id) => id !== memberId),
+    );
+  };
+
+  const handleTabChange = (tab: "users" | "teams") => {
+    setActiveTab(tab);
+  };
 
   return (
     <AuthGuard>
       <AuthDashboardShell activeNav="users">
-        <div className="flex h-full flex-col gap-8">
-          <PageHeader
-            title="Users"
-            subtitle="Invite and manage workspace members."
+        <div className="flex h-full flex-col gap-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <UsersTabs activeTab={activeTab} onTabChange={handleTabChange} />
+            <UsersToolbar
+              searchValue={query}
+              onSearchValueChange={setQuery}
+              onSearchSubmit={() => undefined}
+              onInvite={() => undefined}
+            />
+          </div>
+
+          <UsersTable
+            members={filteredMembers}
+            isLoading={isLoading}
+            errorMessage={null}
+            selectedMemberIds={selectedMemberIds}
+            allSelected={allSelected}
+            isIndeterminate={isIndeterminate}
+            roleFilter={roleFilter}
+            typeFilter={typeFilter}
+            onToggleAll={handleSelectAll}
+            onToggleOne={handleToggleMember}
+            onRoleFilterChange={setRoleFilter}
+            onTypeFilterChange={setTypeFilter}
+            onRoleChange={() => undefined}
+            onDelete={() => undefined}
           />
-
-          <Card className="flex-1">
-            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Workspace members
-                  </h2>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {memberCountLabel}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Manage roles and access for this workspace.
-                </p>
-              </div>
-              <div className="w-full sm:w-[260px]">
-                <label htmlFor="user-search" className="sr-only">
-                  Search users
-                </label>
-                <Input
-                  id="user-search"
-                  name="userSearch"
-                  type="search"
-                  autoComplete="off"
-                  spellCheck={false}
-                  placeholder="Search by name or email…"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-              </div>
-            </CardHeader>
-
-            <CardContent className="min-h-[320px]">
-              {isLoading ? (
-                <Flex
-                  className="h-full items-center justify-center gap-2"
-                  role="status"
-                  aria-live="polite"
-                >
-                  <Spinner size="md" />
-                  <span className="text-sm text-muted-foreground">
-                    Loading users…
-                  </span>
-                </Flex>
-              ) : filteredMembers.length === 0 ? (
-                <EmptyState
-                  icon="users"
-                  title={query ? "No matches found" : "No members listed yet"}
-                  description={
-                    query
-                      ? "Try another name or email."
-                      : "Once you invite teammates, roles and statuses will appear here."
-                  }
-                />
-              ) : (
-                <div className="rounded-2xl border border-border/40 bg-card/30">
-                  <ul className="divide-y divide-border/30">
-                    {filteredMembers.map((member) => {
-                      const primaryLabel = member.displayName ?? member.email;
-                      const secondaryLabel = member.displayName
-                        ? member.email
-                        : null;
-                      const statusLabel =
-                        member.status.charAt(0).toUpperCase() +
-                        member.status.slice(1);
-
-                      return (
-                        <li
-                          key={member.id}
-                          className="flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
-                        >
-                          <div className="flex min-w-0 items-center gap-3">
-                            <Avatar
-                              size="sm"
-                              alt={primaryLabel}
-                              src={member.avatarUrl ?? undefined}
-                            />
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium text-foreground truncate">
-                                {primaryLabel}
-                              </div>
-                              {secondaryLabel ? (
-                                <div className="text-xs text-muted-foreground truncate">
-                                  {secondaryLabel}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                            {member.isCurrentUser ? (
-                              <Badge
-                                variant="secondary"
-                                className="text-[10px]"
-                              >
-                                You
-                              </Badge>
-                            ) : null}
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] uppercase tracking-wide"
-                            >
-                              {formatWorkspaceRole(member.role)}
-                            </Badge>
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] uppercase tracking-wide"
-                            >
-                              {statusLabel}
-                            </Badge>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </AuthDashboardShell>
     </AuthGuard>

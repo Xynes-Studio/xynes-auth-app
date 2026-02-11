@@ -1,3 +1,5 @@
+import { Flex } from "@lumia-ui/components";
+
 interface AuthDividerProps {
   text?: string;
 }
@@ -8,13 +10,13 @@ interface AuthDividerProps {
  */
 export function AuthDivider({ text = "Or continue with" }: AuthDividerProps) {
   return (
-    <div className="relative">
-      <div className="absolute inset-0 flex items-center">
-        <span className="w-full border-t border-gray-300" />
-      </div>
+    <Flex className="relative" align="center">
       <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-white px-2 text-gray-500">{text}</span>
+        <span className="px-2 text-gray-500">{text}</span>
       </div>
-    </div>
+      <div className="flex-1 ml-2">
+        <span className="block w-full border-t border-gray-300" />
+      </div>
+    </Flex>
   );
 }

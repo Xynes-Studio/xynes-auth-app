@@ -1,0 +1,90 @@
+.container {
+  max-width: 300px;
+  width: 100%;
+}
+
+.imageFrame {
+  position: relative;
+  overflow: hidden;
+}
+
+.image {
+  object-fit: cover;
+  width: 100%;
+  height: auto;
+  transition: transform 220ms ease;
+}
+
+.imageFrame:hover .image {
+  transform: scale(1.02);
+}
+
+.hoverActions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 12px;
+  opacity: 0;
+  background: linear-gradient(
+    180deg,
+    rgb(2 6 23 / 0%) 45%,
+    rgb(2 6 23 / 72%) 100%
+  );
+  transition: opacity 220ms ease;
+}
+
+.hoverLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  height: 36px;
+  padding: 0 12px;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.hoverIcon {
+  flex-shrink: 0;
+}
+
+.imageFrame:hover .hoverActions,
+.imageFrame:focus-within .hoverActions {
+  opacity: 1;
+}
+
+.caption {
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.authorLink {
+  display: inline-block;
+  color: #e11d48;
+  text-decoration: none;
+}
+
+.authorLink:hover,
+.authorLink:focus-visible {
+  text-decoration: underline;
+}
+
+.titleSingleLine {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.authorSingleLine {
+  max-width: 230px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}

@@ -187,6 +187,7 @@ export function OAuthButtons({
       {enabledProviders.map((provider) => (
         <Button
           key={provider.id}
+          fullWidth
           type="button"
           variant="outline"
           className="flex-row"
