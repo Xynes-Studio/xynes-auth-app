@@ -19,21 +19,21 @@ const XynesTicker = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let isActive = true;
 
     const loadTopStories = async () => {
       try {
         setIsLoading(true);
-        const cachedStories = await getCachedHackerNewsItems({
-          signal: controller.signal,
-        });
-        setItems(cachedStories);
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") {
+        const cachedStories = await getCachedHackerNewsItems();
+        if (isActive) {
+          setItems(cachedStories);
+        }
+      } catch {
+        if (isActive) {
           setItems([]);
         }
       } finally {
-        if (!controller.signal.aborted) {
+        if (isActive) {
           setIsLoading(false);
         }
       }
@@ -41,7 +41,9 @@ const XynesTicker = () => {
 
     loadTopStories();
 
-    return () => controller.abort();
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const handleOpenStory = (story: HackerNewsItem) => {
