@@ -1,57 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Image from "next/image";
 import { Flex } from "@lumia-ui/components";
 import { Icon } from "@lumia-ui/icons";
-import {
-  FALLBACK_PICTURE_OF_THE_DAY,
-  isPictureOfTheDayData,
-  type PictureOfTheDayData,
-} from "@/lib/picture-of-the-day";
+import { usePictureOfTheDay } from "../hooks/usePictureOfTheDay";
 import styles from "./potd.module.css";
 
-type PictureResponse = {
-  picture?: PictureOfTheDayData;
-};
-
 const PictureOfTheDay = () => {
-  const [picture, setPicture] = useState<PictureOfTheDayData>(
-    FALLBACK_PICTURE_OF_THE_DAY,
-  );
-
-  useEffect(() => {
-    const loadPicture = async () => {
-      try {
-        const response = await fetch("/api/picture-of-the-day?v=3", {
-          method: "GET",
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          return;
-        }
-
-        const data = (await response.json()) as PictureResponse;
-
-        if (!isPictureOfTheDayData(data.picture)) {
-          return;
-        }
-
-        setPicture(data.picture);
-      } catch {
-        // Keep fallback content on network/API errors.
-      }
-    };
-
-    void loadPicture();
-  }, []);
+  const picture = usePictureOfTheDay();
 
   const photographerLabel = useMemo(
-    () => picture.photographerName.replace(/^@/, ""),
-    [picture.photographerName],
+    () => (picture ? picture.photographerName.replace(/^@/, "") : ""),
+    [picture],
   );
+
+  if (!picture) {
+    return null;
+  }
 
   return (
     <Flex direction="col" className={styles.container}>
