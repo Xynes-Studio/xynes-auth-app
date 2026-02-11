@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { Button, Input } from "@lumia-ui/components";
+import { Button, Flex, Input } from "@lumia-ui/components";
 import { useFeatureFlags, useOAuthProviders } from "@xynes/auth-sdk";
 import {
   loginFormSchema,
@@ -14,7 +14,7 @@ import {
 } from "@/lib/validation";
 import { normalizeAuthError, type AuthError } from "@/lib/errors";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
-import { OAuthButtons, AuthDivider, AuthErrorAlert } from "./ui";
+import { OAuthButtons, AuthDivider, AuthErrorAlert } from "../ui";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -174,24 +174,24 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
               {errors.password.message}
             </p>
           )}
+        </div>
+        <Flex align="center" className="gap-4">
+          <Button
+            type="submit"
+            isLoading={isLoading}
+            loadingText="Signing in..."
+          >
+            Continue
+          </Button>
           <div className="flex justify-end">
             <Link
               href="/forgot-password"
-              className="text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+              className="text-sm font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-offset-2"
             >
               Forgot password?
             </Link>
           </div>
-        </div>
-
-        <Button
-          type="submit"
-          fullWidth
-          isLoading={isLoading}
-          loadingText="Signing in..."
-        >
-          Sign in
-        </Button>
+        </Flex>
       </form>
 
       <AuthDivider />
@@ -203,16 +203,6 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
         onLoadingChange={handleOAuthLoadingChange}
         providers={oauthProviders}
       />
-
-      <p className="text-center text-sm text-foreground/70">
-        Don&apos;t have an account?{" "}
-        <Link
-          href="/signup"
-          className="font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
-        >
-          Sign up
-        </Link>
-      </p>
     </div>
   );
 }

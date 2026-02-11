@@ -5,6 +5,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --title-serif: var(--font-title-serif);
+}
+
+html {
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -12,10 +17,29 @@
     --background: #0a0a0a;
     --foreground: #ededed;
   }
+
+  html {
+    color-scheme: dark;
+  }
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-title-serif {
+  font-family: var(--font-title-serif);
+  font-size: 2rem;
+}
+
+.accent-bg {
+  background-color: #fdba74;
+}
+
+button,
+[role="button"] {
+  touch-action: manipulation;
 }

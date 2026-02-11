@@ -1,4 +1,7 @@
 import "@testing-library/jest-dom/vitest";
+import { createElement } from "react";
+import { vi } from "vitest";
+import type { ImgHTMLAttributes } from "react";
 
 // Mock environment variables
 process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
@@ -12,3 +15,19 @@ process.env.NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS =
 // Individual tests can opt into external console redirects by setting this.
 process.env.NEXT_PUBLIC_CONSOLE_URL = "";
 process.env.NEXT_PUBLIC_CMS_CONSOLE_URL = "";
+
+vi.mock(
+  "@lumia-ui/icons",
+  () => ({
+    Icon: () => null,
+    getIcon: () => undefined,
+    registerIcon: () => undefined,
+  }),
+  { virtual: true },
+);
+
+vi.mock("next/image", () => ({
+  default: (props: ImgHTMLAttributes<HTMLImageElement>) => {
+    return createElement("img", props);
+  },
+}));

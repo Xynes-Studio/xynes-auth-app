@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Alert, Card } from "@lumia-ui/components";
-import { SignupForm } from "@/components/SignupForm";
+import { SignupForm } from "@/components/auth/SignupForm";
 import { AuthPageSkeleton } from "@/components/ui";
 import { getSafeRedirectUrl } from "@/lib/redirect";
 

@@ -16,7 +16,7 @@ import {
 } from "@/lib/validation";
 import { normalizeAuthError, type AuthError } from "@/lib/errors";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
-import { AuthDivider, AuthErrorAlert, OAuthButtons } from "./ui";
+import { AuthDivider, AuthErrorAlert, OAuthButtons } from "../ui";
 
 interface SignupFormProps {
   onSuccess?: (needsEmailVerification: boolean) => void;

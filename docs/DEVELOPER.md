@@ -94,7 +94,9 @@ Overrides always win over remote values.
 ```
 src/
 ├── app/                # Next.js routes, layouts, providers
+│   ├── <route>/components/  # Route-scoped UI (only used by that route)
 ├── components/         # React UI components (Tier 2)
+│   ├── auth/            # Auth form suite (Login/Signup/Forgot/Reset)
 ├── lib/                # Pure utilities & SDK re-exports (Tier 1)
 └── test/               # Shared test utilities
 ```
@@ -103,6 +105,8 @@ Rules:
 - Tier 1 logic lives under `src/lib/*` and must be unit tested.
 - Tier 2 components live under `src/components/*` with integration tests.
 - Avoid mixing React components into `src/lib`.
+- Route-specific UI that is not reused elsewhere should live under
+	`src/app/<route>/components` to keep `src/components` focused on shared UI.
 
 ## Security Standards
 
@@ -141,6 +145,15 @@ Rules:
 - Use `WorkspaceSwitcher` with `stayOnCurrentPage` to keep the user on the current dashboard route after switching.
 - Only redirect to the console when explicitly required by flow (e.g., post-login destination outside auth app).
 - Users list UI should show a visible member count, avoid duplicate email rows (only show secondary email when a display name exists), and use a `type="search"` input with clear placeholder text.
+
+## Picture of the Day (Login Experience)
+
+- Server route: `src/app/api/picture-of-the-day/route.ts`.
+- Server-only env var: `PEXELS_API_KEY` (never use `NEXT_PUBLIC_*`).
+- Always validate external URLs before returning payloads.
+- Use `src/lib/picture-of-the-day` for shared validation and fallback content
+	(Tier 1 unit tests required).
+- Client UI belongs in `src/app/login/components/PictureOfTheDay`.
 
 ## Testing Standards (ADR-001)
 

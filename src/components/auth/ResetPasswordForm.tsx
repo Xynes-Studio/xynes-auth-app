@@ -25,26 +25,31 @@ export function ResetPasswordForm() {
     mode: "onBlur",
   });
 
-  const handleUpdatePassword = useCallback(async (data: ResetPasswordFormData) => {
-    setIsLoading(true);
-    setHasError(false);
+  const handleUpdatePassword = useCallback(
+    async (data: ResetPasswordFormData) => {
+      setIsLoading(true);
+      setHasError(false);
 
-    try {
-      const supabase = createPasswordResetClient();
-      const { error } = await supabase.auth.updateUser({ password: data.password });
+      try {
+        const supabase = createPasswordResetClient();
+        const { error } = await supabase.auth.updateUser({
+          password: data.password,
+        });
 
-      if (error) {
+        if (error) {
+          setHasError(true);
+          return;
+        }
+
+        setDidSucceed(true);
+      } catch {
         setHasError(true);
-        return;
+      } finally {
+        setIsLoading(false);
       }
-
-      setDidSucceed(true);
-    } catch {
-      setHasError(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   if (didSucceed) {
     return (
@@ -78,7 +83,8 @@ export function ResetPasswordForm() {
           role="alert"
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
         >
-          We couldn&apos;t update your password. Please request a new reset link and try again.
+          We couldn&apos;t update your password. Please request a new reset link
+          and try again.
         </div>
       )}
 
@@ -123,7 +129,9 @@ export function ResetPasswordForm() {
           autoComplete="new-password"
           maxLength={MAX_PASSWORD_INPUT_LENGTH}
           aria-invalid={!!errors.confirmPassword}
-          aria-describedby={errors.confirmPassword ? "confirm-password-error" : undefined}
+          aria-describedby={
+            errors.confirmPassword ? "confirm-password-error" : undefined
+          }
           className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500 ${
             errors.confirmPassword ? "border-red-500" : "border-gray-300"
           }`}
@@ -136,7 +144,12 @@ export function ResetPasswordForm() {
         )}
       </div>
 
-      <Button type="submit" fullWidth isLoading={isLoading} loadingText="Updating...">
+      <Button
+        type="submit"
+        fullWidth
+        isLoading={isLoading}
+        loadingText="Updating..."
+      >
         Update password
       </Button>
     </form>

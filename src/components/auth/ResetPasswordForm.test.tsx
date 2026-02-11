@@ -24,11 +24,9 @@ describe("ResetPasswordForm", () => {
     render(<ResetPasswordForm />);
 
     expect(screen.getByLabelText(/^new password$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/confirm new password/i)).toBeInTheDocument();
     expect(
-      screen.getByLabelText(/confirm new password/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /update password/i })
+      screen.getByRole("button", { name: /update password/i }),
     ).toBeInTheDocument();
   });
 
@@ -39,7 +37,7 @@ describe("ResetPasswordForm", () => {
     await user.type(screen.getByLabelText(/^new password$/i), "ValidPass123");
     await user.type(
       screen.getByLabelText(/confirm new password/i),
-      "ValidPass123"
+      "ValidPass123",
     );
     await user.click(screen.getByRole("button", { name: /update password/i }));
 
@@ -48,10 +46,9 @@ describe("ResetPasswordForm", () => {
     });
 
     expect(screen.getByText(/password updated/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /back to login/i })).toHaveAttribute(
-      "href",
-      "/login"
-    );
+    expect(
+      screen.getByRole("link", { name: /back to login/i }),
+    ).toHaveAttribute("href", "/login");
   });
 
   it("should show an error message when the update fails", async () => {
@@ -66,7 +63,7 @@ describe("ResetPasswordForm", () => {
     await user.type(screen.getByLabelText(/^new password$/i), "ValidPass123");
     await user.type(
       screen.getByLabelText(/confirm new password/i),
-      "ValidPass123"
+      "ValidPass123",
     );
     await user.click(screen.getByRole("button", { name: /update password/i }));
 
@@ -75,7 +72,7 @@ describe("ResetPasswordForm", () => {
     });
 
     expect(
-      screen.getByText(/couldn't update your password/i)
+      screen.getByText(/couldn't update your password/i),
     ).toBeInTheDocument();
   });
 });

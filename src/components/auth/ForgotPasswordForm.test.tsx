@@ -34,7 +34,7 @@ describe("ForgotPasswordForm", () => {
 
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /send reset link/i })
+      screen.getByRole("button", { name: /send reset link/i }),
     ).toBeInTheDocument();
   });
 
@@ -51,12 +51,12 @@ describe("ForgotPasswordForm", () => {
         "user@example.com",
         expect.objectContaining({
           redirectTo: expect.stringMatching(/\/reset-password$/),
-        })
+        }),
       );
     });
 
     expect(
-      screen.getByText(/if an account exists for that email/i)
+      screen.getByText(/if an account exists for that email/i),
     ).toBeInTheDocument();
   });
 
@@ -77,7 +77,7 @@ describe("ForgotPasswordForm", () => {
     });
 
     expect(
-      screen.getByText(/if an account exists for that email/i)
+      screen.getByText(/if an account exists for that email/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/user not found/i)).not.toBeInTheDocument();
   });
@@ -99,7 +99,7 @@ describe("ForgotPasswordForm", () => {
     });
 
     expect(
-      screen.getByText(/we couldn't send a reset email/i)
+      screen.getByText(/we couldn't send a reset email/i),
     ).toBeInTheDocument();
     expect(screen.queryByText(/network error/i)).not.toBeInTheDocument();
   });

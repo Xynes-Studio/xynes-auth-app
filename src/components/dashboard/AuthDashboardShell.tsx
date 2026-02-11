@@ -25,6 +25,12 @@ export function AuthDashboardShell({
 
   return (
     <div className="relative min-h-screen w-full bg-background px-6 py-6">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-6 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-foreground focus:shadow"
+      >
+        Skip to main content
+      </a>
       <div
         className="pointer-events-none absolute inset-x-0 -top-32 mx-auto h-64 w-[720px] max-w-full rounded-full bg-primary/10 blur-3xl"
         aria-hidden="true"
@@ -33,7 +39,7 @@ export function AuthDashboardShell({
         <aside className="w-full lg:w-[22rem] lg:self-stretch">
           <Card className="h-full border-border/60 bg-card/90 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.55)]">
             <div className="flex h-full flex-col">
-              <CardHeader className="space-y-4 pb-5 px-5 pt-5">
+              <CardHeader className="space-y-4 pb-5 px-5 pt-5 border-b-0">
                 <WorkspaceSwitcher
                   size="sm"
                   className="w-full"
@@ -64,7 +70,10 @@ export function AuthDashboardShell({
             </div>
           </Card>
         </aside>
-        <main className="min-h-[calc(100vh-4rem)] w-full flex-1 lg:min-h-[calc(100vh-3rem)]">
+        <main
+          id="main-content"
+          className="min-h-[calc(100vh-4rem)] w-full flex-1 lg:min-h-[calc(100vh-3rem)]"
+        >
           <Card className="h-full w-full border-border/70 bg-card/90 shadow-[0_24px_80px_-60px_rgba(15,23,42,0.6)]">
             <CardContent className="h-full p-6 lg:p-10">{children}</CardContent>
           </Card>

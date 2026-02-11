@@ -38,7 +38,7 @@ vi.mock("@xynes/auth-sdk", () => ({
 }));
 
 // Mock LoginForm component
-vi.mock("@/components/LoginForm", () => ({
+vi.mock("@/components/auth/LoginForm", () => ({
   LoginForm: ({
     onSuccess,
     redirectUrl,
@@ -74,10 +74,14 @@ describe("LoginPage", () => {
       render(<LoginPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
-        expect(
-          screen.getByText(/sign in to your account/i),
-        ).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /log in/i })).toHaveAttribute(
+          "href",
+          "/login",
+        );
+        expect(screen.getByRole("link", { name: /sign up/i })).toHaveAttribute(
+          "href",
+          "/signup",
+        );
       });
     });
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 
-vi.mock("@/components/ForgotPasswordForm", () => ({
+vi.mock("@/components/auth/ForgotPasswordForm", () => ({
   ForgotPasswordForm: () => <div data-testid="forgot-password-form" />,
 }));
 
@@ -12,17 +12,12 @@ describe("ForgotPasswordPage", () => {
     render(<ForgotPasswordPage />);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/forgot your password/i)
-      ).toBeInTheDocument();
-      expect(
-        screen.getByTestId("forgot-password-form")
-      ).toBeInTheDocument();
+      expect(screen.getByText(/forgot your password/i)).toBeInTheDocument();
+      expect(screen.getByTestId("forgot-password-form")).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("link", { name: /back to login/i })).toHaveAttribute(
-      "href",
-      "/login"
-    );
+    expect(
+      screen.getByRole("link", { name: /back to login/i }),
+    ).toHaveAttribute("href", "/login");
   });
 });
