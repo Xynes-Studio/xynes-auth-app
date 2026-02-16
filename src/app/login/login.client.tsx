@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Alert } from "@lumia-ui/components";
 import { LoginForm } from "@/components/auth/forms/LoginForm";
 import { AuthSplitLayout } from "@/components/auth/layout/AuthSplitLayout";
 import { AuthRouteSwitch } from "@/components/auth/navigation/AuthRouteSwitch";
@@ -98,13 +97,14 @@ function LoginContent() {
     <AuthSplitLayout>
       <AuthRouteSwitch />
       {oauthErrorMessage ? (
-        <div role="alert">
-          <Alert
-            variant="error"
-            title="Sign-in failed"
-            description={oauthErrorMessage}
-            className="text-left"
-          />
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-left"
+        >
+          <h2 className="text-sm font-semibold text-destructive">
+            Sign-in failed
+          </h2>
+          <p className="mt-1 text-sm text-destructive">{oauthErrorMessage}</p>
         </div>
       ) : null}
       <LoginForm onSuccess={handleSuccess} redirectUrl={redirectUrl} />
@@ -112,16 +112,6 @@ function LoginContent() {
   );
 }
 
-function LoginLoading() {
-  return (
-    <AuthPageSkeleton title="Loading login" showForm={true} showOAuth={true} />
-  );
-}
-
 export default function LoginClient() {
-  return (
-    <Suspense fallback={<LoginLoading />}>
-      <LoginContent />
-    </Suspense>
-  );
+  return <LoginContent />;
 }

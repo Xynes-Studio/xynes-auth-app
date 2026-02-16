@@ -1,12 +1,10 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Alert } from "@lumia-ui/components";
 import { AuthSplitLayout } from "@/components/auth/layout/AuthSplitLayout";
 import { SignupForm } from "@/components/auth/forms/SignupForm";
 import { AuthRouteSwitch } from "@/components/auth/navigation/AuthRouteSwitch";
-import { AuthPageSkeleton } from "@/components/ui";
 import { getSafeRedirectUrl } from "@/lib/redirect";
 
 function SignupContent() {
@@ -57,12 +55,17 @@ function SignupContent() {
             We&apos;ve sent you a verification link. Please check your email to
             complete your registration.
           </p>
-          <Alert
-            variant="info"
-            title="Didn't receive the email?"
-            description="Check your spam folder or try signing up again."
-            className="text-left"
-          />
+          <div
+            role="status"
+            className="rounded-md border border-blue-200 bg-blue-50 p-4 text-left"
+          >
+            <h2 className="text-sm font-semibold text-blue-900">
+              Didn&apos;t receive the email?
+            </h2>
+            <p className="mt-1 text-sm text-blue-800">
+              Check your spam folder or try signing up again.
+            </p>
+          </div>
         </div>
       ) : (
         <>
@@ -74,16 +77,6 @@ function SignupContent() {
   );
 }
 
-function SignupLoading() {
-  return (
-    <AuthPageSkeleton title="Loading signup" showForm={true} showOAuth={true} />
-  );
-}
-
 export default function SignupPage() {
-  return (
-    <Suspense fallback={<SignupLoading />}>
-      <SignupContent />
-    </Suspense>
-  );
+  return <SignupContent />;
 }

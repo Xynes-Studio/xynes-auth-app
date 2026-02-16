@@ -167,11 +167,14 @@ Rules:
 ## Dashboard UX Standards
 
 - Dashboard routes live under `src/app/dashboard/*` and should compose `AuthDashboardShell` for layout consistency.
+- `AuthDashboardShell` must wrap Lumia DS `DashboardShell` from `@lumia-ui/layout` (avoid custom shell re-implementations).
 - Workspace switching inside the dashboard must **not** navigate away from the auth app.
-- Use `WorkspaceSwitcher` with `stayOnCurrentPage` to keep the user on the current dashboard route after switching.
+- Use dashboard shell workspace callbacks and keep routing inside auth-app by default.
 - Only redirect to the console when explicitly required by flow and explicitly validated.
 - Post-login for existing users should remain in auth app (`/dashboard/users`) unless a validated explicit redirect is provided.
-- Users list UI should show a visible member count, avoid duplicate email rows (only show secondary email when a display name exists), and use a `type="search"` input with clear placeholder text.
+- When a dashboard section is not implemented, render a single `UnderDevelopmentPanel` for the full right/main section and avoid partial placeholder widgets.
+- Icon policy: if using Lumia icon ids that rely on sprite-backed icons (`check`, `add`, `edit`, `delete`, `info`, `alert`, `search`, `chevron-*`), `IconSprite` must be mounted once in app providers (`src/app/providers.tsx`).
+- Keep dashboard route-specific UI in `src/app/dashboard/<route>/components`; keep shared shell/navigation pieces in `src/components/dashboard`.
 
 ## Picture of the Day (Login Experience)
 

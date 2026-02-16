@@ -1,11 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Button, Card } from "@lumia-ui/components";
 import { createPasswordResetClient } from "@/lib/supabase/client";
 import { ResetPasswordForm } from "@/components/auth/forms/ResetPasswordForm";
-import { AuthPageSkeleton } from "@/components/ui";
 
 type DebugAttempt = {
   step: string;
@@ -316,7 +314,7 @@ function ResetPasswordContent() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 bg-gray-50">
-      <Card className="w-full max-w-md p-8">
+      <div className="w-full max-w-md rounded-xl border border-border bg-card p-8 shadow-sm">
         <div className="space-y-6">
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-foreground">
@@ -392,34 +390,24 @@ function ResetPasswordContent() {
                     We couldn&apos;t verify that email for this reset link.
                   </div>
                 )}
-                <Button type="submit" fullWidth isLoading={emailVerifyLoading}>
-                  Verify email
-                </Button>
+                <button
+                  type="submit"
+                  disabled={emailVerifyLoading}
+                  className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {emailVerifyLoading ? "Verifying..." : "Verify email"}
+                </button>
               </form>
               {debugInfo && <DebugPanel info={debugInfo} />}
             </div>
           )}
           {state === "ready" && <ResetPasswordForm />}
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
 
-function ResetPasswordLoading() {
-  return (
-    <AuthPageSkeleton
-      title="Loading reset password"
-      showForm={true}
-      showOAuth={false}
-    />
-  );
-}
-
 export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={<ResetPasswordLoading />}>
-      <ResetPasswordContent />
-    </Suspense>
-  );
+  return <ResetPasswordContent />;
 }

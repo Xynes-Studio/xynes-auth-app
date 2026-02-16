@@ -4,13 +4,13 @@ import { AuthGuard } from "@xynes/auth-sdk";
 import { UnderDevelopmentPanel } from "@/app/dashboard/components/UnderDevelopmentPanel";
 import { AuthDashboardShell } from "@/components/dashboard";
 
-export default function UsersDashboardPage() {
+export default function IntegrationsDashboardPage() {
   return (
     <AuthGuard>
-      <AuthDashboardShell activeNav="apps">
+      <AuthDashboardShell activeNav="integrations">
         <UnderDevelopmentPanel
-          title="Apps is under development"
-          description="Apps dashboard content is under development."
+          title="Integrations are under development"
+          description="Connectors and external integrations are coming soon."
         />
       </AuthDashboardShell>
     </AuthGuard>
