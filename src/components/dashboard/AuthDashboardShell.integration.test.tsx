@@ -1,57 +1,121 @@
-/**
- * Integration tests for AuthDashboardShell component
- *
- * Tier 2 tests: Component integration - 70% coverage target
- * Following ADR-001 testing standards.
- */
-
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render } from "@testing-library/react";
+import type { DashboardShellProps } from "@lumia-ui/layout";
 import { AuthDashboardShell } from "./AuthDashboardShell";
 
-vi.mock("@lumia-ui/components", () => ({
-  Card: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="card">{children}</div>
-  ),
-  CardHeader: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="card-header">{children}</div>
-  ),
-  CardContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="card-content">{children}</div>
-  ),
-  CardFooter: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="card-footer">{children}</div>
-  ),
-  SideNavItem: ({
-    label,
-    href,
-    active,
-  }: {
-    label: string;
-    href?: string;
-    active?: boolean;
-  }) => (
-    <a href={href} data-active={active ? "true" : undefined}>
-      {label}
-    </a>
-  ),
+const mockUseAuth = vi.fn();
+const mockUseWorkspace = vi.fn();
+const mockPush = vi.fn();
+const mockDashboardShell = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+  usePathname: () => "/dashboard/users",
 }));
 
-vi.mock("@/components/workspace/WorkspaceSwitcher", () => ({
-  WorkspaceSwitcher: () => <div data-testid="workspace-switcher" />,
+vi.mock("@xynes/auth-sdk", () => ({
+  useAuth: () => mockUseAuth(),
+  useWorkspace: () => mockUseWorkspace(),
 }));
+
+vi.mock(
+  "@lumia-ui/layout",
+  () => ({
+  DashboardShell: (props: DashboardShellProps) => {
+    mockDashboardShell(props);
+    return <div data-testid="lumia-dashboard-shell">{props.children}</div>;
+  },
+}),
+);
 
 describe("AuthDashboardShell", () => {
-  it("renders nav items and main content slot", () => {
+  beforeEach(() => {
+    mockPush.mockReset();
+    mockDashboardShell.mockReset();
+
+    mockUseAuth.mockReturnValue({
+      user: {
+        displayName: "Archie",
+        email: "archie@xynes.com",
+        avatarUrl: null,
+      },
+      workspaces: [
+        {
+          id: "ws-1",
+          name: "Xynes",
+          slug: "xynes",
+        },
+        {
+          id: "ws-2",
+          name: "Lumia",
+          slug: "lumia",
+        },
+      ],
+    });
+
+    mockUseWorkspace.mockReturnValue({
+      currentWorkspace: {
+        id: "ws-1",
+        name: "Xynes",
+        slug: "xynes",
+      },
+      selectWorkspace: vi.fn(),
+    });
+  });
+
+  it("uses Lumia DashboardShell with required nav, workspace, and profile data", () => {
     render(
-      <AuthDashboardShell activeNav="users">
-        <div>Users content</div>
+      <AuthDashboardShell activeNav="users" profileSubtitle="Designation">
+        <div>Dashboard body</div>
       </AuthDashboardShell>,
     );
 
-    expect(screen.getByTestId("workspace-switcher")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /users/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /settings/i })).toBeInTheDocument();
-    expect(screen.getByText("Users content")).toBeInTheDocument();
+    expect(mockDashboardShell).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activePath: "/dashboard/users",
+        navItems: expect.arrayContaining([
+          expect.objectContaining({ label: "Users", href: "/dashboard/users" }),
+          expect.objectContaining({ label: "Directory" }),
+          expect.objectContaining({ label: "Access Control" }),
+          expect.objectContaining({ label: "Security" }),
+          expect.objectContaining({ label: "Integrations" }),
+          expect.objectContaining({ label: "Logs" }),
+          expect.objectContaining({ label: "Billing" }),
+          expect.objectContaining({ label: "Settings" }),
+        ]),
+        workspace: expect.objectContaining({ id: "ws-1", name: "Xynes" }),
+        userMenu: expect.objectContaining({
+          name: "Archie",
+          email: "Designation",
+        }),
+      }),
+    );
+  });
+
+  it("passes workspace callbacks and supports logout navigation", () => {
+    const onWorkspaceSelect = vi.fn();
+    const onCreateNew = vi.fn();
+
+    render(
+      <AuthDashboardShell
+        activeNav="settings"
+        workspaceSwitcherProps={{ onWorkspaceSelect, onCreateNew }}
+      >
+        <div>Settings content</div>
+      </AuthDashboardShell>,
+    );
+
+    const props = mockDashboardShell.mock.calls[0][0] as DashboardShellProps;
+
+    props.onWorkspaceSelect("ws-2");
+    expect(onWorkspaceSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "ws-2", name: "Lumia" }),
+    );
+
+    props.onCreateWorkspace?.();
+    expect(onCreateNew).toHaveBeenCalled();
+
+    props.onLogout();
+    expect(mockPush).toHaveBeenCalledWith("/logout");
   });
 });

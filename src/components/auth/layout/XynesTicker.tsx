@@ -11,7 +11,7 @@ import {
 } from "@/lib/hacker-news/ticker-data";
 
 if (!getIcon("xynes-logo")) {
-  registerIcon("xynes-logo", XynesLogoIcon);
+  registerIcon("xynes-logo", XynesLogoIcon as unknown as never);
 }
 
 const XynesTicker = () => {

@@ -1,16 +1,21 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, type ComponentProps, type ReactNode } from "react";
 import {
   FeatureFlagsProvider,
   AuthProvider,
   WorkspaceProvider,
 } from "@xynes/auth-sdk";
+import { IconSprite } from "@lumia-ui/icons";
 import { getFeatureFlagOverrides } from "@/lib/feature-flags/overrides";
 
 interface ProvidersProps {
   children: ReactNode;
 }
+
+type WorkspaceProviderChildren = ComponentProps<
+  typeof WorkspaceProvider
+>["children"];
 
 /**
  * Client-side providers wrapper for the auth app.
@@ -38,6 +43,7 @@ export function Providers({ children }: ProvidersProps) {
       fetchOnMount={true}
       flagOverrides={flagOverrides}
     >
+      <IconSprite />
       <AuthProvider
         config={{
           supabaseUrl,
@@ -47,7 +53,9 @@ export function Providers({ children }: ProvidersProps) {
           allowedRedirectDomains,
         }}
       >
-        <WorkspaceProvider>{children}</WorkspaceProvider>
+        <WorkspaceProvider>
+          {children as unknown as WorkspaceProviderChildren}
+        </WorkspaceProvider>
       </AuthProvider>
     </FeatureFlagsProvider>
   );

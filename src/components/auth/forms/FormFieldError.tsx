@@ -1,11 +1,9 @@
-import { memo } from "react";
-
 interface FormFieldErrorProps {
   id: string;
   message?: string;
 }
 
-export const FormFieldError = memo(function FormFieldError({
+export function FormFieldError({
   id,
   message,
 }: FormFieldErrorProps) {
@@ -25,4 +23,4 @@ export const FormFieldError = memo(function FormFieldError({
       {message}
     </p>
   );
-});
+}
