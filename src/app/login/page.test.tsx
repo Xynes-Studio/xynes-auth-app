@@ -113,13 +113,16 @@ describe("LoginPage", () => {
       });
     });
 
-    it("should default redirect URL to workspaces when redirect param missing", async () => {
+    it("should default redirect URL to dashboard users when redirect param missing", async () => {
       redirectValue = null;
       render(<LoginPage />);
 
       await waitFor(() => {
         const loginForm = screen.getByTestId("login-form");
-        expect(loginForm).toHaveAttribute("data-redirect-url", "/workspaces");
+        expect(loginForm).toHaveAttribute(
+          "data-redirect-url",
+          "/dashboard/users",
+        );
       });
     });
 
@@ -184,7 +187,7 @@ describe("LoginPage", () => {
       });
     });
 
-    it("should redirect authenticated user with 2+ workspaces to selector", async () => {
+    it("should redirect authenticated user with 2+ workspaces to dashboard users", async () => {
       redirectValue = null;
       authState = {
         isAuthenticated: true,
@@ -195,22 +198,14 @@ describe("LoginPage", () => {
       render(<LoginPage />);
 
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith("/workspaces");
+        expect(mockReplace).toHaveBeenCalledWith("/dashboard/users");
       });
     });
 
-    it("should redirect authenticated user with 1 workspace to console when configured", async () => {
+    it("should redirect authenticated user with 1 workspace to dashboard users", async () => {
       redirectValue = null;
       const originalConsoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL;
       process.env.NEXT_PUBLIC_CONSOLE_URL = "https://cms.xynes.com";
-
-      // Mock window.location.assign
-      const originalLocation = window.location;
-      const assign = vi.fn();
-      Object.defineProperty(window, "location", {
-        value: { ...originalLocation, assign },
-        writable: true,
-      });
 
       authState = {
         isAuthenticated: true,
@@ -221,16 +216,10 @@ describe("LoginPage", () => {
       render(<LoginPage />);
 
       await waitFor(() => {
-        expect(assign).toHaveBeenCalledWith(
-          "https://cms.xynes.com/myworkspace",
-        );
+        expect(mockReplace).toHaveBeenCalledWith("/dashboard/users");
       });
 
       process.env.NEXT_PUBLIC_CONSOLE_URL = originalConsoleUrl;
-      Object.defineProperty(window, "location", {
-        value: originalLocation,
-        writable: true,
-      });
     });
   });
 });

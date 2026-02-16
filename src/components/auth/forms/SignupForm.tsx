@@ -207,34 +207,6 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
           )}
         </div>
 
-        <div className="space-y-1">
-          <label
-            htmlFor="confirmPassword"
-            className="block text-sm font-medium text-foreground"
-          >
-            Confirm Password
-          </label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            placeholder="Confirm your password…"
-            autoComplete="new-password"
-            maxLength={MAX_PASSWORD_INPUT_LENGTH}
-            aria-invalid={!!errors.confirmPassword}
-            aria-describedby={
-              errors.confirmPassword ? "confirmPassword-error" : undefined
-            }
-            invalid={Boolean(errors.confirmPassword)}
-            {...register("confirmPassword", {
-              onChange: clearError,
-            })}
-          />
-          <FormFieldError
-            id="confirmPassword-error"
-            message={errors.confirmPassword?.message}
-          />
-        </div>
-
         <Button
           type="submit"
           isLoading={isLoading}

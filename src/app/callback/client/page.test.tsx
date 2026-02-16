@@ -153,4 +153,105 @@ describe("OAuthClientCallbackPage error handling", () => {
     process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
     replaceStateSpy.mockRestore();
   });
+
+  it("redirects existing users to dashboard users by default", async () => {
+    mockParams.code = "good-code";
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          workspaces: [{ id: "ws-1" }, { id: "ws-2" }],
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:4100";
+
+    const originalLocation = window.location;
+    const mockLocation = {
+      href: "",
+      hash: "",
+      pathname: "/callback/client",
+      search: "",
+    };
+    Object.defineProperty(window, "location", {
+      value: mockLocation,
+      writable: true,
+    });
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(mockResolveOAuthRedirect).toHaveBeenCalledWith(
+        null,
+        null,
+        "/dashboard/users",
+        ["xynes.com", "localhost:3000"],
+      );
+    });
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+    });
+    process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
+    vi.unstubAllGlobals();
+  });
+
+  it("stores first workspace as default when no previous selection exists", async () => {
+    mockParams.code = "good-code";
+    mockReadPersistedOAuthRedirect.mockReturnValue(null);
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          workspaces: [{ id: "ws-first" }, { id: "ws-second" }],
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:4100";
+    window.localStorage.removeItem("xynes_workspace_id");
+
+    const originalLocation = window.location;
+    const mockLocation = {
+      href: "",
+      hash: "",
+      pathname: "/callback/client",
+      search: "",
+    };
+    Object.defineProperty(window, "location", {
+      value: mockLocation,
+      writable: true,
+    });
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem("xynes_workspace_id")).toBe(
+        "ws-first",
+      );
+    });
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+    });
+    process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
+    vi.unstubAllGlobals();
+  });
 });

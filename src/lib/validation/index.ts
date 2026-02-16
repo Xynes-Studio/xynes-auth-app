@@ -28,30 +28,23 @@ export const MAX_PASSWORD_INPUT_LENGTH = 256;
  * Validates:
  * - Email: Required, valid format
  * - Password: Min 8 chars, uppercase, lowercase, number
- * - Confirm Password: Must match password
  */
-export const signupFormSchema = z
-  .object({
-    email: z
-      .string()
-      .min(1, "Email is required")
-      .email("Please enter a valid email address"),
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters")
-      .max(MAX_PASSWORD_LENGTH, `Password must be at most ${MAX_PASSWORD_LENGTH} characters`)
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number"),
-    confirmPassword: z
-      .string()
-      .min(1, "Please confirm your password")
-      .max(MAX_PASSWORD_LENGTH, `Password must be at most ${MAX_PASSWORD_LENGTH} characters`),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+export const signupFormSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(
+      MAX_PASSWORD_LENGTH,
+      `Password must be at most ${MAX_PASSWORD_LENGTH} characters`,
+    )
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+});
 
 /**
  * Type for signup form data
@@ -60,7 +53,7 @@ export type SignupFormData = z.infer<typeof signupFormSchema>;
 
 /**
  * Zod schema for login form validation
- * 
+ *
  * Note: rememberMe functionality will be added in a future story
  * when session management (SEC-FE-1.8) is implemented.
  */
@@ -72,7 +65,10 @@ export const loginFormSchema = z.object({
   password: z
     .string()
     .min(1, "Password is required")
-    .max(MAX_PASSWORD_LENGTH, `Password must be at most ${MAX_PASSWORD_LENGTH} characters`),
+    .max(
+      MAX_PASSWORD_LENGTH,
+      `Password must be at most ${MAX_PASSWORD_LENGTH} characters`,
+    ),
 });
 
 /**
@@ -105,7 +101,7 @@ export const resetPasswordFormSchema = z
       .min(8, "Password must be at least 8 characters")
       .max(
         MAX_PASSWORD_LENGTH,
-        `Password must be at most ${MAX_PASSWORD_LENGTH} characters`
+        `Password must be at most ${MAX_PASSWORD_LENGTH} characters`,
       )
       .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
       .regex(/[a-z]/, "Password must contain at least one lowercase letter")
@@ -115,7 +111,7 @@ export const resetPasswordFormSchema = z
       .min(1, "Please confirm your password")
       .max(
         MAX_PASSWORD_LENGTH,
-        `Password must be at most ${MAX_PASSWORD_LENGTH} characters`
+        `Password must be at most ${MAX_PASSWORD_LENGTH} characters`,
       ),
   })
   .refine((data) => data.password === data.confirmPassword, {

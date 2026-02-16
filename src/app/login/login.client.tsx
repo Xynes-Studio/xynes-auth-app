@@ -15,7 +15,7 @@ import { determinePostLoginDestination } from "@/lib/auth/post-login-destination
 /**
  * Default redirect URL after successful login.
  */
-const DEFAULT_REDIRECT = "/workspaces";
+const DEFAULT_REDIRECT = "/dashboard/users";
 
 function LoginContent() {
   const router = useRouter();
@@ -44,15 +44,9 @@ function LoginContent() {
       return;
     }
 
-    const consoleBaseUrl =
-      process.env.NEXT_PUBLIC_CONSOLE_URL ||
-      process.env.NEXT_PUBLIC_CMS_CONSOLE_URL ||
-      "";
-
     const destination = determinePostLoginDestination({
       workspaces: workspaces ?? [],
       redirectParam,
-      consoleBaseUrl,
       allowedRedirectDomains: allowedDomains,
     });
 
@@ -67,15 +61,9 @@ function LoginContent() {
     if (isAuthLoading) return;
     if (!isAuthenticated) return;
 
-    const consoleBaseUrl =
-      process.env.NEXT_PUBLIC_CONSOLE_URL ||
-      process.env.NEXT_PUBLIC_CMS_CONSOLE_URL ||
-      "";
-
     const destination = determinePostLoginDestination({
       workspaces: workspaces ?? [],
       redirectParam,
-      consoleBaseUrl,
       allowedRedirectDomains: allowedDomains,
     });
 
