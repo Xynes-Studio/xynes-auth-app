@@ -19,27 +19,25 @@ describe("determinePostLoginDestination", () => {
         workspaces: [{ slug: "ws-1" }, { slug: "ws-2" }],
         allowedRedirectDomains: allowedDomains,
       }),
-    ).toBe("/workspaces");
+    ).toBe("/dashboard/users");
   });
 
-  it("returns console workspace URL for 1 workspace when console URL is allowed", () => {
+  it("returns dashboard users page for 1 workspace", () => {
     expect(
       determinePostLoginDestination({
         workspaces: [{ slug: "My Workspace!" }],
-        consoleBaseUrl: "https://cms.xynes.com",
         allowedRedirectDomains: allowedDomains,
       }),
-    ).toBe("https://cms.xynes.com/myworkspace");
+    ).toBe("/dashboard/users");
   });
 
-  it("falls back to local dashboard when console URL is missing or not allowed", () => {
+  it("falls back to dashboard users page when console URL is missing or not allowed", () => {
     expect(
       determinePostLoginDestination({
         workspaces: [{ slug: "Acme" }],
-        consoleBaseUrl: "https://evil.com",
         allowedRedirectDomains: allowedDomains,
       }),
-    ).toBe("/dashboard/acme");
+    ).toBe("/dashboard/users");
   });
 
   it("prefers a safe redirect param when provided", () => {
@@ -67,9 +65,8 @@ describe("determinePostLoginDestination", () => {
       determinePostLoginDestination({
         workspaces: [{ slug: "ws" }],
         redirectParam: "/login",
-        consoleBaseUrl: "https://cms.xynes.com",
         allowedRedirectDomains: allowedDomains,
       }),
-    ).toBe("https://cms.xynes.com/ws");
+    ).toBe("/dashboard/users");
   });
 });

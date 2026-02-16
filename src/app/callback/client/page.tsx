@@ -11,9 +11,13 @@ import {
   resolveOAuthRedirect,
 } from "@/lib/redirect/storage";
 import { getOAuthErrorMessage } from "@/lib/oauth/errors";
+import {
+  selectWorkspaceIdForPersistence,
+  WORKSPACE_STORAGE_KEY,
+} from "@/lib/auth/workspace-default";
 
 const DEFAULT_NEW_USER_REDIRECT = "/onboarding";
-const DEFAULT_EXISTING_USER_REDIRECT = "/workspaces";
+const DEFAULT_EXISTING_USER_REDIRECT = "/dashboard/users";
 const SUPPORT_EMAIL = "support@xynes.com";
 
 type CallbackState = "loading" | "error";
@@ -119,9 +123,30 @@ export default function OAuthClientCallbackPage() {
             if (response.ok) {
               const payload = await response.json();
               const me = payload?.data ?? payload;
-              hasWorkspaces = Array.isArray(me?.workspaces)
-                ? me.workspaces.length > 0
-                : false;
+              const availableWorkspaces = Array.isArray(me?.workspaces)
+                ? me.workspaces
+                : [];
+
+              hasWorkspaces = availableWorkspaces.length > 0;
+
+              if (hasWorkspaces) {
+                const storedWorkspaceId =
+                  typeof window !== "undefined"
+                    ? window.localStorage.getItem(WORKSPACE_STORAGE_KEY)
+                    : null;
+
+                const workspaceIdToPersist = selectWorkspaceIdForPersistence({
+                  workspaces: availableWorkspaces,
+                  storedWorkspaceId,
+                });
+
+                if (workspaceIdToPersist && typeof window !== "undefined") {
+                  window.localStorage.setItem(
+                    WORKSPACE_STORAGE_KEY,
+                    workspaceIdToPersist,
+                  );
+                }
+              }
             }
           } catch (err) {
             const isAbortError =

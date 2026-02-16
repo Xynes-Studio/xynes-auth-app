@@ -1,9 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import {
+  useCallback,
+  useState,
+  type ComponentType,
+  type PropsWithChildren,
+} from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button, Input } from "@lumia-ui/components";
+import { Button as LumiaButton, Input } from "@lumia-ui/components";
 import {
   forgotPasswordFormSchema,
   type ForgotPasswordFormData,
@@ -14,6 +19,16 @@ import { FormFieldError } from "./FormFieldError";
 
 const GENERIC_SUCCESS_MESSAGE =
   "If an account exists for that email, you’ll receive a password reset link shortly.";
+
+// Work around incorrect/insufficient typings from @lumia-ui/components Button export.
+type ButtonProps = PropsWithChildren<{
+  type?: "button" | "submit" | "reset";
+  isLoading?: boolean;
+  loadingText?: string;
+  [key: string]: unknown;
+}>;
+
+const Button = LumiaButton as unknown as ComponentType<ButtonProps>;
 
 export function ForgotPasswordForm() {
   const [isLoading, setIsLoading] = useState(false);

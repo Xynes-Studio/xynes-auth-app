@@ -29,6 +29,10 @@ This document captures the global engineering standards for the auth app, with e
 - Persist validated redirects in `localStorage` under `xynes.auth.oauth_redirect`.
 - Resolve redirect using query param first, then stored value, then safe default.
 - Clear stored redirect after successful callback handling.
+- For authenticated users with one or more workspaces, the safe default route is `/dashboard/users`.
+- During OAuth callback, persist default workspace selection under `xynes_workspace_id` using this priority:
+	1. existing stored workspace when still accessible
+	2. first accessible workspace from `/me`
 
 ### Callback Error UI (Global Standard)
 - OAuth errors are rendered with safe, predefined messages (see `@/lib/oauth/errors`).
@@ -61,13 +65,16 @@ These rules prevent login loops, open redirects, and confusing re-login prompts.
 - `/login`
 	- If a user is already authenticated, redirect immediately to the correct post-login destination (0 / 1 / many workspaces).
 	- If a `redirect` query param exists, only honor it when it is validated/allowlisted; avoid loops back to `/login`.
+	- Default post-login destination is:
+		- `/onboarding` for users with 0 workspaces
+		- `/dashboard/users` for users with >=1 workspaces
 - `/logout`
 	- Must always return to the auth app `/login` (never default to CMS).
 	- Any preserved `redirect` must be validated/allowlisted.
 	- Server-side redirects require absolute URLs; compute the origin safely (prefer configured public auth URL; else allowlisted `x-forwarded-*`/`Host`).
 - `/workspaces`
 	- Only redirect externally when an explicit, validated `redirect` query param is present.
-	- If no `redirect` is provided, selecting a workspace must stay within the auth app and show an in-app confirmation page (`/workspaces/selected`).
+	- If no `redirect` is provided, selecting a workspace stays within the auth app and routes to `/dashboard/users`.
 	- Selection UI must prevent rage-clicking/multi-select races via an immediate local lock + visible loading state.
 
 Feature-level details:
@@ -162,7 +169,8 @@ Rules:
 - Dashboard routes live under `src/app/dashboard/*` and should compose `AuthDashboardShell` for layout consistency.
 - Workspace switching inside the dashboard must **not** navigate away from the auth app.
 - Use `WorkspaceSwitcher` with `stayOnCurrentPage` to keep the user on the current dashboard route after switching.
-- Only redirect to the console when explicitly required by flow (e.g., post-login destination outside auth app).
+- Only redirect to the console when explicitly required by flow and explicitly validated.
+- Post-login for existing users should remain in auth app (`/dashboard/users`) unless a validated explicit redirect is provided.
 - Users list UI should show a visible member count, avoid duplicate email rows (only show secondary email when a display name exists), and use a `type="search"` input with clear placeholder text.
 
 ## Picture of the Day (Login Experience)

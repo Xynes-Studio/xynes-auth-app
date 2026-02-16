@@ -62,7 +62,9 @@ describe("SignupForm", () => {
 
       expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/confirm password/i)).toBeInTheDocument();
+      expect(
+        screen.queryByLabelText(/confirm password/i),
+      ).not.toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: /create account/i }),
       ).toBeInTheDocument();
@@ -75,10 +77,6 @@ describe("SignupForm", () => {
       render(<SignupForm />);
 
       expect(screen.getByLabelText(/^password$/i)).toHaveAttribute(
-        "maxLength",
-        "256",
-      );
-      expect(screen.getByLabelText(/confirm password/i)).toHaveAttribute(
         "maxLength",
         "256",
       );
@@ -128,35 +126,18 @@ describe("SignupForm", () => {
       });
     });
 
-    it("should show error for mismatched passwords", async () => {
-      const user = userEvent.setup();
-      render(<SignupForm />);
-
-      const passwordInput = screen.getByLabelText(/^password$/i);
-      const confirmInput = screen.getByLabelText(/confirm password/i);
-
-      await user.type(passwordInput, "ValidPass123!");
-      await user.type(confirmInput, "DifferentPass123!");
-      await user.tab();
-
-      await waitFor(() => {
-        expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument();
-      });
-    });
-
     it("should reject overly long password with inline validation and block submission", async () => {
       const user = userEvent.setup();
       render(<SignupForm />);
 
       const longPassword = "A1a".padEnd(129, "x");
       await user.type(screen.getByLabelText(/^password$/i), longPassword);
-      await user.type(screen.getByLabelText(/confirm password/i), longPassword);
       await user.tab(); // Trigger blur validation
 
       await waitFor(() => {
         expect(
-          screen.getAllByText(/password must be at most 128 characters/i),
-        ).toHaveLength(2);
+          screen.getByText(/password must be at most 128 characters/i),
+        ).toBeInTheDocument();
       });
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
@@ -211,10 +192,6 @@ describe("SignupForm", () => {
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/^password$/i), "ValidPass123!");
-      await user.type(
-        screen.getByLabelText(/confirm password/i),
-        "ValidPass123!",
-      );
       await user.click(screen.getByRole("button", { name: /create account/i }));
 
       await waitFor(() => {
@@ -241,10 +218,6 @@ describe("SignupForm", () => {
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/^password$/i), "ValidPass123!");
-      await user.type(
-        screen.getByLabelText(/confirm password/i),
-        "ValidPass123!",
-      );
       await user.click(screen.getByRole("button", { name: /create account/i }));
 
       await waitFor(() => {
@@ -266,10 +239,6 @@ describe("SignupForm", () => {
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/^password$/i), "ValidPass123!");
-      await user.type(
-        screen.getByLabelText(/confirm password/i),
-        "ValidPass123!",
-      );
       await user.click(screen.getByRole("button", { name: /create account/i }));
 
       await waitFor(() => {
@@ -287,10 +256,6 @@ describe("SignupForm", () => {
 
       await user.type(screen.getByLabelText(/email/i), "test@example.com");
       await user.type(screen.getByLabelText(/^password$/i), "ValidPass123!");
-      await user.type(
-        screen.getByLabelText(/confirm password/i),
-        "ValidPass123!",
-      );
 
       const submitButton = screen.getByRole("button", {
         name: /create account/i,
