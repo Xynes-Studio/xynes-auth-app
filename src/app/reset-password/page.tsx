@@ -393,7 +393,7 @@ function ResetPasswordContent() {
                 <button
                   type="submit"
                   disabled={emailVerifyLoading}
-                  className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {emailVerifyLoading ? "Verifying..." : "Verify email"}
                 </button>

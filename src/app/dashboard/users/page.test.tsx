@@ -21,6 +21,6 @@ describe("UsersDashboardPage", () => {
     render(<UsersDashboardPage />);
 
     expect(screen.getByTestId("dashboard-shell")).toBeInTheDocument();
-    expect(screen.getByText("Apps is under development")).toBeInTheDocument();
+    expect(screen.getByText("Users is under development")).toBeInTheDocument();
   });
 });

@@ -93,7 +93,7 @@ export function AuthDashboardShell({
       enableWorkspaceCreation={true}
       userMenu={{
         name: user?.displayName || user?.email || "User",
-        email: profileSubtitle || user?.email || "user@xynes.com",
+        email: profileSubtitle || user?.email || "No email",
         avatarSrc: user?.avatarUrl || undefined,
       }}
       onLogout={() => router.push("/logout")}

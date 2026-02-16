@@ -65,7 +65,7 @@ describe("AuthDashboardShell", () => {
 
   it("uses Lumia DashboardShell with required nav, workspace, and profile data", () => {
     render(
-      <AuthDashboardShell activeNav="apps" profileSubtitle="Designation">
+      <AuthDashboardShell activeNav="users" profileSubtitle="Designation">
         <div>Dashboard body</div>
       </AuthDashboardShell>,
     );
@@ -74,7 +74,7 @@ describe("AuthDashboardShell", () => {
       expect.objectContaining({
         activePath: "/dashboard/users",
         navItems: expect.arrayContaining([
-          expect.objectContaining({ label: "Apps", href: "/dashboard/users" }),
+          expect.objectContaining({ label: "Users", href: "/dashboard/users" }),
           expect.objectContaining({ label: "Directory" }),
           expect.objectContaining({ label: "Access Control" }),
           expect.objectContaining({ label: "Security" }),

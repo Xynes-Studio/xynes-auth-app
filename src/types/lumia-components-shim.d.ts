@@ -21,7 +21,7 @@ declare module "@lumia-ui/components" {
     value?: string;
     defaultValue?: string;
     onChange?: (event: InputLikeEvent) => void;
-    onBlur?: (event: InputLikeEvent) => void;
+    onBlur?: (event: FocusLikeEvent) => void;
     onFocus?: (event: FocusLikeEvent) => void;
   };
 

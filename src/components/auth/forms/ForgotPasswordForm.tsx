@@ -109,7 +109,12 @@ export function ForgotPasswordForm() {
           {...register("email")}
         />
         {errors.email?.message ? (
-          <p id="email-error" className="text-sm text-red-600" role="alert">
+          <p
+            id="email-error"
+            className="text-sm text-red-600"
+            role="alert"
+            aria-live="polite"
+          >
             {errors.email.message}
           </p>
         ) : null}

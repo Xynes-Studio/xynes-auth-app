@@ -7,10 +7,10 @@ import { AuthDashboardShell } from "@/components/dashboard";
 export default function UsersDashboardPage() {
   return (
     <AuthGuard>
-      <AuthDashboardShell activeNav="apps">
+      <AuthDashboardShell activeNav="users">
         <UnderDevelopmentPanel
-          title="Apps is under development"
-          description="Apps dashboard content is under development."
+          title="Users is under development"
+          description="Users dashboard content is under development."
         />
       </AuthDashboardShell>
     </AuthGuard>

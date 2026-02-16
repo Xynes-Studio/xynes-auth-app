@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Button } from "@lumia-ui/components";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { getAllowedRedirectDomains } from "@/lib/redirect";
 import {
@@ -254,20 +255,21 @@ export default function OAuthClientCallbackPage() {
                 You can retry sign-in or return to login.
               </p>
               <div className="flex flex-col gap-3">
-                <button
+                <Button
                   onClick={() => (window.location.href = retryUrl)}
                   type="button"
-                  className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                  className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-offset-2"
                 >
                   Try again
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => (window.location.href = "/login")}
                   type="button"
-                  className="w-full rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground"
+                  variant="outline"
+                  className="w-full rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/70 active:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-offset-2"
                 >
                   Go to login
-                </button>
+                </Button>
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}
                   className="text-sm font-medium text-primary-600 hover:underline"
