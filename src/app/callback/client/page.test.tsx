@@ -192,7 +192,7 @@ describe("OAuthClientCallbackPage error handling", () => {
       expect(mockResolveOAuthRedirect).toHaveBeenCalledWith(
         null,
         null,
-        "/dashboard/users",
+        "/dashboard/apps",
         ["xynes.com", "localhost:3000"],
       );
     });

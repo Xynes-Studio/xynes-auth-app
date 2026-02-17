@@ -43,7 +43,7 @@ export function AuthDashboardShell({
   }));
   const fallbackActivePath =
     DASHBOARD_NAV_ITEMS.find((item) => item.key === activeNav)?.href ||
-    "/dashboard/users";
+    "/dashboard/apps";
 
   const handleWorkspaceSelect = (workspaceId: string) => {
     const selected = workspaceById.get(workspaceId);

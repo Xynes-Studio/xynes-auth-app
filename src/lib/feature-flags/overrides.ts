@@ -39,6 +39,9 @@ export function getFeatureFlagOverrides(
   const googleOverride = parseBooleanEnv(env.NEXT_PUBLIC_ENABLE_OAUTH_GOOGLE);
   const githubOverride = parseBooleanEnv(env.NEXT_PUBLIC_ENABLE_OAUTH_GITHUB);
   const appleOverride = parseBooleanEnv(env.NEXT_PUBLIC_ENABLE_OAUTH_APPLE);
+  const appsDashboardOverride = parseBooleanEnv(
+    env.NEXT_PUBLIC_ENABLE_DASHBOARD_APPS_V1,
+  );
 
   if (googleOverride !== undefined) {
     oauthOverrides.xynes_auth_oauth_google = googleOverride;
@@ -48,6 +51,9 @@ export function getFeatureFlagOverrides(
   }
   if (appleOverride !== undefined) {
     oauthOverrides.xynes_auth_oauth_apple = appleOverride;
+  }
+  if (appsDashboardOverride !== undefined) {
+    oauthOverrides.xynes_auth_dashboard_apps_v1 = appsDashboardOverride;
   }
 
   return {

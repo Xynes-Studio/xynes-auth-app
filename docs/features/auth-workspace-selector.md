@@ -8,7 +8,8 @@
 
 The Workspace Selector Page allows users with multiple workspaces to choose which workspace they want to access. It provides a visual list of available workspaces and an option to create a new one.
 
-Post-login note: users with existing workspaces are routed directly to `/dashboard/users`; `/workspaces` is primarily used for explicit workspace selection flows.
+Post-login note: users with existing workspaces are routed directly to `/dashboard/apps`; `/workspaces` is primarily used for explicit workspace selection flows.
+The `/dashboard/apps` experience is rollout-gated via `xynes_auth_dashboard_apps_v1`.
 
 ## User Story
 
@@ -49,14 +50,14 @@ The main page component handling data fetching and navigation.
 - **Logic:**
   - Fetches workspaces using `useAuth`.
   - Handles selection logic using `useWorkspace`.
-  - Only performs an external redirect (e.g., CMS portal) when an explicit safe `redirect` query param is provided; otherwise it stays in the auth app and routes to `/dashboard/users` after selection.
+  - Only performs an external redirect (e.g., CMS portal) when an explicit safe `redirect` query param is provided; otherwise it stays in the auth app and routes to `/dashboard/apps` after selection.
   - Prevents repeated rapid clicks by immediately switching to a "selecting" loading state and ignoring subsequent selections.
 
 #### Placeholder Confirmation (`src/app/workspaces/selected/page.tsx`)
 
 - **Route:** `/workspaces/selected`
 - **Purpose:** Legacy in-app confirmation route retained for compatibility.
-- **Behavior:** Current default selection flow routes to `/dashboard/users` when no external redirect destination is provided.
+- **Behavior:** Current default selection flow routes to `/dashboard/apps` when no external redirect destination is provided.
 
 ## Design Decisions
 

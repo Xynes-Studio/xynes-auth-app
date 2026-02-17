@@ -17,7 +17,7 @@ import {
 } from "@/lib/auth/workspace-default";
 
 const DEFAULT_NEW_USER_REDIRECT = "/onboarding";
-const DEFAULT_EXISTING_USER_REDIRECT = "/dashboard/users";
+const DEFAULT_EXISTING_USER_REDIRECT = "/dashboard/apps";
 const SUPPORT_EMAIL = "support@xynes.com";
 
 type CallbackState = "loading" | "error";

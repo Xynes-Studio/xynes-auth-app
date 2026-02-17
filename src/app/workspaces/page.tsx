@@ -49,7 +49,7 @@ export default function WorkspaceSelectorPage() {
             window.location.assign(safeRedirect);
           }
         } else {
-          router.push("/dashboard/users");
+          router.push("/dashboard/apps");
         }
       } catch (error) {
         // eslint-disable-next-line no-console

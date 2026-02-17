@@ -16,6 +16,7 @@ export const mockFeatureFlags: FeatureFlags = {
   xynes_auth_session_management: false,
   xynes_auth_rate_limit_ui: true,
   xynes_auth_profile_edit: true,
+  xynes_auth_dashboard_apps_v1: false,
   xynes_workspace_creation: true,
   xynes_workspace_switching: true,
   xynes_workspace_multiple: true,

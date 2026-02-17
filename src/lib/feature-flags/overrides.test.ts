@@ -12,12 +12,14 @@ describe("getFeatureFlagOverrides", () => {
       NEXT_PUBLIC_ENABLE_OAUTH_GOOGLE: "true",
       NEXT_PUBLIC_ENABLE_OAUTH_GITHUB: "false",
       NEXT_PUBLIC_ENABLE_OAUTH_APPLE: "true",
+      NEXT_PUBLIC_ENABLE_DASHBOARD_APPS_V1: "true",
     });
 
     expect(overrides).toEqual({
       xynes_auth_oauth_google: true,
       xynes_auth_oauth_github: false,
       xynes_auth_oauth_apple: true,
+      xynes_auth_dashboard_apps_v1: true,
     });
   });
 
