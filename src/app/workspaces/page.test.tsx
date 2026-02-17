@@ -130,7 +130,7 @@ describe("WorkspacesPage redirect behavior", () => {
     await waitFor(() => {
       expect(mockSelectWorkspace).toHaveBeenCalledWith("ws-1");
       expect(assignSpy).not.toHaveBeenCalled();
-      expect(mockPush).toHaveBeenCalledWith("/dashboard/users");
+      expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
     });
   });
 

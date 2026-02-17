@@ -119,7 +119,7 @@ describe("OAuth Callback Route", () => {
 
       expect(NextResponse.redirect).toHaveBeenCalled();
       const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
-      expect(redirectCall.toString()).toContain("/workspaces");
+      expect(redirectCall.toString()).toContain("/dashboard/apps");
     });
 
     it("should redirect to custom redirect URL after successful exchange", async () => {

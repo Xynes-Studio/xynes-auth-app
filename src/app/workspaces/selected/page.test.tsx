@@ -11,6 +11,6 @@ describe("WorkspaceSelectedPage", () => {
   it("redirects to the dashboard users page", () => {
     WorkspaceSelectedPage();
 
-    expect(vi.mocked(redirect)).toHaveBeenCalledWith("/dashboard/users");
+    expect(vi.mocked(redirect)).toHaveBeenCalledWith("/dashboard/apps");
   });
 });

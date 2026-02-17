@@ -10,7 +10,7 @@ const mockDashboardShell = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush }),
-  usePathname: () => "/dashboard/users",
+  usePathname: () => "/dashboard/apps",
 }));
 
 vi.mock("@xynes/auth-sdk", () => ({
@@ -65,16 +65,16 @@ describe("AuthDashboardShell", () => {
 
   it("uses Lumia DashboardShell with required nav, workspace, and profile data", () => {
     render(
-      <AuthDashboardShell activeNav="users" profileSubtitle="Designation">
+      <AuthDashboardShell activeNav="apps" profileSubtitle="Designation">
         <div>Dashboard body</div>
       </AuthDashboardShell>,
     );
 
     expect(mockDashboardShell).toHaveBeenCalledWith(
       expect.objectContaining({
-        activePath: "/dashboard/users",
+        activePath: "/dashboard/apps",
         navItems: expect.arrayContaining([
-          expect.objectContaining({ label: "Users", href: "/dashboard/users" }),
+          expect.objectContaining({ label: "Apps", href: "/dashboard/apps" }),
           expect.objectContaining({ label: "Directory" }),
           expect.objectContaining({ label: "Access Control" }),
           expect.objectContaining({ label: "Security" }),

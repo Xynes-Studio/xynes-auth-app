@@ -23,7 +23,6 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => ({
     get: (key: string) => {
       return mockSearchParams[key] ?? null;
-      return null;
     },
   }),
 }));
@@ -202,7 +201,8 @@ describe("ResetPasswordPage", () => {
       });
     });
 
-    await user.type(screen.getByLabelText(/^new password$/i), "ValidPass123");
+    const newPasswordInput = await screen.findByLabelText(/^new password$/i);
+    await user.type(newPasswordInput, "ValidPass123");
     await user.type(
       screen.getByLabelText(/confirm new password/i),
       "ValidPass123"

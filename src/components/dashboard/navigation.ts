@@ -1,5 +1,5 @@
 export type AuthDashboardNavKey =
-  | "users"
+  | "apps"
   | "directory"
   | "access-control"
   | "security"
@@ -16,24 +16,24 @@ export type DashboardNavItem = {
 };
 
 export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
-  { key: "users", label: "Users", href: "/dashboard/users", icon: "users" },
+  { key: "apps", label: "Apps", href: "/dashboard/apps", icon: "package" },
   {
     key: "directory",
     label: "Directory",
     href: "/dashboard/directory",
-    icon: "user",
+    icon: "users-round",
   },
   {
     key: "access-control",
     label: "Access Control",
     href: "/dashboard/access-control",
-    icon: "alert",
+    icon: "folder-key",
   },
   {
     key: "security",
     label: "Security",
     href: "/dashboard/security",
-    icon: "check",
+    icon: "lock",
   },
   {
     key: "integrations",
@@ -41,12 +41,12 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     href: "/dashboard/integrations",
     icon: "link",
   },
-  { key: "logs", label: "Logs", href: "/dashboard/logs", icon: "list" },
+  { key: "logs", label: "Logs", href: "/dashboard/logs", icon: "file-text" },
   {
     key: "billing",
     label: "Billing",
     href: "/dashboard/billing",
-    icon: "reports",
+    icon: "dollar-sign",
   },
   {
     key: "settings",

@@ -19,7 +19,7 @@ describe("determinePostLoginDestination", () => {
         workspaces: [{ slug: "ws-1" }, { slug: "ws-2" }],
         allowedRedirectDomains: allowedDomains,
       }),
-    ).toBe("/dashboard/users");
+    ).toBe("/dashboard/apps");
   });
 
   it("returns dashboard users page for 1 workspace", () => {
@@ -28,7 +28,7 @@ describe("determinePostLoginDestination", () => {
         workspaces: [{ slug: "My Workspace!" }],
         allowedRedirectDomains: allowedDomains,
       }),
-    ).toBe("/dashboard/users");
+    ).toBe("/dashboard/apps");
   });
 
   it("falls back to dashboard users page when console URL is missing or not allowed", () => {
@@ -37,7 +37,7 @@ describe("determinePostLoginDestination", () => {
         workspaces: [{ slug: "Acme" }],
         allowedRedirectDomains: allowedDomains,
       }),
-    ).toBe("/dashboard/users");
+    ).toBe("/dashboard/apps");
   });
 
   it("prefers a safe redirect param when provided", () => {
@@ -67,6 +67,6 @@ describe("determinePostLoginDestination", () => {
         redirectParam: "/login",
         allowedRedirectDomains: allowedDomains,
       }),
-    ).toBe("/dashboard/users");
+    ).toBe("/dashboard/apps");
   });
 });

@@ -26,7 +26,7 @@ export function determinePostLoginDestination({
   const safeWorkspaces = Array.isArray(workspaces) ? workspaces : [];
 
   const count = safeWorkspaces.length;
-  const defaultDestination = count === 0 ? "/onboarding" : "/dashboard/users";
+  const defaultDestination = count === 0 ? "/onboarding" : "/dashboard/apps";
 
   const candidate = redirectParam ? redirectParam.trim() : "";
   const resolved = candidate

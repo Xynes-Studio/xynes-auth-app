@@ -121,7 +121,7 @@ describe("LoginPage", () => {
         const loginForm = screen.getByTestId("login-form");
         expect(loginForm).toHaveAttribute(
           "data-redirect-url",
-          "/dashboard/users",
+          "/dashboard/apps",
         );
       });
     });
@@ -198,7 +198,7 @@ describe("LoginPage", () => {
       render(<LoginPage />);
 
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith("/dashboard/users");
+        expect(mockReplace).toHaveBeenCalledWith("/dashboard/apps");
       });
     });
 
@@ -216,7 +216,7 @@ describe("LoginPage", () => {
       render(<LoginPage />);
 
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith("/dashboard/users");
+        expect(mockReplace).toHaveBeenCalledWith("/dashboard/apps");
       });
 
       process.env.NEXT_PUBLIC_CONSOLE_URL = originalConsoleUrl;

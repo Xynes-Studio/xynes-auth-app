@@ -29,7 +29,7 @@ This document captures the global engineering standards for the auth app, with e
 - Persist validated redirects in `localStorage` under `xynes.auth.oauth_redirect`.
 - Resolve redirect using query param first, then stored value, then safe default.
 - Clear stored redirect after successful callback handling.
-- For authenticated users with one or more workspaces, the safe default route is `/dashboard/users`.
+- For authenticated users with one or more workspaces, the safe default route is `/dashboard/apps`.
 - During OAuth callback, persist default workspace selection under `xynes_workspace_id` using this priority:
 	1. existing stored workspace when still accessible
 	2. first accessible workspace from `/me`
@@ -67,14 +67,14 @@ These rules prevent login loops, open redirects, and confusing re-login prompts.
 	- If a `redirect` query param exists, only honor it when it is validated/allowlisted; avoid loops back to `/login`.
 	- Default post-login destination is:
 		- `/onboarding` for users with 0 workspaces
-		- `/dashboard/users` for users with >=1 workspaces
+		- `/dashboard/apps` for users with >=1 workspaces
 - `/logout`
 	- Must always return to the auth app `/login` (never default to CMS).
 	- Any preserved `redirect` must be validated/allowlisted.
 	- Server-side redirects require absolute URLs; compute the origin safely (prefer configured public auth URL; else allowlisted `x-forwarded-*`/`Host`).
 - `/workspaces`
 	- Only redirect externally when an explicit, validated `redirect` query param is present.
-	- If no `redirect` is provided, selecting a workspace stays within the auth app and routes to `/dashboard/users`.
+	- If no `redirect` is provided, selecting a workspace stays within the auth app and routes to `/dashboard/apps`.
 	- Selection UI must prevent rage-clicking/multi-select races via an immediate local lock + visible loading state.
 
 Feature-level details:
@@ -102,12 +102,14 @@ Feature-level details:
 ### Source of Truth
 - Remote flags come from the gateway `/flags` endpoint via `FeatureFlagsProvider`.
 - Flags are normalized to SDK keys (e.g., `enableOAuthGitHub` → `xynes_auth_oauth_github`).
+- Apps dashboard rollout is gated behind `xynes_auth_dashboard_apps_v1` (disabled by default).
 
 ### Deterministic Overrides (Local)
 Use env overrides to unblock QA and ensure deterministic UI:
 - `NEXT_PUBLIC_ENABLE_OAUTH_GOOGLE`
 - `NEXT_PUBLIC_ENABLE_OAUTH_GITHUB`
 - `NEXT_PUBLIC_ENABLE_OAUTH_APPLE`
+- `NEXT_PUBLIC_ENABLE_DASHBOARD_APPS_V1`
 - `NEXT_PUBLIC_FEATURE_FLAGS_OVERRIDE` (JSON; gateway or SDK keys)
 
 Overrides always win over remote values.
@@ -171,10 +173,51 @@ Rules:
 - Workspace switching inside the dashboard must **not** navigate away from the auth app.
 - Use dashboard shell workspace callbacks and keep routing inside auth-app by default.
 - Only redirect to the console when explicitly required by flow and explicitly validated.
-- Post-login for existing users should remain in auth app (`/dashboard/users`) unless a validated explicit redirect is provided.
+- Post-login for existing users should remain in auth app (`/dashboard/apps`) unless a validated explicit redirect is provided.
 - When a dashboard section is not implemented, render a single `UnderDevelopmentPanel` for the full right/main section and avoid partial placeholder widgets.
 - Icon policy: if using Lumia icon ids that rely on sprite-backed icons (`check`, `add`, `edit`, `delete`, `info`, `alert`, `search`, `chevron-*`), `IconSprite` must be mounted once in app providers (`src/app/providers.tsx`).
 - Keep dashboard route-specific UI in `src/app/dashboard/<route>/components`; keep shared shell/navigation pieces in `src/components/dashboard`.
+
+### Apps Dashboard V1 (Template Standard)
+
+- Primary dashboard route for existing users is `/dashboard/apps` (hard switch from `/dashboard/users`).
+- Route implementation:
+	- `src/app/dashboard/apps/page.tsx`
+	- Feature flag gate: `xynes_auth_dashboard_apps_v1`
+- Shared reusable collection template (for future dashboard entity pages):
+	- `src/components/dashboard/entity-collection/EntityCollectionTemplate.tsx`
+	- `src/components/dashboard/entity-collection/DashboardNoResults.tsx`
+	- `src/components/dashboard/entity-collection/useDebouncedValue.ts`
+	- `src/components/dashboard/entity-collection/types.ts`
+- Route-specific composition remains in route scope:
+	- `src/app/dashboard/apps/components/AppsDashboardContent.tsx`
+	- `src/app/dashboard/apps/components/apps-static-data.ts`
+- Pure Tier 1 app-catalog logic must stay in:
+	- `src/lib/dashboard/apps/apps-catalog.ts`
+
+Apps V1 behavior contract:
+- Tabs: `Installed`, `Marketplace`.
+- Installed uses static catalog in this version.
+- Marketplace renders under-development state.
+- Search is debounced (300ms) and supports immediate submit button.
+- View mode uses Lumia `ViewToggle` (`grid`/`list`).
+- Tiles use Lumia `AppTile` / `EntityTile`.
+- Select-all and sort controls are disabled when result count <= 1.
+- No-results uses shared `DashboardNoResults`.
+
+Apps V1 security contract:
+- App launch URL must be constructed via `buildCmsLaunchUrl` only.
+- Workspace slug must be validated/sanitized before URL composition.
+- New-tab launches must use `noopener,noreferrer`.
+
+Apps V1 theming contract:
+- Do not use hardcoded light-only dashboard surface colors.
+- Use design tokens (`bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border-border`) for light/dark consistency.
+
+Apps V1 validation commands:
+- `pnpm lint`
+- `pnpm test src/lib/dashboard/apps/apps-catalog.test.ts src/app/dashboard/apps/page.test.tsx src/app/dashboard/apps/components/AppsDashboardContent.test.tsx`
+- `pnpm test src/components/dashboard/entity-collection/EntityCollectionTemplate.test.tsx src/app/dashboard/components/UnderDevelopmentPanel.test.tsx`
 
 ## Picture of the Day (Login Experience)
 

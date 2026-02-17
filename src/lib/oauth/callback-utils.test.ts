@@ -291,7 +291,7 @@ describe("OAuth Callback Utilities", () => {
   describe("constants", () => {
     it("should have correct default redirect values", () => {
       expect(DEFAULT_NEW_USER_REDIRECT).toBe("/onboarding");
-      expect(DEFAULT_EXISTING_USER_REDIRECT).toBe("/workspaces");
+      expect(DEFAULT_EXISTING_USER_REDIRECT).toBe("/dashboard/apps");
     });
   });
 });

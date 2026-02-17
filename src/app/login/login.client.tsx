@@ -14,7 +14,7 @@ import { determinePostLoginDestination } from "@/lib/auth/post-login-destination
 /**
  * Default redirect URL after successful login.
  */
-const DEFAULT_REDIRECT = "/dashboard/users";
+const DEFAULT_REDIRECT = "/dashboard/apps";
 
 function LoginContent() {
   const router = useRouter();

@@ -26,7 +26,7 @@ export const DEFAULT_NEW_USER_REDIRECT = "/onboarding";
 /**
  * Default redirect for existing users (has workspaces).
  */
-export const DEFAULT_EXISTING_USER_REDIRECT = "/workspaces";
+export const DEFAULT_EXISTING_USER_REDIRECT = "/dashboard/apps";
 
 /**
  * Bootstrap response from the accounts service.
