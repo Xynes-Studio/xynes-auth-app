@@ -219,6 +219,44 @@ Apps V1 validation commands:
 - `pnpm test src/lib/dashboard/apps/apps-catalog.test.ts src/app/dashboard/apps/page.test.tsx src/app/dashboard/apps/components/AppsDashboardContent.test.tsx`
 - `pnpm test src/components/dashboard/entity-collection/EntityCollectionTemplate.test.tsx src/app/dashboard/components/UnderDevelopmentPanel.test.tsx`
 
+### Directory Dashboard V1 (Directory Tab Story)
+
+- Route implementation:
+	- `src/app/dashboard/directory/page.tsx`
+	- `src/app/dashboard/directory/components/DirectoryDashboardContent.tsx`
+- Tier 1 directory data utilities:
+	- `src/lib/dashboard/directory/members-api.ts`
+	- `src/lib/dashboard/directory/members-transform.ts`
+
+Directory V1 behavior contract:
+- Tabs: `Users`, `Teams`, `Invites`.
+- `Users` loads workspace members from gateway `GET /workspaces/:workspaceId/members`.
+- `Teams` and `Invites` render under-development panels (enabled tabs, non-functional content).
+- Search is debounced (300ms) and supports immediate submit button.
+- Invite CTA routes to `/workspaces/invites/new`.
+- On mobile, invite CTA is icon-only; on desktop, label + icon.
+- Tiles use Lumia `UserTile`/`EntityTile` patterns.
+
+Directory V1 security contract:
+- Members endpoint URL must use `encodeURIComponent(workspaceId)`.
+- Members API must require bearer token from `useAuth().getAccessToken()`.
+- Do not render raw backend error details to users; map to safe, user-facing messages.
+- Do not log auth token or member PII in client-side logs.
+
+Directory V1 component API extension contract:
+- `EntityCollectionTemplate` supports optional `searchLeadingAction` for route-specific CTAs.
+- `EntityCollectionTemplate` supports optional aria label overrides:
+	- `searchAriaLabel`
+	- `selectAllAriaLabel`
+	- `sortAriaLabel`
+- Changes must remain backward-compatible for existing dashboard pages.
+
+Directory V1 validation commands:
+- `pnpm lint`
+- `pnpm test src/lib/dashboard/directory/members-transform.test.ts src/lib/dashboard/directory/members-api.test.ts`
+- `pnpm test src/app/dashboard/directory/page.test.tsx src/app/dashboard/directory/components/DirectoryDashboardContent.test.tsx`
+- `pnpm test src/components/dashboard/entity-collection/EntityCollectionTemplate.test.tsx`
+
 ## Picture of the Day (Login Experience)
 
 - Server route: `src/app/api/picture-of-the-day/route.ts`.

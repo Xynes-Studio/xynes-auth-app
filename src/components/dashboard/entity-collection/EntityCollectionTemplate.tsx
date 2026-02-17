@@ -17,18 +17,22 @@ export function EntityCollectionTemplate({
   tabs,
   activeTab,
   onTabChange,
+  searchLeadingAction,
   searchValue,
   onSearchValueChange,
   onSearchSubmit,
   searchPlaceholder = "Search for apps",
+  searchAriaLabel = "Search for apps",
   searchDisabled = false,
   totalResults,
   selectAllChecked,
   onSelectAllChange,
+  selectAllAriaLabel = "Select all apps",
   selectAllDisabled = false,
   sortValue,
   sortOptions,
   onSortChange,
+  sortAriaLabel = "Sort apps",
   sortDisabled = false,
   viewMode,
   onViewModeChange,
@@ -59,18 +63,19 @@ export function EntityCollectionTemplate({
         </div>
 
         <form
-          className="flex w-full items-center gap-2 md:w-auto"
+          className="flex w-full items-center gap-2 md:w-auto md:justify-end"
           onSubmit={(event) => {
             event.preventDefault();
             onSearchSubmit();
           }}
         >
+          {searchLeadingAction}
           <div className="min-w-0 flex-1 md:w-[360px]">
             <Input
               value={searchValue}
               onChange={(event) => onSearchValueChange(event.currentTarget.value)}
               placeholder={searchPlaceholder}
-              aria-label="Search for apps"
+              aria-label={searchAriaLabel}
               disabled={searchDisabled}
             />
           </div>
@@ -92,7 +97,7 @@ export function EntityCollectionTemplate({
               onChange={(event) =>
                 onSelectAllChange(event.currentTarget.checked)
               }
-              aria-label="Select all apps"
+              aria-label={selectAllAriaLabel}
               disabled={selectAllDisabled}
             />
             <span className="text-sm font-medium text-foreground">
@@ -113,7 +118,7 @@ export function EntityCollectionTemplate({
           </p>
           <div className="w-[180px]">
             <Select
-              aria-label="Sort apps"
+              aria-label={sortAriaLabel}
               value={sortValue}
               onChange={(event) => onSortChange(event.currentTarget.value)}
               disabled={sortDisabled}
