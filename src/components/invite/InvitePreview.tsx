@@ -59,6 +59,51 @@ interface InvitePreviewProps {
   token: string;
 }
 
+function unwrapInvitePayload(value: unknown): Record<string, unknown> | null {
+  let current: unknown = value;
+  while (
+    current &&
+    typeof current === 'object' &&
+    'data' in current &&
+    (current as Record<string, unknown>).data !== undefined
+  ) {
+    current = (current as Record<string, unknown>).data;
+  }
+
+  if (!current || typeof current !== 'object') {
+    return null;
+  }
+
+  return current as Record<string, unknown>;
+}
+
+function getInviteRoleLabel(invite: Record<string, unknown>): string {
+  const rawRole =
+    typeof invite.role === 'string'
+      ? invite.role
+      : typeof invite.roleKey === 'string'
+        ? invite.roleKey
+        : 'workspace_member';
+
+  return rawRole.replace(/_/g, ' ');
+}
+
+function getInviteExpiryLabel(expiresAt: unknown): string {
+  if (typeof expiresAt !== 'string' || expiresAt.trim().length === 0) {
+    return 'Expiration not provided';
+  }
+
+  const date = new Date(expiresAt);
+  if (Number.isNaN(date.getTime())) {
+    return 'Expiration not provided';
+  }
+
+  return `${date.toLocaleDateString()} at ${date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
+
 export function InvitePreview({ token }: InvitePreviewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,20 +117,49 @@ export function InvitePreview({ token }: InvitePreviewProps) {
   }
 
   const { invite, isLoading, error, acceptInvite, isAccepting } = useInvite(token, apiBaseUrl);
+  const inviteRecord = unwrapInvitePayload(invite);
+  const inviteRoleLabel = inviteRecord ? getInviteRoleLabel(inviteRecord) : null;
+  const inviteStatus = typeof inviteRecord?.status === 'string' ? inviteRecord.status : null;
+  const workspaceName =
+    typeof inviteRecord?.workspaceName === 'string' && inviteRecord.workspaceName.trim().length > 0
+      ? inviteRecord.workspaceName
+      : 'Workspace';
+  const inviterName =
+    typeof inviteRecord?.inviterName === 'string' && inviteRecord.inviterName.trim().length > 0
+      ? inviteRecord.inviterName
+      : 'Workspace owner';
+  const inviterEmail =
+    typeof inviteRecord?.inviterEmail === 'string' ? inviteRecord.inviterEmail.trim() : '';
+  const inviteeEmail =
+    typeof inviteRecord?.inviteeEmail === 'string' && inviteRecord.inviteeEmail.trim().length > 0
+      ? inviteRecord.inviteeEmail
+      : 'your account';
+  const inviteExpiryLabel = getInviteExpiryLabel(inviteRecord?.expiresAt);
   
   // Handle invite acceptance
   const handleAccept = useCallback(async () => {
-    const workspace = await acceptInvite();
-    if (workspace) {
-      const consoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL || '';
-      if (consoleUrl) {
-        // Redirect to workspace dashboard in console app
-        window.location.href = `${consoleUrl}/${workspace.slug}`;
-      } else {
-        // Fallback to home if console URL not configured
-        router.push('/');
-      }
+    const result = await acceptInvite();
+    if (!result) return;
+
+    const workspaceSlug =
+      typeof result === 'object' &&
+      result !== null &&
+      'slug' in result &&
+      typeof (result as { slug?: unknown }).slug === 'string' &&
+      (result as { slug: string }).slug.trim().length > 0
+        ? (result as { slug: string }).slug
+        : null;
+
+    const consoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL || '';
+    if (consoleUrl && workspaceSlug) {
+      // Redirect to workspace dashboard in console app
+      window.location.href = `${consoleUrl}/${workspaceSlug}`;
+      return;
     }
+
+    // Current accept API may return { accepted, workspaceId, roleKey } without slug.
+    // In that case, route to the dashboard apps landing when no explicit redirect target exists.
+    router.push('/dashboard/apps');
   }, [acceptInvite, router]);
 
   // Auto-accept effect
@@ -96,7 +170,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
   }, [isAuthenticated, invite, autoAccept, isAccepting, error, isLoading, handleAccept]);
 
   // Determine if we should show the error state card
-  const isExpiredOrCancelled = invite && (invite.status === 'expired' || invite.status === 'cancelled');
+  const isExpiredOrCancelled = inviteStatus === 'expired' || inviteStatus === 'cancelled';
   const isNotFound = error?.code === 'invite_not_found';
   const isAlreadyMember = error?.code === 'already_in_workspace';
   
@@ -109,7 +183,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
     let showSignIn = !isAuthenticated;
 
     if (isExpiredOrCancelled) {
-      if (invite?.status === 'expired') description = 'This invitation has expired.';
+      if (inviteStatus === 'expired') description = 'This invitation has expired.';
       else description = 'This invitation has been cancelled.';
     } else if (isNotFound) {
       description = 'The invitation code could not be found or has expired.';
@@ -209,21 +283,22 @@ export function InvitePreview({ token }: InvitePreviewProps) {
             >
               {/* Icon is auto-handled by Alert in lumia-ds */}
             </Alert>
-          ) : invite ? (
+          ) : inviteRecord ? (
             <div className="space-y-4">
               <div className="flex flex-col items-center">
                 <div className="flex items-center gap-2 mb-2">
                   <BuildingIcon className="h-5 w-5 text-gray-500" aria-hidden="true" />
-                  <h2 className="text-xl font-semibold" id="workspace-name">{invite.workspaceName}</h2>
+                  <h2 className="text-xl font-semibold" id="workspace-name">{workspaceName}</h2>
                 </div>
                 
                 <div className="flex items-center gap-2 mb-4">
                   <span
                     className="text-sm text-muted-foreground"
                     id="inviter-details"
-                    aria-label={`Invited by ${invite.inviterName} (${invite.inviterEmail})`}
+                    aria-label={`Invited by ${inviterName}${inviterEmail ? ` (${inviterEmail})` : ''}`}
                   >
-                    Invited by <span className="font-medium">{invite.inviterName}</span> ({invite.inviterEmail})
+                    Invited by <span className="font-medium">{inviterName}</span>
+                    {inviterEmail ? ` (${inviterEmail})` : ''}
                   </span>
                 </div>
                 
@@ -231,18 +306,15 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                   <Badge
                     variant="subtle"
                     className="capitalize"
-                    aria-label={`Role: ${invite.role.replace(/_/g, ' ')}`}
+                    aria-label={`Role: ${inviteRoleLabel}`}
                   >
-                    {invite.role.replace(/_/g, ' ')}
+                    {inviteRoleLabel}
                   </Badge>
                 </div>
                 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground" id="expiry-info">
                   <ClockIcon className="h-4 w-4" aria-hidden="true" />
-                  <span>
-                    Expires: {new Date(invite.expiresAt).toLocaleDateString()} at{' '}
-                    {new Date(invite.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <span>Expires: {inviteExpiryLabel}</span>
                 </div>
               </div>
               
@@ -253,7 +325,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                     id="signed-in-as"
                     aria-live="polite"
                   >
-                    You are signed in as <span className="font-medium">{invite.inviteeEmail}</span>
+                    You are signed in as <span className="font-medium">{inviteeEmail}</span>
                   </p>
                   
                   <Button
@@ -319,7 +391,7 @@ export function InvitePreview({ token }: InvitePreviewProps) {
           )}
         </CardContent>
         
-        {!isLoading && !error && invite && (
+        {!isLoading && !error && inviteRecord && (
           <CardFooter className="flex justify-center">
             <Link 
               href="/" 

@@ -16,10 +16,11 @@ vi.mock('@xynes/auth-sdk', async (importOriginal) => {
 });
 
 // Mock next/navigation
+const mockPush = vi.fn();
 const mockSearchParamsGet = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({
-    push: vi.fn(),
+    push: mockPush,
   })),
   useSearchParams: vi.fn(() => ({
     get: mockSearchParamsGet,
@@ -47,6 +48,7 @@ describe('InvitePreview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParamsGet.mockReturnValue(null);
+    mockPush.mockReset();
   });
 
   it('renders loading state initially', () => {
@@ -97,6 +99,67 @@ describe('InvitePreview', () => {
     expect(screen.getByText(new RegExp(mockInvite.inviterEmail))).toBeInTheDocument();
     expect(screen.getByText(new RegExp(mockInvite.role.replace('_', ' '), 'i'))).toBeInTheDocument();
     expect(screen.getByText(/You are signed in as/i)).toBeInTheDocument();
+  });
+
+  it('renders invite role from roleKey when role is missing', () => {
+    const inviteWithRoleKeyOnly = {
+      ...mockInvite,
+      role: undefined,
+      roleKey: 'workspace_member' as const,
+    } as unknown as typeof mockInvite;
+
+    const useInviteMock = vi.fn().mockReturnValue({
+      invite: inviteWithRoleKeyOnly,
+      isLoading: false,
+      error: null,
+      acceptInvite: vi.fn(),
+      isAccepting: false,
+    });
+
+    const useAuthMock = vi.fn().mockReturnValue({
+      isAuthenticated: true,
+      redirectToLogin: vi.fn(),
+    });
+
+    vi.mocked(useInvite).mockImplementation(useInviteMock);
+    vi.mocked(useAuth).mockImplementation(useAuthMock);
+
+    renderWithProviders(<InvitePreview token="test-token" />);
+
+    expect(screen.getByText(/workspace member/i)).toBeInTheDocument();
+  });
+
+  it('renders invite details from envelope-shaped response payload', () => {
+    const useInviteMock = vi.fn().mockReturnValue({
+      invite: {
+        ok: true,
+        data: {
+          workspaceName: 'Acme Workspace',
+          inviterName: 'Owner User',
+          roleKey: 'workspace_member',
+          status: 'pending',
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        },
+      },
+      isLoading: false,
+      error: null,
+      acceptInvite: vi.fn(),
+      isAccepting: false,
+    });
+
+    const useAuthMock = vi.fn().mockReturnValue({
+      isAuthenticated: false,
+      redirectToLogin: vi.fn(),
+    });
+
+    vi.mocked(useInvite).mockImplementation(useInviteMock);
+    vi.mocked(useAuth).mockImplementation(useAuthMock);
+
+    renderWithProviders(<InvitePreview token="test-token" />);
+
+    expect(screen.getByText(/Acme Workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/Owner User/i)).toBeInTheDocument();
+    expect(screen.getByText(/workspace member/i)).toBeInTheDocument();
   });
 
   it('renders invite details when not authenticated', () => {
@@ -275,6 +338,41 @@ describe('InvitePreview', () => {
 
     await waitFor(() => {
       expect(mockAcceptInvite).toHaveBeenCalled();
+    });
+  });
+
+  it('redirects to /dashboard/apps after accept when API response has no workspace slug', async () => {
+    const mockAcceptInvite = vi.fn().mockResolvedValue({
+      accepted: true,
+      workspaceId: 'workspace-123',
+      roleKey: 'workspace_member',
+      workspaceMemberCreated: true,
+    });
+
+    const useInviteMock = vi.fn().mockReturnValue({
+      invite: mockInvite,
+      isLoading: false,
+      error: null,
+      acceptInvite: mockAcceptInvite,
+      isAccepting: false,
+    });
+
+    const useAuthMock = vi.fn().mockReturnValue({
+      isAuthenticated: true,
+      redirectToLogin: vi.fn(),
+    });
+
+    vi.mocked(useInvite).mockImplementation(useInviteMock);
+    vi.mocked(useAuth).mockImplementation(useAuthMock);
+
+    renderWithProviders(<InvitePreview token="test-token" />);
+
+    const joinButton = screen.getByRole('button', { name: /Join Workspace/i });
+    joinButton.click();
+
+    await waitFor(() => {
+      expect(mockAcceptInvite).toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledWith('/dashboard/apps');
     });
   });
 
