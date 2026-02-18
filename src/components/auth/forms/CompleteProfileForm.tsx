@@ -55,11 +55,6 @@ export function CompleteProfileForm({ redirectUrl }: CompleteProfileFormProps) {
           requiresProfileCompletion: false,
         });
 
-        if (/^https?:\/\//i.test(destination) || destination.startsWith("//")) {
-          window.location.assign(destination);
-          return;
-        }
-
         // Force fresh auth bootstrap so profile gate sees the latest displayName.
         window.location.assign(destination);
       } catch {

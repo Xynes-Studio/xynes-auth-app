@@ -115,7 +115,7 @@ describe("profile-api", () => {
     vi.unstubAllGlobals();
   });
 
-  it("throws fallback request error when response body is not JSON", async () => {
+  it("uses response statusText when response body is not JSON", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -130,7 +130,7 @@ describe("profile-api", () => {
 
     await expect(updateSelfProfile("Alice")).rejects.toMatchObject({
       statusCode: 500,
-      message: "Request failed",
+      message: "Server Error",
     });
     vi.unstubAllGlobals();
   });

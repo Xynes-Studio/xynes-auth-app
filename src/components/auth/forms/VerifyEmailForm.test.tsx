@@ -185,6 +185,20 @@ describe("VerifyEmailForm", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows network error when token_hash verification throws", async () => {
+    mockSearchParamGet.mockImplementation((key: string) => {
+      if (key === "token_hash") return "token-hash-123";
+      return null;
+    });
+    mockVerifyOtp.mockRejectedValue(new Error("network"));
+
+    render(<VerifyEmailForm />);
+
+    expect(
+      await screen.findByText(/network error verifying link/i),
+    ).toBeInTheDocument();
+  });
+
   it("falls back to provided redirect when /me bootstrap fails", async () => {
     mockFetchMeBootstrap.mockRejectedValueOnce(new Error("bootstrap failed"));
 

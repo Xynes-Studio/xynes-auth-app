@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ComponentProps, type ReactNode } from "react";
+import { Suspense, useMemo, type ComponentProps, type ReactNode } from "react";
 import {
   FeatureFlagsProvider,
   AuthProvider,
@@ -54,11 +54,13 @@ export function Providers({ children }: ProvidersProps) {
           allowedRedirectDomains,
         }}
       >
-        <ProfileCompletionGate>
-          <WorkspaceProvider>
-            {children as unknown as WorkspaceProviderChildren}
-          </WorkspaceProvider>
-        </ProfileCompletionGate>
+        <Suspense fallback={null}>
+          <ProfileCompletionGate>
+            <WorkspaceProvider>
+              {children as unknown as WorkspaceProviderChildren}
+            </WorkspaceProvider>
+          </ProfileCompletionGate>
+        </Suspense>
       </AuthProvider>
     </FeatureFlagsProvider>
   );

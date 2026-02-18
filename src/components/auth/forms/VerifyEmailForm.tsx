@@ -116,6 +116,9 @@ export function VerifyEmailForm({ initialEmail, redirectUrl }: VerifyEmailFormPr
 
       setStatusMessage("Email verified. Redirecting...");
       await navigateToPostVerifyDestination();
+    } catch (error) {
+      console.error("OTP link verification failed:", error);
+      setErrorMessage("Network error verifying link. Please try again.");
     } finally {
       setIsLoading(false);
     }

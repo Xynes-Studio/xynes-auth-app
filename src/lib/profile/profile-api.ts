@@ -1,9 +1,9 @@
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { asRecord, unwrapGatewayEnvelope } from "@/lib/http/envelope";
 
-function extractErrorMessage(payload: unknown): string {
+function extractErrorMessage(payload: unknown, statusText?: string): string {
   const record = asRecord(payload);
-  if (!record) return "Request failed";
+  if (!record) return statusText?.trim() || "Request failed";
 
   if (typeof record.message === "string" && record.message.trim()) {
     return record.message;
@@ -18,7 +18,7 @@ function extractErrorMessage(payload: unknown): string {
     return nestedError.message;
   }
 
-  return "Request failed";
+  return statusText?.trim() || "Request failed";
 }
 
 export class ProfileApiError extends Error {
@@ -91,7 +91,7 @@ export async function fetchMeBootstrap(): Promise<MeBootstrapResult> {
   if (!response.ok) {
     throw new ProfileApiError(
       response.status,
-      extractErrorMessage(rawPayload) || response.statusText,
+      extractErrorMessage(rawPayload, response.statusText),
     );
   }
 
@@ -137,7 +137,7 @@ export async function updateSelfProfile(displayName: string): Promise<ProfileUse
   if (!response.ok) {
     throw new ProfileApiError(
       response.status,
-      extractErrorMessage(rawPayload) || response.statusText,
+      extractErrorMessage(rawPayload, response.statusText),
     );
   }
 

@@ -304,8 +304,11 @@ describe("OAuthClientCallbackPage error handling", () => {
 
     render(<OAuthClientCallbackPage />);
 
+    const expectedRedirect = "/dashboard/apps";
+    const expectedLocation = `/complete-profile?redirect=${encodeURIComponent(expectedRedirect)}`;
+
     await waitFor(() => {
-      expect(mockLocation.href).toContain("/complete-profile?redirect=");
+      expect(mockLocation.href).toBe(expectedLocation);
     });
 
     Object.defineProperty(window, "location", {

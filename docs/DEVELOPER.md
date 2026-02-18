@@ -160,7 +160,7 @@ src/
 │   │   ├── forms/       # Auth forms (Login/Signup/Forgot/Reset)
 │   │   │   ├── VerifyEmailForm.tsx
 │   │   │   └── CompleteProfileForm.tsx
-│   │   └── guards/      # Auth flow guards (e.g., profile completion)
+│   │   ├── guards/      # Auth flow guards (e.g., profile completion)
 │   │   ├── navigation/  # Auth route navigation primitives
 │   │   └── layout/      # Shared auth entry layout + visuals
 ├── lib/                # Pure utilities & SDK re-exports (Tier 1)
