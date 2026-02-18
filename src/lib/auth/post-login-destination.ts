@@ -8,6 +8,7 @@ export interface DeterminePostLoginDestinationOptions {
   workspaces: WorkspaceForRedirect[];
   redirectParam?: string | null;
   allowedRedirectDomains: string[];
+  requiresProfileCompletion?: boolean;
 }
 
 function isLoginPath(url: string): boolean {
@@ -18,10 +19,25 @@ function isLoginPath(url: string): boolean {
   return false;
 }
 
+function isCompleteProfilePath(url: string): boolean {
+  if (url.startsWith("/") && !url.startsWith("//")) {
+    return url === "/complete-profile" || url.startsWith("/complete-profile?");
+  }
+  return false;
+}
+
+function toCompleteProfileDestination(target: string): string {
+  if (!target || isCompleteProfilePath(target)) {
+    return "/complete-profile";
+  }
+  return `/complete-profile?redirect=${encodeURIComponent(target)}`;
+}
+
 export function determinePostLoginDestination({
   workspaces,
   redirectParam,
   allowedRedirectDomains,
+  requiresProfileCompletion = false,
 }: DeterminePostLoginDestinationOptions): string {
   const safeWorkspaces = Array.isArray(workspaces) ? workspaces : [];
 
@@ -32,6 +48,13 @@ export function determinePostLoginDestination({
   const resolved = candidate
     ? getSafeRedirectUrl(candidate, defaultDestination, allowedRedirectDomains)
     : defaultDestination;
+
+  if (requiresProfileCompletion) {
+    if (isLoginPath(resolved)) {
+      return "/complete-profile";
+    }
+    return toCompleteProfileDestination(resolved);
+  }
 
   // Defense-in-depth: avoid redirect loops back to /login
   if (isLoginPath(resolved)) {

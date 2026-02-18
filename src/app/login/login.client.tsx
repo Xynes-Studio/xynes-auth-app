@@ -19,7 +19,12 @@ const DEFAULT_REDIRECT = "/dashboard/apps";
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, isLoading: isAuthLoading, workspaces } = useAuth();
+  const {
+    isAuthenticated,
+    isLoading: isAuthLoading,
+    workspaces,
+    user,
+  } = useAuth();
   const redirectParam = searchParams.get("redirect");
   const errorParam = searchParams.get("error");
   const [postLoginPending, setPostLoginPending] = useState(false);
@@ -36,6 +41,9 @@ function LoginContent() {
   const oauthErrorMessage = errorParam
     ? getOAuthErrorMessage(errorParam)
     : null;
+  const requiresProfileCompletion = Boolean(
+    isAuthenticated && !user?.displayName?.trim(),
+  );
 
   const handleSuccess = useCallback(() => {
     if (!redirectParam && (workspaces ?? []).length === 0) {
@@ -47,6 +55,7 @@ function LoginContent() {
       workspaces: workspaces ?? [],
       redirectParam,
       allowedRedirectDomains: allowedDomains,
+      requiresProfileCompletion,
     });
 
     if (/^https?:\/\//i.test(destination) || destination.startsWith("//")) {
@@ -54,7 +63,13 @@ function LoginContent() {
     } else {
       router.replace(destination);
     }
-  }, [allowedDomains, redirectParam, router, workspaces]);
+  }, [
+    allowedDomains,
+    redirectParam,
+    requiresProfileCompletion,
+    router,
+    workspaces,
+  ]);
 
   useEffect(() => {
     if (isAuthLoading) return;
@@ -64,6 +79,7 @@ function LoginContent() {
       workspaces: workspaces ?? [],
       redirectParam,
       allowedRedirectDomains: allowedDomains,
+      requiresProfileCompletion,
     });
 
     if (/^https?:\/\//i.test(destination) || destination.startsWith("//")) {
@@ -79,6 +95,7 @@ function LoginContent() {
     workspaces,
     redirectParam,
     allowedDomains,
+    requiresProfileCompletion,
     router,
     postLoginPending,
   ]);

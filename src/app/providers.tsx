@@ -8,6 +8,7 @@ import {
 } from "@xynes/auth-sdk";
 import { IconSprite } from "@lumia-ui/icons";
 import { getFeatureFlagOverrides } from "@/lib/feature-flags/overrides";
+import { ProfileCompletionGate } from "@/components/auth/guards/ProfileCompletionGate";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -53,9 +54,11 @@ export function Providers({ children }: ProvidersProps) {
           allowedRedirectDomains,
         }}
       >
-        <WorkspaceProvider>
-          {children as unknown as WorkspaceProviderChildren}
-        </WorkspaceProvider>
+        <ProfileCompletionGate>
+          <WorkspaceProvider>
+            {children as unknown as WorkspaceProviderChildren}
+          </WorkspaceProvider>
+        </ProfileCompletionGate>
       </AuthProvider>
     </FeatureFlagsProvider>
   );

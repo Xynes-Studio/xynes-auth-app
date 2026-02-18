@@ -27,12 +27,14 @@ type AuthState = {
   isAuthenticated: boolean;
   isLoading: boolean;
   workspaces: Array<{ slug?: string }>;
+  user?: { displayName: string | null } | null;
 };
 
 let authState: AuthState = {
   isAuthenticated: false,
   isLoading: false,
   workspaces: [],
+  user: null,
 };
 
 vi.mock("@xynes/auth-sdk", () => ({
@@ -74,6 +76,7 @@ describe("LoginPage", () => {
       isAuthenticated: false,
       isLoading: false,
       workspaces: [],
+      user: null,
     };
   });
 
@@ -178,6 +181,7 @@ describe("LoginPage", () => {
         isAuthenticated: true,
         isLoading: false,
         workspaces: [],
+        user: { displayName: "Alice" },
       };
 
       render(<LoginPage />);
@@ -193,6 +197,7 @@ describe("LoginPage", () => {
         isAuthenticated: true,
         isLoading: false,
         workspaces: [{ slug: "ws-1" }, { slug: "ws-2" }],
+        user: { displayName: "Alice" },
       };
 
       render(<LoginPage />);
@@ -211,6 +216,7 @@ describe("LoginPage", () => {
         isAuthenticated: true,
         isLoading: false,
         workspaces: [{ slug: "My Workspace!" }],
+        user: { displayName: "Alice" },
       };
 
       render(<LoginPage />);
@@ -220,6 +226,24 @@ describe("LoginPage", () => {
       });
 
       process.env.NEXT_PUBLIC_CONSOLE_URL = originalConsoleUrl;
+    });
+
+    it("should redirect authenticated user with missing displayName to complete-profile", async () => {
+      redirectValue = null;
+      authState = {
+        isAuthenticated: true,
+        isLoading: false,
+        workspaces: [{ slug: "ws-1" }],
+        user: { displayName: null },
+      };
+
+      render(<LoginPage />);
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith(
+          "/complete-profile?redirect=%2Fdashboard%2Fapps",
+        );
+      });
     });
   });
 });

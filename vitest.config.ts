@@ -1,9 +1,11 @@
 import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react";
 import { resolve } from "path";
 
 export default defineConfig({
-  plugins: [react()],
+  esbuild: {
+    jsx: "automatic",
+    jsxImportSource: "react",
+  },
   test: {
     globals: true,
     environment: "happy-dom",
@@ -34,6 +36,16 @@ export default defineConfig({
     alias: {
       "@": resolve(__dirname, "./src"),
       "@lumia-ui/icons": resolve(__dirname, "./src/test/mocks/lumia-icons.ts"),
+      react: resolve(__dirname, "./node_modules/react"),
+      "react-dom": resolve(__dirname, "./node_modules/react-dom"),
+      "react/jsx-runtime": resolve(
+        __dirname,
+        "./node_modules/react/jsx-runtime.js",
+      ),
+      "react/jsx-dev-runtime": resolve(
+        __dirname,
+        "./node_modules/react/jsx-dev-runtime.js",
+      ),
     },
   },
 });
