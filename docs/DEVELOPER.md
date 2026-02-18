@@ -81,6 +81,41 @@ Feature-level details:
 - `docs/features/logout-flow.md`
 - `docs/features/auth-workspace-selector.md`
 
+## Signup Verification + Profile Completion (BUG2)
+
+### Route Contracts
+- `/verify-email`
+	- Primary email verification screen after signup.
+	- Accepts `email` and optional validated `redirect` query params.
+	- Supports OTP code entry and Supabase `token_hash` link fallback.
+- `/complete-profile`
+	- Mandatory gate for authenticated users whose `displayName` is missing/blank.
+	- Accepts optional validated `redirect` query param.
+	- Persists profile via `PATCH /me/profile` (gateway -> accounts-service).
+
+### Global Redirect Priority
+- After login/signup/callback bootstrap:
+	1. If `displayName` is missing, force `/complete-profile` (with encoded redirect when safe).
+	2. Else apply normal post-login destination rules (`redirect` param or safe default).
+- Loop protection:
+	- Never redirect authenticated users back to `/login`.
+	- Never wrap `/complete-profile` into another `/complete-profile?redirect=...`.
+
+### Global Client Gate
+- `ProfileCompletionGate` is mounted in `src/app/providers.tsx`.
+- It redirects authenticated users with missing `displayName` to `/complete-profile` from any non-exempt route.
+- Exempt routes: login/signup/reset/forgot/verify-email/complete-profile/callback/logout.
+
+### API Utilities
+- `src/lib/profile/profile-api.ts`
+	- `fetchMeBootstrap()` for `/me` envelope parsing.
+	- `updateSelfProfile(displayName)` for `PATCH /me/profile`.
+- API rules:
+	- Require access token from Supabase session.
+	- Validate and trim `displayName`.
+	- Parse gateway envelope safely and fail closed on malformed payloads.
+	- Never log OTP, access tokens, or raw sensitive payloads.
+
 ### Shared Auth Route Navigation (Global Standard)
 - Reuse `AuthRouteSwitch` (`src/components/auth/navigation/AuthRouteSwitch.tsx`) across auth entry routes (`/login`, `/signup`) instead of duplicating link markup.
 - Reuse `AuthSplitLayout` (`src/components/auth/layout/AuthSplitLayout.tsx`) as the common page scaffold for `/login` and `/signup`; only the form section content should vary by route.
@@ -123,9 +158,13 @@ src/
 ├── components/         # React UI components (Tier 2)
 │   ├── auth/
 │   │   ├── forms/       # Auth forms (Login/Signup/Forgot/Reset)
+│   │   │   ├── VerifyEmailForm.tsx
+│   │   │   └── CompleteProfileForm.tsx
+│   │   ├── guards/      # Auth flow guards (e.g., profile completion)
 │   │   ├── navigation/  # Auth route navigation primitives
 │   │   └── layout/      # Shared auth entry layout + visuals
 ├── lib/                # Pure utilities & SDK re-exports (Tier 1)
+│   └── profile/         # Profile/me bootstrap API utilities
 └── test/               # Shared test utilities
 ```
 

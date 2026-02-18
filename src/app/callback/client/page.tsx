@@ -15,6 +15,8 @@ import {
   selectWorkspaceIdForPersistence,
   WORKSPACE_STORAGE_KEY,
 } from "@/lib/auth/workspace-default";
+import { determinePostLoginDestination } from "@/lib/auth/post-login-destination";
+import { asRecord, unwrapGatewayEnvelope } from "@/lib/http/envelope";
 
 const DEFAULT_NEW_USER_REDIRECT = "/onboarding";
 const DEFAULT_EXISTING_USER_REDIRECT = "/dashboard/apps";
@@ -100,6 +102,8 @@ export default function OAuthClientCallbackPage() {
           return;
         }
         let hasWorkspaces = false;
+        let requiresProfileCompletion = false;
+        let workspaceRedirectData: Array<{ slug?: string | null }> = [];
 
         if (process.env.NEXT_PUBLIC_API_URL) {
           const controller = new AbortController();
@@ -121,13 +125,20 @@ export default function OAuthClientCallbackPage() {
             );
 
             if (response.ok) {
-              const payload = await response.json();
-              const me = payload?.data ?? payload;
+              const payload = unwrapGatewayEnvelope(await response.json());
+              const me = asRecord(payload);
               const availableWorkspaces = Array.isArray(me?.workspaces)
                 ? me.workspaces
                 : [];
+              workspaceRedirectData = availableWorkspaces as Array<{
+                slug?: string | null;
+              }>;
 
               hasWorkspaces = availableWorkspaces.length > 0;
+              const user = asRecord(me?.user) ?? me;
+              const displayName =
+                typeof user?.displayName === "string" ? user.displayName : "";
+              requiresProfileCompletion = !displayName.trim();
 
               if (hasWorkspaces) {
                 const storedWorkspaceId =
@@ -170,6 +181,12 @@ export default function OAuthClientCallbackPage() {
           defaultRedirect,
           allowedDomains,
         );
+        const finalRedirect = determinePostLoginDestination({
+          workspaces: workspaceRedirectData,
+          redirectParam: safeRedirect,
+          allowedRedirectDomains: allowedDomains,
+          requiresProfileCompletion,
+        });
 
         if (!isMounted) return;
         if (typeof window !== "undefined") {
@@ -182,7 +199,7 @@ export default function OAuthClientCallbackPage() {
           }
           clearPersistedOAuthRedirect(window.localStorage);
         }
-        window.location.href = safeRedirect;
+        window.location.href = finalRedirect;
       } catch (err) {
         if (!isMounted) return;
         console.error("OAuth callback failed", err);

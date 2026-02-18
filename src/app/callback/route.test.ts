@@ -70,7 +70,11 @@ describe("OAuth Callback Route", () => {
     // Default: new user with no workspaces
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ workspaces: [] }),
+      json: () =>
+        Promise.resolve({
+          user: { id: "test-user-id", email: "test@example.com", displayName: "Test User" },
+          workspaces: [],
+        }),
     });
   });
 
@@ -90,7 +94,11 @@ describe("OAuth Callback Route", () => {
     it("should redirect to onboarding for new user after successful code exchange", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ workspaces: [] }),
+        json: () =>
+          Promise.resolve({
+            user: { id: "test-user-id", email: "test@example.com", displayName: "Test User" },
+            workspaces: [],
+          }),
       });
 
       const request = new Request(
@@ -108,7 +116,10 @@ describe("OAuth Callback Route", () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () =>
-          Promise.resolve({ workspaces: [{ id: "ws-1", name: "Test" }] }),
+          Promise.resolve({
+            user: { id: "test-user-id", email: "test@example.com", displayName: "Test User" },
+            workspaces: [{ id: "ws-1", name: "Test" }],
+          }),
       });
 
       const request = new Request(

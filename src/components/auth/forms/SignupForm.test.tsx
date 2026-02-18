@@ -202,7 +202,10 @@ describe("SignupForm", () => {
             emailRedirectTo: expect.stringContaining("/callback"),
           }),
         });
-        expect(onSuccess).toHaveBeenCalledWith(true);
+        expect(onSuccess).toHaveBeenCalledWith({
+          needsEmailVerification: true,
+          email: "test@example.com",
+        });
       });
     });
 
@@ -221,7 +224,10 @@ describe("SignupForm", () => {
       await user.click(screen.getByRole("button", { name: /create account/i }));
 
       await waitFor(() => {
-        expect(onSuccess).toHaveBeenCalledWith(false);
+        expect(onSuccess).toHaveBeenCalledWith({
+          needsEmailVerification: false,
+          email: "test@example.com",
+        });
       });
     });
 

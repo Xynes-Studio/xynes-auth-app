@@ -20,7 +20,10 @@ import { AuthDivider, AuthErrorAlert, OAuthButtons } from "../../ui";
 import { FormFieldError } from "./FormFieldError";
 
 interface SignupFormProps {
-  onSuccess?: (needsEmailVerification: boolean) => void;
+  onSuccess?: (result: {
+    needsEmailVerification: boolean;
+    email: string;
+  }) => void;
   redirectUrl?: string;
 }
 
@@ -89,7 +92,10 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
         }
 
         const needsEmailVerification = authData.user && !authData.session;
-        onSuccess?.(needsEmailVerification ?? false);
+        onSuccess?.({
+          needsEmailVerification: needsEmailVerification ?? false,
+          email: data.email.trim(),
+        });
       } catch (err) {
         const normalizedError = normalizeAuthError(err);
         setError(normalizedError);

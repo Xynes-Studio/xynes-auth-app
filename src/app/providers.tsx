@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ComponentProps, type ReactNode } from "react";
+import { Suspense, useMemo, type ComponentProps, type ReactNode } from "react";
 import {
   FeatureFlagsProvider,
   AuthProvider,
@@ -8,6 +8,7 @@ import {
 } from "@xynes/auth-sdk";
 import { IconSprite } from "@lumia-ui/icons";
 import { getFeatureFlagOverrides } from "@/lib/feature-flags/overrides";
+import { ProfileCompletionGate } from "@/components/auth/guards/ProfileCompletionGate";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -53,9 +54,13 @@ export function Providers({ children }: ProvidersProps) {
           allowedRedirectDomains,
         }}
       >
-        <WorkspaceProvider>
-          {children as unknown as WorkspaceProviderChildren}
-        </WorkspaceProvider>
+        <Suspense fallback={null}>
+          <ProfileCompletionGate>
+            <WorkspaceProvider>
+              {children as unknown as WorkspaceProviderChildren}
+            </WorkspaceProvider>
+          </ProfileCompletionGate>
+        </Suspense>
       </AuthProvider>
     </FeatureFlagsProvider>
   );

@@ -165,6 +165,11 @@ describe("OAuthClientCallbackPage error handling", () => {
       ok: true,
       json: async () => ({
         data: {
+          user: {
+            id: "user-1",
+            email: "user-1@example.com",
+            displayName: "User One",
+          },
           workspaces: [{ id: "ws-1" }, { id: "ws-2" }],
         },
       }),
@@ -217,6 +222,11 @@ describe("OAuthClientCallbackPage error handling", () => {
       ok: true,
       json: async () => ({
         data: {
+          user: {
+            id: "user-1",
+            email: "user-1@example.com",
+            displayName: "User One",
+          },
           workspaces: [{ id: "ws-first" }, { id: "ws-second" }],
         },
       }),
@@ -245,6 +255,60 @@ describe("OAuthClientCallbackPage error handling", () => {
       expect(window.localStorage.getItem("xynes_workspace_id")).toBe(
         "ws-first",
       );
+    });
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+    });
+    process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
+    vi.unstubAllGlobals();
+  });
+
+  it("redirects to complete-profile when OAuth user has no displayName", async () => {
+    mockParams.code = "good-code";
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          user: {
+            id: "user-1",
+            email: "user-1@example.com",
+            displayName: null,
+          },
+          workspaces: [{ id: "ws-1" }],
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:4100";
+
+    const originalLocation = window.location;
+    const mockLocation = {
+      href: "",
+      hash: "",
+      pathname: "/callback/client",
+      search: "",
+    };
+    Object.defineProperty(window, "location", {
+      value: mockLocation,
+      writable: true,
+    });
+
+    render(<OAuthClientCallbackPage />);
+
+    const expectedRedirect = "/dashboard/apps";
+    const expectedLocation = `/complete-profile?redirect=${encodeURIComponent(expectedRedirect)}`;
+
+    await waitFor(() => {
+      expect(mockLocation.href).toBe(expectedLocation);
     });
 
     Object.defineProperty(window, "location", {

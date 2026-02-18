@@ -7,7 +7,8 @@
  * @module oauth/callback-utils
  */
 
-import { getSafeRedirectUrl } from "@/lib/redirect";
+import { determinePostLoginDestination } from "@/lib/auth/post-login-destination";
+import { asRecord, unwrapGatewayEnvelope } from "@/lib/http/envelope";
 
 /**
  * API base URL for the accounts service.
@@ -35,6 +36,7 @@ export interface BootstrapResponse {
   success: boolean;
   isNewUser: boolean;
   hasWorkspaces: boolean;
+  requiresProfileCompletion: boolean;
 }
 
 /**
@@ -60,26 +62,41 @@ export async function bootstrapUser(
     });
 
     if (!response.ok) {
-      return { success: false, isNewUser: true, hasWorkspaces: false };
+      return {
+        success: false,
+        isNewUser: true,
+        hasWorkspaces: false,
+        requiresProfileCompletion: false,
+      };
     }
 
-    const data = await response.json();
+    const payload = unwrapGatewayEnvelope(await response.json());
+    const data = asRecord(payload) ?? {};
 
     // Check if user has workspaces to determine if they're new
-    const hasWorkspaces = Array.isArray(data.workspaces)
-      ? data.workspaces.length > 0
-      : false;
+    const workspaces = Array.isArray(data.workspaces) ? data.workspaces : [];
+    const hasWorkspaces = workspaces.length > 0;
+    const user = asRecord(data.user) ?? data;
+    const displayName =
+      typeof user?.displayName === "string" ? user.displayName : "";
+    const requiresProfileCompletion = !displayName.trim();
 
     return {
       success: true,
       isNewUser: !hasWorkspaces,
       hasWorkspaces,
+      requiresProfileCompletion,
     };
   } catch (error) {
     // Log error but don't block the flow
     // User can still use the app, bootstrap will happen on next API call
     console.error("Failed to bootstrap user:", error);
-    return { success: false, isNewUser: true, hasWorkspaces: false };
+    return {
+      success: false,
+      isNewUser: true,
+      hasWorkspaces: false,
+      requiresProfileCompletion: false,
+    };
   }
 }
 
@@ -87,9 +104,10 @@ export async function bootstrapUser(
  * Determines the appropriate redirect URL based on user state.
  *
  * Priority:
- * 1. If redirect param provided and valid, use it
- * 2. If user has no workspaces, go to onboarding
- * 3. Otherwise, go to workspace selector
+ * 1. If profile is incomplete, force /complete-profile with optional redirect
+ * 2. If redirect param provided and valid, use it
+ * 3. If user has no workspaces, go to onboarding
+ * 4. Otherwise, go to workspace selector
  *
  * @param redirectParam - Optional redirect URL from query params
  * @param bootstrapResult - Result from user bootstrap
@@ -101,15 +119,15 @@ export function determineRedirectUrl(
   bootstrapResult: BootstrapResponse,
   allowedDomains: string[]
 ): string {
-  // Determine default based on user state
-  const defaultRedirect = bootstrapResult.hasWorkspaces
-    ? DEFAULT_EXISTING_USER_REDIRECT
-    : DEFAULT_NEW_USER_REDIRECT;
+  // determinePostLoginDestination only needs workspace presence (array length).
+  const workspaces = bootstrapResult.hasWorkspaces
+    ? [{ slug: "workspace" }]
+    : [];
 
-  // If redirect param provided, validate and use it
-  if (redirectParam) {
-    return getSafeRedirectUrl(redirectParam, defaultRedirect, allowedDomains);
-  }
-
-  return defaultRedirect;
+  return determinePostLoginDestination({
+    workspaces,
+    redirectParam,
+    allowedRedirectDomains: allowedDomains,
+    requiresProfileCompletion: bootstrapResult.requiresProfileCompletion,
+  });
 }

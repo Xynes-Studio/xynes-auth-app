@@ -69,4 +69,26 @@ describe("determinePostLoginDestination", () => {
       }),
     ).toBe("/dashboard/apps");
   });
+
+  it("prioritizes complete-profile when display name is missing", () => {
+    expect(
+      determinePostLoginDestination({
+        workspaces: [{ slug: "ws-1" }],
+        redirectParam: "/dashboard/apps",
+        allowedRedirectDomains: allowedDomains,
+        requiresProfileCompletion: true,
+      }),
+    ).toBe("/complete-profile?redirect=%2Fdashboard%2Fapps");
+  });
+
+  it("avoids complete-profile redirect loops", () => {
+    expect(
+      determinePostLoginDestination({
+        workspaces: [{ slug: "ws-1" }],
+        redirectParam: "/complete-profile",
+        allowedRedirectDomains: allowedDomains,
+        requiresProfileCompletion: true,
+      }),
+    ).toBe("/complete-profile");
+  });
 });

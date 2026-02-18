@@ -30,7 +30,11 @@ describe("OAuth Callback Utilities", () => {
     it("should return success with hasWorkspaces false for new user", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ workspaces: [] }),
+        json: () =>
+          Promise.resolve({
+            user: { id: "u-1", email: "a@b.com", displayName: "Alice" },
+            workspaces: [],
+          }),
       });
 
       const result = await bootstrapUser("test-token");
@@ -39,6 +43,7 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: true,
         hasWorkspaces: false,
+        requiresProfileCompletion: false,
       });
     });
 
@@ -47,6 +52,7 @@ describe("OAuth Callback Utilities", () => {
         ok: true,
         json: () =>
           Promise.resolve({
+            user: { id: "u-1", email: "a@b.com", displayName: "Alice" },
             workspaces: [{ id: "ws-1", name: "My Workspace" }],
           }),
       });
@@ -57,6 +63,7 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: false,
         hasWorkspaces: true,
+        requiresProfileCompletion: false,
       });
     });
 
@@ -72,6 +79,7 @@ describe("OAuth Callback Utilities", () => {
         success: false,
         isNewUser: true,
         hasWorkspaces: false,
+        requiresProfileCompletion: false,
       });
     });
 
@@ -84,13 +92,17 @@ describe("OAuth Callback Utilities", () => {
         success: false,
         isNewUser: true,
         hasWorkspaces: false,
+        requiresProfileCompletion: false,
       });
     });
 
     it("should handle missing workspaces array in response", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ user: { id: "123" } }),
+        json: () =>
+          Promise.resolve({
+            user: { id: "123", email: "a@b.com", displayName: "Alice" },
+          }),
       });
 
       const result = await bootstrapUser("test-token");
@@ -99,13 +111,18 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: true,
         hasWorkspaces: false,
+        requiresProfileCompletion: false,
       });
     });
 
     it("should send correct authorization header", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ workspaces: [] }),
+        json: () =>
+          Promise.resolve({
+            user: { id: "u-1", email: "a@b.com", displayName: "Alice" },
+            workspaces: [],
+          }),
       });
 
       await bootstrapUser("my-access-token");
@@ -125,7 +142,11 @@ describe("OAuth Callback Utilities", () => {
     it("should handle empty workspaces array", async () => {
       mockFetch.mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ workspaces: [] }),
+        json: () =>
+          Promise.resolve({
+            user: { id: "u-1", email: "a@b.com", displayName: "Alice" },
+            workspaces: [],
+          }),
       });
 
       const result = await bootstrapUser("test-token");
@@ -139,6 +160,7 @@ describe("OAuth Callback Utilities", () => {
         ok: true,
         json: () =>
           Promise.resolve({
+            user: { id: "u-1", email: "a@b.com", displayName: "Alice" },
             workspaces: [
               { id: "ws-1", name: "Workspace 1" },
               { id: "ws-2", name: "Workspace 2" },
@@ -151,6 +173,20 @@ describe("OAuth Callback Utilities", () => {
       expect(result.hasWorkspaces).toBe(true);
       expect(result.isNewUser).toBe(false);
     });
+
+    it("should flag profile completion when displayName is missing", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            user: { id: "u-1", email: "a@b.com", displayName: null },
+            workspaces: [{ id: "ws-1", name: "Workspace 1" }],
+          }),
+      });
+
+      const result = await bootstrapUser("test-token");
+      expect(result.requiresProfileCompletion).toBe(true);
+    });
   });
 
   describe("determineRedirectUrl", () => {
@@ -161,6 +197,7 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: true,
         hasWorkspaces: false,
+        requiresProfileCompletion: false,
       };
 
       const result = determineRedirectUrl(null, bootstrapResult, allowedDomains);
@@ -173,6 +210,7 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: false,
         hasWorkspaces: true,
+        requiresProfileCompletion: false,
       };
 
       const result = determineRedirectUrl(null, bootstrapResult, allowedDomains);
@@ -185,6 +223,7 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: true,
         hasWorkspaces: false,
+        requiresProfileCompletion: false,
       };
 
       const result = determineRedirectUrl(
@@ -201,6 +240,7 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: false,
         hasWorkspaces: true,
+        requiresProfileCompletion: false,
       };
 
       const result = determineRedirectUrl(
@@ -217,6 +257,7 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: true,
         hasWorkspaces: false,
+        requiresProfileCompletion: false,
       };
 
       const result = determineRedirectUrl(
@@ -234,6 +275,7 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: false,
         hasWorkspaces: true,
+        requiresProfileCompletion: false,
       };
 
       const result = determineRedirectUrl(
@@ -251,6 +293,7 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: false,
         hasWorkspaces: true,
+        requiresProfileCompletion: false,
       };
 
       const result = determineRedirectUrl(
@@ -267,6 +310,7 @@ describe("OAuth Callback Utilities", () => {
         success: false,
         isNewUser: true,
         hasWorkspaces: false,
+        requiresProfileCompletion: false,
       };
 
       const result = determineRedirectUrl(null, bootstrapResult, allowedDomains);
@@ -280,11 +324,29 @@ describe("OAuth Callback Utilities", () => {
         success: true,
         isNewUser: true,
         hasWorkspaces: false,
+        requiresProfileCompletion: false,
       };
 
       const result = determineRedirectUrl("", bootstrapResult, allowedDomains);
 
       expect(result).toBe(DEFAULT_NEW_USER_REDIRECT);
+    });
+
+    it("should prioritize complete-profile redirect when profile is incomplete", () => {
+      const bootstrapResult: BootstrapResponse = {
+        success: true,
+        isNewUser: false,
+        hasWorkspaces: true,
+        requiresProfileCompletion: true,
+      };
+
+      const result = determineRedirectUrl(
+        "/dashboard/apps",
+        bootstrapResult,
+        allowedDomains
+      );
+
+      expect(result).toBe("/complete-profile?redirect=%2Fdashboard%2Fapps");
     });
   });
 
