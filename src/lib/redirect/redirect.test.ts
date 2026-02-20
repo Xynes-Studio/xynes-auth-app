@@ -67,6 +67,12 @@ describe("Redirect utilities re-exports", () => {
         false
       );
     });
+
+    it("should reject non-http protocols even for allowlisted hosts", () => {
+      expect(
+        isValidRedirectUrl("ftp://cms.xynes.com/dashboard", allowedDomains)
+      ).toBe(false);
+    });
   });
 
   describe("getSafeRedirectUrl", () => {

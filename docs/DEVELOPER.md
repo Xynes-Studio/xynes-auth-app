@@ -179,6 +179,9 @@ Rules:
 
 - Never expose secrets in client code.
 - Use safe redirect helpers and allowlists (see `@xynes/auth-sdk` redirect utils).
+- Redirect primitive ownership:
+	- `isValidRedirectUrl`, `getSafeRedirectUrl`, and `buildAuthRedirectUrl` must come from `@xynes/auth-sdk` (single source of truth).
+	- `src/lib/redirect/index.ts` should only contain auth-app specific allowlist configuration (`getAllowedRedirectDomains`) and re-export SDK redirect primitives.
 - Do not log tokens or PII.
 - Enforce feature flags defensively (UI + backend checks).
 
