@@ -37,9 +37,13 @@ let authState: AuthState = {
   user: null,
 };
 
-vi.mock("@xynes/auth-sdk", () => ({
-  useAuth: () => authState,
-}));
+vi.mock("@xynes/auth-sdk", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@xynes/auth-sdk")>();
+  return {
+    ...actual,
+    useAuth: () => authState,
+  };
+});
 
 // Mock LoginForm component
 vi.mock("@/components/auth/forms/LoginForm", () => ({

@@ -126,6 +126,16 @@ describe("logout-utils", () => {
 
       expect(result).toBe("/login");
     });
+
+    it("should reject non-http protocols on allowlisted hosts", () => {
+      const result = getPostLogoutRedirectUrl(
+        "ftp://cms.xynes.com/dashboard",
+        "/login",
+        ["xynes.com"]
+      );
+
+      expect(result).toBe("/login");
+    });
   });
 
   describe("SUPABASE_COOKIE_PREFIXES", () => {

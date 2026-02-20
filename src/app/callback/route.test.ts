@@ -154,6 +154,17 @@ describe("OAuth Callback Route", () => {
 
       expect(NextResponse.redirect).toHaveBeenCalled();
     });
+
+    it("should preserve external redirect path and query exactly", async () => {
+      const target = "https://cms.xynes.com/acme/content?tab=draft&page=2";
+      const request = new Request(
+        `http://localhost:3000/callback?code=valid-auth-code&redirect=${encodeURIComponent(target)}`
+      );
+
+      await GET(request);
+
+      expect(NextResponse.redirect).toHaveBeenCalledWith(target);
+    });
   });
 
   describe("failed OAuth callback", () => {

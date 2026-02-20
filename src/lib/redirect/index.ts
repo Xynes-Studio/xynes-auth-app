@@ -1,112 +1,42 @@
 /**
  * Auth App Redirect Utilities
  *
- * Server-safe redirect validation utilities.
- * These are pure functions that work in both client and server contexts.
+ * Canonical redirect primitives are sourced from @xynes/auth-sdk to avoid
+ * contract drift between apps and SDK.
  *
  * @module redirect
  */
 
-/**
- * Validates if a redirect URL is safe to redirect to.
- * Prevents open redirect attacks by checking against allowed domains.
- *
- * @param url - The URL to validate
- * @param allowedDomains - List of allowed domains (e.g., ['xynes.com', 'localhost:3000'])
- * @returns true if the URL is safe to redirect to
- */
-export function isValidRedirectUrl(
-  url: string,
-  allowedDomains: string[]
-): boolean {
-  if (!url || typeof url !== "string") {
-    return false;
+export {
+  isValidRedirectUrl,
+  getSafeRedirectUrl,
+  buildAuthRedirectUrl,
+} from "@xynes/auth-sdk";
+
+function normalizeAllowedDomain(entry: string): string | null {
+  const candidate = entry.trim().toLowerCase();
+  if (!candidate) return null;
+  if (
+    candidate.includes("://") ||
+    candidate.includes("/") ||
+    candidate.includes("?") ||
+    candidate.includes("#")
+  ) {
+    return null;
   }
 
-  // Reject javascript: and data: URLs
-  const lowerUrl = url.toLowerCase().trim();
-  if (lowerUrl.startsWith("javascript:") || lowerUrl.startsWith("data:")) {
-    return false;
+  const match = candidate.match(/^([a-z0-9.-]+)(?::(\d{1,5}))?$/);
+  if (!match) return null;
+
+  const port = match[2];
+  if (port) {
+    const portNumber = Number(port);
+    if (portNumber < 1 || portNumber > 65535) {
+      return null;
+    }
   }
 
-  // Allow relative URLs (they're safe since they stay on the same origin)
-  if (url.startsWith("/") && !url.startsWith("//")) {
-    return true;
-  }
-
-  try {
-    const parsedUrl = new URL(url);
-    const hostname = parsedUrl.hostname.toLowerCase();
-
-    // Check if the hostname matches any allowed domain
-    return allowedDomains.some((domain) => {
-      const lowerDomain = domain.toLowerCase();
-
-      // Handle localhost with port (e.g., localhost:3000)
-      if (lowerDomain.includes(":")) {
-        const [domainHost, domainPort] = lowerDomain.split(":");
-        return hostname === domainHost && parsedUrl.port === domainPort;
-      }
-
-      // Exact match or subdomain match
-      // e.g., 'xynes.com' matches 'xynes.com', 'cms.xynes.com', 'auth.xynes.com'
-      return hostname === lowerDomain || hostname.endsWith(`.${lowerDomain}`);
-    });
-  } catch {
-    // Invalid URL
-    return false;
-  }
-}
-
-/**
- * Returns a safe redirect URL, falling back to a default if the URL is invalid.
- *
- * @param url - The URL to validate
- * @param defaultUrl - The fallback URL if validation fails
- * @param allowedDomains - List of allowed domains
- * @returns The validated URL or the default URL
- */
-export function getSafeRedirectUrl(
-  url: string,
-  defaultUrl: string,
-  allowedDomains: string[]
-): string {
-  if (!url) {
-    return defaultUrl;
-  }
-
-  // Allow relative URLs
-  if (url.startsWith("/") && !url.startsWith("//")) {
-    return url;
-  }
-
-  if (isValidRedirectUrl(url, allowedDomains)) {
-    return url;
-  }
-
-  return defaultUrl;
-}
-
-/**
- * Builds a URL to the auth app with an optional redirect parameter.
- *
- * @param authAppUrl - Base URL of the auth app (e.g., 'https://auth.xynes.com')
- * @param path - Path to navigate to (e.g., 'login', 'signup')
- * @param redirectUrl - Optional URL to redirect back to after auth
- * @returns The complete auth app URL
- */
-export function buildAuthRedirectUrl(
-  authAppUrl: string,
-  path: "login" | "signup" | "logout",
-  redirectUrl?: string
-): string {
-  const url = new URL(`/${path}`, authAppUrl);
-
-  if (redirectUrl) {
-    url.searchParams.set("redirect", redirectUrl);
-  }
-
-  return url.toString();
+  return candidate;
 }
 
 /**
@@ -116,27 +46,31 @@ export function buildAuthRedirectUrl(
  * @returns Array of allowed domains for redirects
  */
 export function getAllowedRedirectDomains(): string[] {
-  const domains: string[] = [];
+  const domains = new Set<string>(["xynes.com"]);
 
-  // Add xynes production domains
-  domains.push("xynes.com");
-
-  // Add localhost for development
   if (process.env.NODE_ENV === "development") {
-    domains.push("localhost:3000");
-    domains.push("localhost:3001");
-    domains.push("localhost:3002");
+    domains.add("localhost:3000");
+    domains.add("localhost:3001");
+    domains.add("localhost:3002");
   }
 
-  // Add custom allowed domains from environment variable
-  const customDomains = process.env.NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS;
-  if (customDomains) {
-    const parsed = customDomains
+  const envAllowlist = [
+    process.env.NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS,
+    process.env.ALLOWED_REDIRECT_DOMAINS,
+    process.env.PUBLIC_ALLOWED_REDIRECT_DOMAINS,
+  ]
+    .map((value) => value?.trim())
+    .find((value): value is string => Boolean(value));
+
+  if (envAllowlist) {
+    const parsed = envAllowlist
       .split(",")
-      .map((d) => d.trim())
-      .filter(Boolean);
-    domains.push(...parsed);
+      .map((d) => normalizeAllowedDomain(d))
+      .filter((d): d is string => Boolean(d));
+    for (const domain of parsed) {
+      domains.add(domain);
+    }
   }
 
-  return domains;
+  return Array.from(domains);
 }
