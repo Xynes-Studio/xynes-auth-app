@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   isValidRedirectUrl,
   getSafeRedirectUrl,
   buildAuthRedirectUrl,
+  getAllowedRedirectDomains,
 } from "./index";
-
 describe("Redirect utilities re-exports", () => {
   // Default allowed domains for testing
   const allowedDomains = ["xynes.com", "localhost:3000"];
@@ -160,6 +160,62 @@ describe("Redirect utilities re-exports", () => {
     it("should handle trailing slash in base URL", () => {
       const result = buildAuthRedirectUrl("https://auth.xynes.com/", "login");
       expect(result).toBe("https://auth.xynes.com/login");
+    });
+  });
+
+  describe("getAllowedRedirectDomains", () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+
+    beforeEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      if (typeof originalNodeEnv === "string") {
+        vi.stubEnv("NODE_ENV", originalNodeEnv);
+      }
+    });
+
+    it("prioritizes NEXT_PUBLIC allowlist over non-public env aliases", () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS", "A.com,B.com");
+      vi.stubEnv("ALLOWED_REDIRECT_DOMAINS", "ignored.com");
+      vi.stubEnv("PUBLIC_ALLOWED_REDIRECT_DOMAINS", "ignored-public.com");
+
+      expect(getAllowedRedirectDomains()).toEqual(["xynes.com", "a.com", "b.com"]);
+    });
+
+    it("falls back to ALLOWED_REDIRECT_DOMAINS when NEXT_PUBLIC is absent", () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS", "");
+      vi.stubEnv("ALLOWED_REDIRECT_DOMAINS", "cms.xynes.com");
+
+      expect(getAllowedRedirectDomains()).toEqual(["xynes.com", "cms.xynes.com"]);
+    });
+
+    it("falls back to PUBLIC_ALLOWED_REDIRECT_DOMAINS as last source", () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS", "");
+      vi.stubEnv("ALLOWED_REDIRECT_DOMAINS", "");
+      vi.stubEnv("PUBLIC_ALLOWED_REDIRECT_DOMAINS", "console.xynes.com");
+
+      expect(getAllowedRedirectDomains()).toEqual(["xynes.com", "console.xynes.com"]);
+    });
+
+    it("normalizes case, de-duplicates, and excludes malformed entries", () => {
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv(
+        "NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS",
+        " Example.com ,example.com,EXAMPLE.com:3000,example.com:3000,https://bad.com,bad.com/path,bad.com?x=1,bad.com#frag,localhost:70000,good-host.com "
+      );
+
+      expect(getAllowedRedirectDomains()).toEqual([
+        "xynes.com",
+        "example.com",
+        "example.com:3000",
+        "good-host.com",
+      ]);
     });
   });
 });
