@@ -180,6 +180,22 @@ describe("Logout Route Handler", () => {
       );
     });
 
+    it("preserves exact external return path and query for CMS protected routes", async () => {
+      const target =
+        "https://cms.xynes.com/acme/content?tab=drafts&view=list";
+      const request = createMockRequest(
+        "POST",
+        `http://localhost:3000/logout?redirect=${encodeURIComponent(target)}`,
+      );
+
+      const response = await POST(request);
+
+      expect(response.status).toBe(307);
+      expect(response.headers.get("Location")).toBe(
+        `http://localhost:3000/login?redirect=${encodeURIComponent(target)}`,
+      );
+    });
+
     it("should reject invalid redirect URLs", async () => {
       const request = createMockRequest(
         "POST",
