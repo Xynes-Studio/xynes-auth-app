@@ -66,7 +66,7 @@ describe("sortApps", () => {
 
 describe("buildCmsLaunchUrl", () => {
   it("builds workspace-scoped localhost URL for valid slug", () => {
-    expect(buildCmsLaunchUrl("acme-team")).toBe("http://localhost:3000/acme-team");
+    expect(buildCmsLaunchUrl("acme-team")).toBe("http://localhost:3000/dashboard/acme-team");
   });
 
   it("falls back to root URL when slug is missing or invalid", () => {

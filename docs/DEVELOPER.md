@@ -250,8 +250,16 @@ Apps V1 behavior contract:
 
 Apps V1 security contract:
 - App launch URL must be constructed via `buildCmsLaunchUrl` only.
+- CMS launch URLs must target the dashboard namespace (`/dashboard/:workspaceSlug`), not legacy flat workspace paths.
 - Workspace slug must be validated/sanitized before URL composition.
 - New-tab launches must use `noopener,noreferrer`.
+
+Apps V1 maintainability contract (Next.js + React):
+- Keep CMS URL composition centralized in `src/lib/dashboard/apps/apps-catalog.ts` (no inline CMS URL strings in components).
+- Route/components should consume helpers; helper behavior changes must be validated with Tier 1 tests before UI tests.
+- Any future CMS route-contract change must update both:
+  - helper tests (`src/lib/dashboard/apps/apps-catalog.test.ts`)
+  - consuming integration tests (`src/app/dashboard/apps/components/AppsDashboardContent.test.tsx`)
 
 Apps V1 theming contract:
 - Do not use hardcoded light-only dashboard surface colors.
