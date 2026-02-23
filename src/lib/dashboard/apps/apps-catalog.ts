@@ -54,7 +54,7 @@ export function buildCmsLaunchUrl(workspaceSlug?: string | null): string {
     return CMS_BASE_URL;
   }
 
-  return `${CMS_BASE_URL}/${safeSlug}`;
+  return `${CMS_BASE_URL}/dashboard/${safeSlug}`;
 }
 
 export function getAppsUiState(resultCount: number): {
