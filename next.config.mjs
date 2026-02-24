@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  compress: false,
   images: {
     remotePatterns: [
       {
@@ -44,7 +45,7 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(), browsing-topics=(), payment=(), usb=(), vr=()',
+            value: 'camera=(), microphone=(), geolocation=(), browsing-topics=(), payment=(), usb=()',
           },
           {
             key: 'Strict-Transport-Security',

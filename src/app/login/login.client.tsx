@@ -15,6 +15,55 @@ import { determinePostLoginDestination } from "@/lib/auth/post-login-destination
  * Default redirect URL after successful login.
  */
 const DEFAULT_REDIRECT = "/dashboard/apps";
+const AUTH_LOADING_TIMEOUT_MS = 4000;
+const LOGIN_REDIRECT_LOOP_KEY = "xynes_auth_login_redirect_loop";
+const LOGIN_REDIRECT_LOOP_WINDOW_MS = 15000;
+const LOGIN_REDIRECT_MAX_ATTEMPTS = 2;
+
+type RedirectLoopState = {
+  redirectIdentity: string;
+  firstAt: number;
+  attempts: number;
+};
+
+function getRedirectIdentity(redirectParam: string | null): string {
+  const value = redirectParam?.trim();
+  return value && value.length > 0 ? value : "__default__";
+}
+
+function readRedirectLoopState(): RedirectLoopState | null {
+  try {
+    const raw = window.sessionStorage.getItem(LOGIN_REDIRECT_LOOP_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as RedirectLoopState;
+    if (
+      typeof parsed.redirectIdentity !== "string" ||
+      typeof parsed.firstAt !== "number" ||
+      typeof parsed.attempts !== "number"
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeRedirectLoopState(value: RedirectLoopState): void {
+  try {
+    window.sessionStorage.setItem(LOGIN_REDIRECT_LOOP_KEY, JSON.stringify(value));
+  } catch {
+    // Ignore browser storage failures.
+  }
+}
+
+function clearRedirectLoopState(): void {
+  try {
+    window.sessionStorage.removeItem(LOGIN_REDIRECT_LOOP_KEY);
+  } catch {
+    // Ignore browser storage failures.
+  }
+}
 
 function LoginContent() {
   const router = useRouter();
@@ -28,6 +77,10 @@ function LoginContent() {
   const redirectParam = searchParams.get("redirect");
   const errorParam = searchParams.get("error");
   const [postLoginPending, setPostLoginPending] = useState(false);
+  const [authLoadingTimeoutReached, setAuthLoadingTimeoutReached] =
+    useState(false);
+  const [suppressAuthenticatedRedirect, setSuppressAuthenticatedRedirect] =
+    useState(false);
 
   const allowedDomains = useMemo(() => getAllowedRedirectDomains(), []);
 
@@ -44,6 +97,29 @@ function LoginContent() {
   const requiresProfileCompletion = Boolean(
     isAuthenticated && !user?.displayName?.trim(),
   );
+
+  useEffect(() => {
+    if (!isAuthLoading || isAuthenticated) {
+      setAuthLoadingTimeoutReached(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setAuthLoadingTimeoutReached(true);
+    }, AUTH_LOADING_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [isAuthenticated, isAuthLoading]);
+
+  useEffect(() => {
+    if (isAuthenticated || isAuthLoading) {
+      return;
+    }
+    setSuppressAuthenticatedRedirect(false);
+    if (!redirectParam) {
+      clearRedirectLoopState();
+    }
+  }, [isAuthenticated, isAuthLoading, redirectParam]);
 
   const handleSuccess = useCallback(() => {
     if (!redirectParam && (workspaces ?? []).length === 0) {
@@ -75,6 +151,25 @@ function LoginContent() {
     if (isAuthLoading) return;
     if (!isAuthenticated) return;
 
+    const redirectIdentity = getRedirectIdentity(redirectParam);
+    const now = Date.now();
+    const currentLoopState = readRedirectLoopState();
+    const sameRedirect =
+      currentLoopState?.redirectIdentity === redirectIdentity &&
+      now - currentLoopState.firstAt <= LOGIN_REDIRECT_LOOP_WINDOW_MS;
+
+    if (sameRedirect && (currentLoopState?.attempts ?? 0) >= LOGIN_REDIRECT_MAX_ATTEMPTS) {
+      setSuppressAuthenticatedRedirect(true);
+      clearRedirectLoopState();
+      return;
+    }
+
+    writeRedirectLoopState({
+      redirectIdentity,
+      firstAt: sameRedirect ? (currentLoopState?.firstAt ?? now) : now,
+      attempts: sameRedirect ? (currentLoopState?.attempts ?? 0) + 1 : 1,
+    });
+
     const destination = determinePostLoginDestination({
       workspaces: workspaces ?? [],
       redirectParam,
@@ -100,7 +195,10 @@ function LoginContent() {
     postLoginPending,
   ]);
 
-  if (isAuthLoading || isAuthenticated) {
+  if (
+    (isAuthLoading && !authLoadingTimeoutReached) ||
+    (isAuthenticated && !suppressAuthenticatedRedirect)
+  ) {
     return (
       <AuthPageSkeleton
         title={isAuthenticated ? "Redirecting" : "Loading login"}
