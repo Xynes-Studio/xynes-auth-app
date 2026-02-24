@@ -31,9 +31,9 @@ export async function middleware(req: NextRequest) {
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' https://cdn.supabase.io ${isNonProd ? "'unsafe-eval' 'unsafe-inline'" : ''};
-    style-src 'self' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src 'self' data: https:;
-    font-src 'self';
+    font-src 'self' https://fonts.gstatic.com;
     connect-src ${Array.from(sources).join(' ')};
     frame-ancestors 'none';
     base-uri 'self';
