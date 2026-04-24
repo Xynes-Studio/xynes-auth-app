@@ -84,7 +84,7 @@ describe("AppsDashboardContent", () => {
     await user.click(screen.getByText("Xynes CMS"));
 
     expect(window.open).toHaveBeenCalledWith(
-      "http://localhost:3000/dashboard/acme-team",
+      "http://localhost:3000/dashboard/acme-team/content",
       "_blank",
       "noopener,noreferrer",
     );

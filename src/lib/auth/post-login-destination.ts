@@ -26,6 +26,27 @@ function isCompleteProfilePath(url: string): boolean {
   return false;
 }
 
+function getRedirectPathname(url: string): string {
+  try {
+    if (url.startsWith("/") && !url.startsWith("//")) {
+      return new URL(url, "http://xynes.local").pathname;
+    }
+    return new URL(url).pathname;
+  } catch {
+    return "";
+  }
+}
+
+function isBlockedWhenWorkspaceUnavailable(url: string): boolean {
+  const pathname = getRedirectPathname(url);
+  return (
+    pathname === "/dashboard" ||
+    pathname.startsWith("/dashboard/") ||
+    pathname === "/workspaces" ||
+    pathname.startsWith("/workspaces/")
+  );
+}
+
 function toCompleteProfileDestination(target: string): string {
   if (!target || isCompleteProfilePath(target)) {
     return "/complete-profile";
@@ -43,11 +64,14 @@ export function determinePostLoginDestination({
 
   const count = safeWorkspaces.length;
   const defaultDestination = count === 0 ? "/onboarding" : "/dashboard/apps";
-
   const candidate = redirectParam ? redirectParam.trim() : "";
-  const resolved = candidate
+  const safeRedirect = candidate
     ? getSafeRedirectUrl(candidate, defaultDestination, allowedRedirectDomains)
     : defaultDestination;
+  const resolved =
+    count === 0 && isBlockedWhenWorkspaceUnavailable(safeRedirect)
+      ? defaultDestination
+      : safeRedirect;
 
   if (requiresProfileCompletion) {
     if (isLoginPath(resolved)) {

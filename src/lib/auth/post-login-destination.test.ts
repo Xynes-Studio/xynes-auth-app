@@ -40,14 +40,34 @@ describe("determinePostLoginDestination", () => {
     ).toBe("/dashboard/apps");
   });
 
-  it("prefers a safe redirect param when provided", () => {
+  it("routes users with 0 workspaces to onboarding even when a safe dashboard redirect is provided", () => {
     expect(
       determinePostLoginDestination({
         workspaces: [],
-        redirectParam: "/workspaces",
+        redirectParam: "http://localhost:3000/dashboard/xynes-studio-llp/content",
         allowedRedirectDomains: allowedDomains,
       }),
-    ).toBe("/workspaces");
+    ).toBe("/onboarding");
+  });
+
+  it("allows non-dashboard redirects such as invite acceptance when user has 0 workspaces", () => {
+    expect(
+      determinePostLoginDestination({
+        workspaces: [],
+        redirectParam: "/invite/test",
+        allowedRedirectDomains: allowedDomains,
+      }),
+    ).toBe("/invite/test");
+  });
+
+  it("prefers a safe redirect param when the user has at least one workspace", () => {
+    expect(
+      determinePostLoginDestination({
+        workspaces: [{ slug: "ws-1" }],
+        redirectParam: "http://localhost:3000/dashboard/xynes-studio-llp/content",
+        allowedRedirectDomains: allowedDomains,
+      }),
+    ).toBe("http://localhost:3000/dashboard/xynes-studio-llp/content");
   });
 
   it("falls back to default destination for unsafe redirect param", () => {
@@ -79,6 +99,28 @@ describe("determinePostLoginDestination", () => {
         requiresProfileCompletion: true,
       }),
     ).toBe("/complete-profile?redirect=%2Fdashboard%2Fapps");
+  });
+
+  it("routes profile completion back to onboarding when user has 0 workspaces", () => {
+    expect(
+      determinePostLoginDestination({
+        workspaces: [],
+        redirectParam: "http://localhost:3000/dashboard/xynes-studio-llp/content",
+        allowedRedirectDomains: allowedDomains,
+        requiresProfileCompletion: true,
+      }),
+    ).toBe("/complete-profile?redirect=%2Fonboarding");
+  });
+
+  it("does not route to complete-profile when display name is already present", () => {
+    expect(
+      determinePostLoginDestination({
+        workspaces: [{ slug: "ws-1" }],
+        redirectParam: "/dashboard/apps",
+        allowedRedirectDomains: allowedDomains,
+        requiresProfileCompletion: false,
+      }),
+    ).toBe("/dashboard/apps");
   });
 
   it("avoids complete-profile redirect loops", () => {

@@ -61,4 +61,18 @@ describe("ProfileCompletionGate", () => {
       expect(mockReplace).not.toHaveBeenCalled();
     });
   });
+
+  it("does not redirect authenticated users whose displayName is present", async () => {
+    mockAuthState.user = { displayName: "Alice Doe" };
+
+    render(
+      <ProfileCompletionGate>
+        <div>content</div>
+      </ProfileCompletionGate>,
+    );
+
+    await waitFor(() => {
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+  });
 });

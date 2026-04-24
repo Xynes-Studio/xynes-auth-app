@@ -133,7 +133,28 @@ describe("OAuth Callback Route", () => {
       expect(redirectCall.toString()).toContain("/dashboard/apps");
     });
 
-    it("should redirect to custom redirect URL after successful exchange", async () => {
+    it("should redirect to onboarding when a new user receives a dashboard redirect", async () => {
+      const request = new Request(
+        "http://localhost:3000/callback?code=valid-auth-code&redirect=/dashboard"
+      );
+
+      await GET(request);
+
+      expect(NextResponse.redirect).toHaveBeenCalled();
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
+      expect(redirectCall.toString()).toContain("/onboarding");
+    });
+
+    it("should redirect to custom dashboard URL when the user has a workspace", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            user: { id: "test-user-id", email: "test@example.com", displayName: "Test User" },
+            workspaces: [{ id: "ws-1", name: "Test" }],
+          }),
+      });
+
       const request = new Request(
         "http://localhost:3000/callback?code=valid-auth-code&redirect=/dashboard"
       );
@@ -145,7 +166,7 @@ describe("OAuth Callback Route", () => {
       expect(redirectCall.toString()).toContain("/dashboard");
     });
 
-    it("should redirect to external allowed domain", async () => {
+    it("should ignore external dashboard redirects when the user has no workspace", async () => {
       const request = new Request(
         "http://localhost:3000/callback?code=valid-auth-code&redirect=https://cms.xynes.com/dashboard"
       );
@@ -153,6 +174,8 @@ describe("OAuth Callback Route", () => {
       await GET(request);
 
       expect(NextResponse.redirect).toHaveBeenCalled();
+      const redirectCall = vi.mocked(NextResponse.redirect).mock.calls[0][0];
+      expect(redirectCall.toString()).toContain("/onboarding");
     });
 
     it("should preserve external redirect path and query exactly", async () => {

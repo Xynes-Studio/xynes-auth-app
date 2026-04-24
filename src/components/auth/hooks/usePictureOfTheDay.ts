@@ -55,12 +55,15 @@ function isSafePicture(picture: PictureOfTheDayData): boolean {
 }
 
 export function usePictureOfTheDay() {
-  const [picture, setPicture] = useState<PictureOfTheDayData | null>(() =>
-    getCachedPicture(),
-  );
+  const [picture, setPicture] = useState<PictureOfTheDayData | null>(null);
 
   useEffect(() => {
     let isMounted = true;
+
+    const cachedPicture = getCachedPicture();
+    if (cachedPicture) {
+      setPicture(cachedPicture);
+    }
 
     const loadPicture = async () => {
       try {

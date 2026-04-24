@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import type { ImgHTMLAttributes } from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import PictureOfTheDay from "./PictureOfTheDay";
 import {
   PICTURE_OF_THE_DAY_CACHE_KEY,
@@ -24,7 +26,41 @@ describe("PictureOfTheDay", () => {
     window.localStorage.clear();
   });
 
-  it("renders cached picture immediately and refreshes from server response", async () => {
+  it("does not render cached picture during the initial client render", () => {
+    const cachedPicture = {
+      id: 7,
+      alt: "Cached valley",
+      imageUrl: "https://images.pexels.com/photos/7/pexels-photo-7.jpeg",
+      photographerName: "Cached Author",
+      photographerProfileUrl: "https://www.pexels.com/@cached-author",
+      pexelsPhotoUrl: "https://images.pexels.com/photos/7/pexels-photo-7.jpeg",
+    };
+
+    window.localStorage.setItem(
+      PICTURE_OF_THE_DAY_CACHE_KEY,
+      JSON.stringify(createPictureOfTheDayCacheEntry(cachedPicture)),
+    );
+
+    mockFetch.mockImplementationOnce(() => new Promise(() => {}));
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    act(() => {
+      flushSync(() => {
+        root.render(<PictureOfTheDay />);
+      });
+      expect(container).not.toHaveTextContent("Cached Author");
+    });
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("renders cached picture after hydration and refreshes from server response", async () => {
     const cachedPicture = {
       id: 7,
       alt: "Cached valley",
@@ -56,7 +92,7 @@ describe("PictureOfTheDay", () => {
 
     render(<PictureOfTheDay />);
 
-    expect(screen.getByText("Cached Author")).toBeInTheDocument();
+    expect(await screen.findByText("Cached Author")).toBeInTheDocument();
     expect(await screen.findByText("Updated Author")).toBeInTheDocument();
     expect(mockFetch).toHaveBeenCalledTimes(1);
 

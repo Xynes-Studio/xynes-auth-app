@@ -164,7 +164,11 @@ src/
 │   │   ├── navigation/  # Auth route navigation primitives
 │   │   └── layout/      # Shared auth entry layout + visuals
 ├── lib/                # Pure utilities & SDK re-exports (Tier 1)
-│   └── profile/         # Profile/me bootstrap API utilities
+│   ├── auth/            # Post-login destination logic
+│   ├── dashboard/       # Dashboard app catalog & CMS launch helpers
+│   ├── profile/         # Profile/me bootstrap API utilities
+│   ├── redirect/        # Safe redirect / allowlist helpers
+│   └── workspace/       # Workspace schemas, validation, console URL builders
 └── test/               # Shared test utilities
 ```
 
@@ -185,6 +189,34 @@ Rules:
 	- If SDK redirect behavior changes, mirror the same logic in `src/lib/redirect/index.ts` and update tests in the same PR.
 - Do not log tokens or PII.
 - Enforce feature flags defensively (UI + backend checks).
+
+## Cross-App Workspace Navigation (Console URL Standard)
+
+When navigating a user to the CMS console (e.g., after workspace creation or workspace switch), always use the canonical URL builder:
+
+```tsx
+import { buildCmsWorkspaceContentUrl, WORKSPACE_ADMIN_FALLBACK_PATH } from "@/lib/workspace";
+
+// Full cross-app navigation
+const url = buildCmsWorkspaceContentUrl({
+  baseUrl: process.env.NEXT_PUBLIC_CONSOLE_URL,
+  workspaceSlug: workspace.slug,
+});
+
+// Fallback when console URL is unset → "/dashboard/apps"
+```
+
+### Rules
+- The canonical CMS workspace path is `/dashboard/{slug}/content`.
+- Workspace slugs are validated against `^[a-z][a-z0-9-]{1,62}$` to prevent path traversal.
+- Console base URLs are validated to reject `javascript:`, `//`, and non-HTTP schemes.
+- When the CMS console URL env var is unset or the slug is invalid, navigation falls back to the workspace admin path (`/dashboard/apps`).
+- Users with 0 workspaces are blocked from `/dashboard/*` and `/workspaces/*` redirects and routed to `/onboarding` instead. This is enforced in `determinePostLoginDestination`.
+
+### Source files
+- `src/lib/workspace/console-url.ts`: slug normalization, base URL validation, URL builder.
+- `src/lib/workspace/console-url.test.ts`: unit tests (slug validation, URL injection attacks, fallbacks).
+- `src/lib/auth/post-login-destination.ts`: workspace-gated redirect blocking.
 
 ## Accessibility Standards
 
