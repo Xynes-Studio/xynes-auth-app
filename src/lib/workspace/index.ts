@@ -29,3 +29,11 @@ export {
   createWorkspaceFormSchema,
   type CreateWorkspaceFormData,
 } from "./schemas";
+
+export {
+  WORKSPACE_ADMIN_FALLBACK_PATH,
+  normalizeWorkspaceSlugForCmsPath,
+  buildCmsWorkspaceContentPath,
+  normalizeConsoleBaseUrl,
+  buildCmsWorkspaceContentUrl,
+} from "./console-url";

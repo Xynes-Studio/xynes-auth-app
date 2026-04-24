@@ -204,17 +204,8 @@ describe("LoginPage", () => {
   });
 
   describe("navigation", () => {
-    it("should redirect on successful login", async () => {
+    it("should redirect successful login with no workspaces to onboarding", async () => {
       const user = userEvent.setup();
-
-      // Mock window.location
-      const originalLocation = window.location;
-      const assign = vi.fn();
-      const mockLocation = { href: "", assign };
-      Object.defineProperty(window, "location", {
-        value: mockLocation,
-        writable: true,
-      });
 
       render(<LoginPage />);
 
@@ -225,13 +216,7 @@ describe("LoginPage", () => {
       await user.click(screen.getByTestId("mock-login-button"));
 
       await waitFor(() => {
-        expect(assign).toHaveBeenCalledWith("https://cms.xynes.com/dashboard");
-      });
-
-      // Restore
-      Object.defineProperty(window, "location", {
-        value: originalLocation,
-        writable: true,
+        expect(mockReplace).toHaveBeenCalledWith("/onboarding");
       });
     });
   });
@@ -256,6 +241,22 @@ describe("LoginPage", () => {
 
     it("should redirect authenticated user with 0 workspaces to onboarding", async () => {
       redirectValue = null;
+      authState = {
+        isAuthenticated: true,
+        isLoading: false,
+        workspaces: [],
+        user: { displayName: "Alice" },
+      };
+
+      render(<LoginPage />);
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/onboarding");
+      });
+    });
+
+    it("should redirect authenticated user with 0 workspaces to onboarding even with a CMS redirect", async () => {
+      redirectValue = "http://localhost:3000/dashboard/xynes-studio-llp/content";
       authState = {
         isAuthenticated: true,
         isLoading: false,
@@ -323,6 +324,25 @@ describe("LoginPage", () => {
           "/complete-profile?redirect=%2Fdashboard%2Fapps",
         );
       });
+    });
+
+    it("should not redirect authenticated user with displayName to complete-profile", async () => {
+      redirectValue = "/dashboard/apps";
+      authState = {
+        isAuthenticated: true,
+        isLoading: false,
+        workspaces: [{ slug: "ws-1" }],
+        user: { displayName: "Alice" },
+      };
+
+      render(<LoginPage />);
+
+      await waitFor(() => {
+        expect(mockReplace).toHaveBeenCalledWith("/dashboard/apps");
+      });
+      expect(mockReplace).not.toHaveBeenCalledWith(
+        "/complete-profile?redirect=%2Fdashboard%2Fapps",
+      );
     });
   });
 });

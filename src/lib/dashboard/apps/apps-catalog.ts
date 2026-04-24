@@ -1,3 +1,5 @@
+import { buildCmsWorkspaceContentUrl } from "@/lib/workspace";
+
 export interface AppCatalogItem {
   id: string;
   title: string;
@@ -8,7 +10,6 @@ export interface AppCatalogItem {
 export type AppsSortOption = "date_desc" | "date_asc" | "name_asc" | "name_desc";
 
 const CMS_BASE_URL = "http://localhost:3000";
-const WORKSPACE_SLUG_PATTERN = /^[a-z][a-z0-9-]{1,62}$/;
 
 export function filterAppsByQuery(
   items: AppCatalogItem[],
@@ -49,12 +50,11 @@ export function sortApps(
 }
 
 export function buildCmsLaunchUrl(workspaceSlug?: string | null): string {
-  const safeSlug = workspaceSlug?.trim().toLowerCase() ?? "";
-  if (!WORKSPACE_SLUG_PATTERN.test(safeSlug)) {
-    return CMS_BASE_URL;
-  }
-
-  return `${CMS_BASE_URL}/dashboard/${safeSlug}`;
+  return buildCmsWorkspaceContentUrl({
+    baseUrl: CMS_BASE_URL,
+    workspaceSlug,
+    fallbackUrl: CMS_BASE_URL,
+  });
 }
 
 export function getAppsUiState(resultCount: number): {

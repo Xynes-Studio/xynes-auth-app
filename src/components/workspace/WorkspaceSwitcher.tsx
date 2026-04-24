@@ -24,6 +24,10 @@ import {
   getWorkspaceSwitcherAriaLabel,
   isValidRedirectUrl,
 } from "@xynes/auth-sdk";
+import {
+  buildCmsWorkspaceContentUrl,
+  WORKSPACE_ADMIN_FALLBACK_PATH,
+} from "@/lib/workspace";
 
 /**
  * ChevronDown icon component
@@ -190,11 +194,15 @@ export function WorkspaceSwitcher({
         targetConsoleUrl &&
         isValidRedirectUrl(targetConsoleUrl, allowedDomains)
       ) {
-        const baseUrl = targetConsoleUrl.replace(/\/$/, "");
-        window.location.href = `${baseUrl}/${safeSlug}`;
+        window.location.assign(
+          buildCmsWorkspaceContentUrl({
+            baseUrl: targetConsoleUrl,
+            workspaceSlug: safeSlug,
+          }),
+        );
       } else {
         // Fall back to local routing if URL is invalid or not provided
-        router.push(`/dashboard/${safeSlug}`);
+        router.push(WORKSPACE_ADMIN_FALLBACK_PATH);
       }
 
       setIsOpen(false);

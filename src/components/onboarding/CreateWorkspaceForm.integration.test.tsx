@@ -268,7 +268,7 @@ describe("CreateWorkspaceForm", () => {
       });
     });
 
-    it("should handle gateway envelope response and redirect using workspace slug", async () => {
+    it("should handle gateway envelope response and fall back to workspace admin when console URL is unset", async () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
@@ -302,7 +302,7 @@ describe("CreateWorkspaceForm", () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith("/my-team");
+        expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
       });
     });
 
@@ -380,7 +380,7 @@ describe("CreateWorkspaceForm", () => {
 
         await waitFor(() => {
           expect(assignSpy).toHaveBeenCalledWith(
-            "https://console.test.com/my-team",
+            "https://console.test.com/dashboard/my-team/content",
           );
         });
         expect(mockPush).not.toHaveBeenCalled();

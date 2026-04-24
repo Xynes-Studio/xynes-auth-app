@@ -421,7 +421,7 @@ describe("WorkspaceSwitcher", () => {
       expect(mockSelectWorkspace).toHaveBeenCalledWith("ws-2");
     });
 
-    it("should navigate to workspace dashboard on selection", async () => {
+    it("should fall back to workspace admin dashboard when console URL is unset", async () => {
       const user = userEvent.setup();
 
       render(<WorkspaceSwitcher />);
@@ -429,8 +429,28 @@ describe("WorkspaceSwitcher", () => {
       const ws2Item = screen.getByTestId("workspace-switcher-item-ws-2");
       await user.click(ws2Item);
 
-      // Should navigate to local route when no console URL
-      expect(mockPush).toHaveBeenCalledWith("/dashboard/ws-two");
+      expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
+    });
+
+    it("should navigate to canonical CMS content route when console URL is set", async () => {
+      const user = userEvent.setup();
+      const assignSpy = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => {});
+
+      try {
+        render(<WorkspaceSwitcher consoleUrl="http://localhost:3000" />);
+
+        const ws2Item = screen.getByTestId("workspace-switcher-item-ws-2");
+        await user.click(ws2Item);
+
+        expect(assignSpy).toHaveBeenCalledWith(
+          "http://localhost:3000/dashboard/ws-two/content",
+        );
+        expect(mockPush).not.toHaveBeenCalled();
+      } finally {
+        assignSpy.mockRestore();
+      }
     });
 
     it("should call custom onWorkspaceSelect callback if provided", async () => {

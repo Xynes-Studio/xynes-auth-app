@@ -37,6 +37,7 @@ import {
   getSlugStatusMessage,
   type SlugAvailabilityStatus,
   SLUG_CONSTRAINTS,
+  buildCmsWorkspaceContentUrl,
 } from "@/lib/workspace";
 
 /**
@@ -255,16 +256,15 @@ export function CreateWorkspaceForm({
         // Call success callback if provided
         onSuccess?.(resolvedWorkspace);
 
-        // Calculate default target (workspace console)
-        const consoleBaseUrl = (
+        // Calculate default target (CMS console content dashboard)
+        const consoleBaseUrl =
           process.env.NEXT_PUBLIC_CONSOLE_URL ||
           process.env.NEXT_PUBLIC_CMS_CONSOLE_URL ||
-          ""
-        ).replace(/\/$/, "");
-
-        const defaultTarget = consoleBaseUrl
-          ? `${consoleBaseUrl}/${resolvedWorkspace.slug}`
-          : `/${resolvedWorkspace.slug}`;
+          "";
+        const defaultTarget = buildCmsWorkspaceContentUrl({
+          baseUrl: consoleBaseUrl,
+          workspaceSlug: resolvedWorkspace.slug,
+        });
 
         // Determine final redirect URL
         // If a redirectUrl is provided, we must validate it to prevent open redirects

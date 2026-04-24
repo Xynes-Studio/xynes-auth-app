@@ -218,7 +218,7 @@ describe("OAuth Callback Utilities", () => {
       expect(result).toBe(DEFAULT_EXISTING_USER_REDIRECT);
     });
 
-    it("should use redirect param when provided for new user", () => {
+    it("should ignore dashboard redirect param when provided for new user with no workspaces", () => {
       const bootstrapResult: BootstrapResponse = {
         success: true,
         isNewUser: true,
@@ -232,7 +232,7 @@ describe("OAuth Callback Utilities", () => {
         allowedDomains
       );
 
-      expect(result).toBe("/dashboard");
+      expect(result).toBe(DEFAULT_NEW_USER_REDIRECT);
     });
 
     it("should use redirect param when provided for existing user", () => {
