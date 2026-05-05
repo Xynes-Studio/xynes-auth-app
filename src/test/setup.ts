@@ -23,7 +23,6 @@ vi.mock(
     getIcon: () => undefined,
     registerIcon: () => undefined,
   }),
-  { virtual: true },
 );
 
 vi.mock("next/image", () => ({

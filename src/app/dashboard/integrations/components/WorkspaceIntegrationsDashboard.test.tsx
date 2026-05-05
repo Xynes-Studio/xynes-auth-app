@@ -13,6 +13,9 @@ import type {
 
 const mockListWorkspaceDomains = vi.fn();
 const mockListWorkspaceApiKeys = vi.fn();
+const mockRegisterWorkspaceDomain = vi.fn();
+const mockVerifyWorkspaceDomain = vi.fn();
+const mockDeleteWorkspaceDomain = vi.fn();
 
 const workspaceState = vi.hoisted(() => ({
   currentWorkspace: {
@@ -48,9 +51,12 @@ vi.mock("@/lib/integrations/workspace-integrations-client", () => {
       mockListWorkspaceDomains(...args),
     listWorkspaceApiKeys: (...args: unknown[]) =>
       mockListWorkspaceApiKeys(...args),
-    registerWorkspaceDomain: vi.fn(),
-    verifyWorkspaceDomain: vi.fn(),
-    deleteWorkspaceDomain: vi.fn(),
+    registerWorkspaceDomain: (...args: unknown[]) =>
+      mockRegisterWorkspaceDomain(...args),
+    verifyWorkspaceDomain: (...args: unknown[]) =>
+      mockVerifyWorkspaceDomain(...args),
+    deleteWorkspaceDomain: (...args: unknown[]) =>
+      mockDeleteWorkspaceDomain(...args),
     createWorkspaceApiKey: vi.fn(),
     revokeWorkspaceApiKey: vi.fn(),
   };
@@ -131,6 +137,85 @@ vi.mock("@lumia-ui/components", () => ({
       {children}
     </header>
   ),
+  // Additional exports the DomainManagementPanel (Task 3) consumes.
+  Input: React.forwardRef<
+    HTMLInputElement,
+    React.InputHTMLAttributes<HTMLInputElement>
+  >(function Input(props, ref) {
+    return <input ref={ref} {...props} />;
+  }),
+  Badge: ({
+    children,
+    variant,
+  }: {
+    children?: React.ReactNode;
+    variant?: string;
+  }) => <span data-variant={variant}>{children}</span>,
+  StatusPill: ({
+    children,
+    variant,
+  }: {
+    children?: React.ReactNode;
+    variant?: string;
+  }) => <span data-variant={variant}>{children}</span>,
+  InlineAlert: ({
+    children,
+    variant,
+  }: {
+    children?: React.ReactNode;
+    variant?: string;
+  }) => (
+    <div role="status" data-variant={variant}>
+      {children}
+    </div>
+  ),
+  ConfirmDialog: ({
+    title,
+    description,
+    confirmLabel,
+    cancelLabel,
+    onConfirm,
+    open,
+    onOpenChange,
+  }: {
+    title: string;
+    description?: React.ReactNode;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm: () => void | Promise<void>;
+    open?: boolean;
+    onOpenChange?: (next: boolean) => void;
+  }) => {
+    if (!open) return null;
+    return (
+      <div role="dialog" aria-label={title}>
+        <h2>{title}</h2>
+        {description ? <div>{description}</div> : null}
+        <button
+          type="button"
+          onClick={async () => {
+            await onConfirm();
+            onOpenChange?.(false);
+          }}
+        >
+          {confirmLabel ?? "Confirm"}
+        </button>
+        <button type="button" onClick={() => onOpenChange?.(false)}>
+          {cancelLabel ?? "Cancel"}
+        </button>
+      </div>
+    );
+  },
+  useConfirmDialog: () => {
+    const [open, setOpen] = React.useState(false);
+    return {
+      open,
+      openDialog: () => setOpen(true),
+      closeDialog: () => setOpen(false),
+      setOpen,
+      dialogProps: { open, onOpenChange: setOpen },
+    };
+  },
 }));
 
 const sampleDomain: WorkspaceDomain = {
@@ -159,8 +244,25 @@ beforeEach(() => {
   };
   mockListWorkspaceDomains.mockReset();
   mockListWorkspaceApiKeys.mockReset();
+  mockRegisterWorkspaceDomain.mockReset();
+  mockVerifyWorkspaceDomain.mockReset();
+  mockDeleteWorkspaceDomain.mockReset();
   mockListWorkspaceDomains.mockResolvedValue([sampleDomain]);
   mockListWorkspaceApiKeys.mockResolvedValue([sampleApiKey]);
+  mockRegisterWorkspaceDomain.mockResolvedValue({
+    domain: {
+      ...sampleDomain,
+      id: "dom-created",
+      hostname: "new.example.com",
+      status: "pending",
+    },
+    verificationValue: "xynes-verify=abc123",
+  });
+  mockVerifyWorkspaceDomain.mockResolvedValue({
+    ...sampleDomain,
+    status: "verified",
+  });
+  mockDeleteWorkspaceDomain.mockResolvedValue(undefined);
 });
 
 describe("WorkspaceIntegrationsDashboard", () => {
@@ -318,5 +420,49 @@ describe("WorkspaceIntegrationsDashboard", () => {
     await waitFor(() => {
       expect(mockListWorkspaceDomains).toHaveBeenCalled();
     });
+  });
+
+  it("registers a domain through the gateway client and reveals the one-time DNS value", async () => {
+    const user = userEvent.setup();
+    mockListWorkspaceDomains.mockResolvedValue([]);
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const input = await screen.findByLabelText(/^domain$/i);
+    await user.type(input, "  new.example.com  ");
+    await user.click(screen.getByRole("button", { name: /add domain/i }));
+
+    await waitFor(() => {
+      expect(mockRegisterWorkspaceDomain).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "ws-1",
+          apiBaseUrl: "https://api.test.com",
+          hostname: "new.example.com",
+        }),
+      );
+    });
+    expect(
+      await screen.findByTestId("domain-verification-reveal"),
+    ).toHaveTextContent("xynes-verify=abc123");
+  });
+
+  it("keeps the typed hostname when domain registration fails", async () => {
+    const user = userEvent.setup();
+    mockListWorkspaceDomains.mockResolvedValue([]);
+    mockRegisterWorkspaceDomain.mockRejectedValueOnce(
+      new WorkspaceIntegrationsApiError(403, "permission denied"),
+    );
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const input = await screen.findByLabelText(/^domain$/i);
+    await user.type(input, "new.example.com");
+    await user.click(screen.getByRole("button", { name: /add domain/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(
+      /you don.?t have permission to manage workspace integrations/i,
+    );
+    expect(input).toHaveValue("new.example.com");
   });
 });
