@@ -16,7 +16,15 @@ export function isValidRedirectUrl(
   }
 
   const lowerUrl = url.toLowerCase().trim();
-  if (lowerUrl.startsWith("javascript:") || lowerUrl.startsWith("data:")) {
+  // Reject dangerous URL schemes early. The positive scheme allowlist below
+  // (http: / https:) already catches these, but an explicit blocklist makes
+  // the intent visible to developers and to static analysis (CodeQL).
+  // js-url-substring-sanitization rules require vbscript: alongside javascript: / data:.
+  if (
+    lowerUrl.startsWith("javascript:") ||
+    lowerUrl.startsWith("data:") ||
+    lowerUrl.startsWith("vbscript:")
+  ) {
     return false;
   }
 

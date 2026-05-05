@@ -38,6 +38,18 @@ describe("Redirect utilities re-exports", () => {
       ).toBe(false);
     });
 
+    it("should reject vbscript: protocol", () => {
+      expect(
+        isValidRedirectUrl("vbscript:msgbox(1)", allowedDomains)
+      ).toBe(false);
+      expect(
+        isValidRedirectUrl("VBScript:msgbox(1)", allowedDomains)
+      ).toBe(false);
+      expect(
+        isValidRedirectUrl("  vbscript:msgbox(1)  ", allowedDomains)
+      ).toBe(false);
+    });
+
     it("should accept allowed domains", () => {
       expect(
         isValidRedirectUrl("https://xynes.com/dashboard", allowedDomains)
@@ -93,6 +105,9 @@ describe("Redirect utilities re-exports", () => {
       ).toBe(defaultUrl);
       expect(
         getSafeRedirectUrl("javascript:alert(1)", defaultUrl, allowedDomains)
+      ).toBe(defaultUrl);
+      expect(
+        getSafeRedirectUrl("vbscript:msgbox(1)", defaultUrl, allowedDomains)
       ).toBe(defaultUrl);
     });
 

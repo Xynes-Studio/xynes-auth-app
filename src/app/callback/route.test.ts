@@ -30,8 +30,31 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/redirect", () => ({
   getSafeRedirectUrl: vi.fn((url: string, defaultUrl: string) => {
     if (!url) return defaultUrl;
-    if (url.startsWith("/")) return url;
-    if (url.includes("xynes.com")) return url;
+    if (url.startsWith("/") && !url.startsWith("//")) return url;
+    // Reject dangerous protocols (mirrors production blocklist).
+    const lower = url.toLowerCase().trim();
+    if (
+      lower.startsWith("javascript:") ||
+      lower.startsWith("data:") ||
+      lower.startsWith("vbscript:")
+    ) {
+      return defaultUrl;
+    }
+    // Properly parse URL and match hostname (anchored), not raw substring.
+    // Substring matching like url.includes("xynes.com") is unsafe because
+    // attacker URLs such as https://evil.com/?x=xynes.com would slip through.
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return defaultUrl;
+      }
+      const hostname = parsed.hostname.toLowerCase();
+      if (hostname === "xynes.com" || hostname.endsWith(".xynes.com")) {
+        return url;
+      }
+    } catch {
+      return defaultUrl;
+    }
     return defaultUrl;
   }),
   getAllowedRedirectDomains: vi.fn(() => ["xynes.com", "localhost:3000"]),

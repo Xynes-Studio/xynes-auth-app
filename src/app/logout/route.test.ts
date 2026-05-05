@@ -42,9 +42,14 @@ vi.mock("@/lib/redirect", () => ({
   isValidRedirectUrl: vi.fn((url: string, domains: string[]) => {
     if (!url) return false;
     if (url.startsWith("/") && !url.startsWith("//")) return true;
-    // Reject dangerous protocols
+    // Reject dangerous protocols (mirrors production blocklist:
+    // javascript:, data:, vbscript:).
     const lower = url.toLowerCase();
-    if (lower.startsWith("javascript:") || lower.startsWith("data:"))
+    if (
+      lower.startsWith("javascript:") ||
+      lower.startsWith("data:") ||
+      lower.startsWith("vbscript:")
+    )
       return false;
     try {
       const parsedUrl = new URL(url);
@@ -67,9 +72,14 @@ vi.mock("@/lib/redirect", () => ({
     (url: string, defaultUrl: string, domains: string[]) => {
       if (!url) return defaultUrl;
       if (url.startsWith("/") && !url.startsWith("//")) return url;
-      // Reject dangerous protocols
+      // Reject dangerous protocols (mirrors production blocklist:
+      // javascript:, data:, vbscript:).
       const lower = url.toLowerCase();
-      if (lower.startsWith("javascript:") || lower.startsWith("data:"))
+      if (
+        lower.startsWith("javascript:") ||
+        lower.startsWith("data:") ||
+        lower.startsWith("vbscript:")
+      )
         return defaultUrl;
       if (lower.startsWith("//")) return defaultUrl; // Protocol-relative URLs
       try {
@@ -332,6 +342,19 @@ describe("Logout Route Handler", () => {
       const request = createMockRequest(
         "POST",
         "http://localhost:3000/logout?redirect=data:text/html,<script>alert('xss')</script>",
+      );
+
+      const response = await POST(request);
+
+      expect(response.headers.get("Location")).toBe(
+        "http://localhost:3000/login",
+      );
+    });
+
+    it("should reject vbscript: protocol in redirect", async () => {
+      const request = createMockRequest(
+        "POST",
+        "http://localhost:3000/logout?redirect=vbscript:msgbox('xss')",
       );
 
       const response = await POST(request);
