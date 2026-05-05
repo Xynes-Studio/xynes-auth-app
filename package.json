@@ -3,19 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "dev": "node ../infra/scripts/with-env.mjs next dev",
+    "build": "node ../infra/scripts/with-env.mjs next build",
+    "start": "node ../infra/scripts/with-env.mjs next start",
+    "lint": "node ../infra/scripts/with-env.mjs next lint",
+    "test": "node ../infra/scripts/with-env.mjs vitest run",
+    "test:watch": "node ../infra/scripts/with-env.mjs vitest",
+    "test:coverage": "node ../infra/scripts/with-env.mjs vitest run --coverage",
+    "link:deps": "pnpm link ../lumia-ds/packages/components ../lumia-ds/packages/forms ../lumia-ds/packages/layout ../xynes-auth-sdk"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
+    "@lumia-ui/components": "link:../lumia-ds/packages/components",
+    "@lumia-ui/icons": "link:../lumia-ds/packages/icons",
+    "@lumia-ui/forms": "link:../lumia-ds/packages/forms",
+    "@lumia-ui/layout": "link:../lumia-ds/packages/layout",
+    "@xynes/auth-sdk": "link:../xynes-auth-sdk",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
-    "next": "^15.0.0",
+    "next": "15.0.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.0",
@@ -38,5 +44,6 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.0",
     "vitest": "^2.1.9"
-  }
+  },
+  "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319"
 }
