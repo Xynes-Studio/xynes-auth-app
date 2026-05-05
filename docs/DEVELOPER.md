@@ -375,3 +375,46 @@ Directory V1 validation commands:
 ## Linting
 
 - Always run `pnpm lint` before PR or handoff.
+
+## Workspace Admin Integrations (Source-of-Truth Surface)
+
+This app is the **Workspace Admin** for the Xynes platform. The Integrations dashboard at `/dashboard/integrations` owns the lifecycle of:
+
+- **Verified domains** (`platform.workspace_domains`) — register, DNS-TXT verify, delete (soft).
+- **Workspace API keys** (`platform.workspace_api_keys`) — create with preset scopes, revoke, view usage.
+
+Other apps (CMS console, future consumers) link **into** this surface as contextual consumers — they MUST NOT host their own domain or API key lifecycle forms.
+
+### Components
+
+- `src/lib/integrations/workspace-integrations-client.ts` — typed gateway client (Task 1, landed 2026-05-05). Exposes `listWorkspaceDomains`, `registerWorkspaceDomain`, `verifyWorkspaceDomain`, `deleteWorkspaceDomain`, `listWorkspaceApiKeys`, `createWorkspaceApiKey`, `revokeWorkspaceApiKey`, and `WorkspaceIntegrationsApiError`. All payloads are normalised through allowlists so server-side secrets (`keyHash`, `verificationValueHash`, `internalAuditNote`, `rawKey` outside the create flow) cannot leak into UI state.
+- `src/lib/integrations/workspace-integrations-types.ts` — shared types + `WORKSPACE_API_KEY_PRESET_KEYS` (`cms_readonly`, `cms_authoring`, `cms_publisher`, `telemetry_read`, `workspace_admin`). Mirror of `WORKSPACE_API_KEY_PRESETS` in `xynes-accounts-service`.
+- `src/app/dashboard/integrations/page.tsx` — thin client page wired through `AuthGuard` + `AuthDashboardShell` with `activeNav="integrations"`.
+- `src/app/dashboard/integrations/components/WorkspaceIntegrationsDashboard.tsx` — container (Task 2, landed 2026-05-05). Owns data fetching for both lists, surfaces active workspace context, and renders accessible loading / error / empty / no-workspace states. Per-row rendering and lifecycle actions live in `DomainManagementPanel` (Task 3) and `ApiKeyManagementPanel` (Task 4).
+
+### Container patterns to reuse
+
+Pin `getAccessToken` to a `useRef` so the load effect doesn't re-fire on every parent re-render. The auth-sdk's `useAuth()` may return a fresh function reference, and listing it in the effect dependency array causes a refetch storm:
+
+```tsx
+const getAccessTokenRef = useRef(getAccessToken);
+useEffect(() => { getAccessTokenRef.current = getAccessToken; }, [getAccessToken]);
+useEffect(() => {
+  const callerGetAccessToken = () => getAccessTokenRef.current();
+  // use callerGetAccessToken in client calls
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [apiBaseUrl, workspaceId, reloadCounter]);
+```
+
+Defensively coerce `Promise.all` results before storing them so a misbehaving mock or future client refactor cannot crash the dashboard:
+
+```tsx
+setDomains(Array.isArray(nextDomains) ? nextDomains : []);
+```
+
+### Security invariants
+
+- Bearer auth uses the existing Supabase access token from `useAuth().getAccessToken`. **Never** put workspace API keys in the browser; they are programmatic credentials for the gateway, not for browser sessions.
+- Raw API keys are surfaced exactly once by the create-key reveal flow in `ApiKeyManagementPanel` (Task 4) and MUST never be persisted (no `localStorage`, no logs, no parent-state leakage).
+- The DNS-TXT `verificationValue` is shown exactly once on register and never re-fetched; the server stores only its hash.
+- The container's permission-denied (403) state renders the safe, non-leaky message: "You don't have permission to manage workspace integrations."
