@@ -391,6 +391,7 @@ Other apps (CMS console, future consumers) link **into** this surface as context
 - `src/lib/integrations/workspace-integrations-types.ts` — shared types + `WORKSPACE_API_KEY_PRESET_KEYS` (`cms_readonly`, `cms_authoring`, `cms_publisher`, `telemetry_read`, `workspace_admin`). Mirror of `WORKSPACE_API_KEY_PRESETS` in `xynes-accounts-service`.
 - `src/app/dashboard/integrations/page.tsx` — thin client page wired through `AuthGuard` + `AuthDashboardShell` with `activeNav="integrations"`.
 - `src/app/dashboard/integrations/components/WorkspaceIntegrationsDashboard.tsx` — container (Task 2, landed 2026-05-05). Owns data fetching for both lists, surfaces active workspace context, and renders accessible loading / error / empty / no-workspace states. Per-row rendering and lifecycle actions live in `DomainManagementPanel` (Task 3) and `ApiKeyManagementPanel` (Task 4).
+- `src/app/dashboard/integrations/components/DomainManagementPanel.tsx` — verified-domain lifecycle UI (Task 3, landed 2026-05-05). Renders the domain list, registration form, DNS-TXT verification action, and soft-delete confirmation with Lumia DS primitives. It keeps the one-time `verificationValue` local to the panel reveal state, never renders hash/internal audit fields, preserves typed input on failed registration, and exposes loading/error/empty/permission states through accessible status regions and labels.
 
 ### Container patterns to reuse
 
@@ -418,3 +419,8 @@ setDomains(Array.isArray(nextDomains) ? nextDomains : []);
 - Raw API keys are surfaced exactly once by the create-key reveal flow in `ApiKeyManagementPanel` (Task 4) and MUST never be persisted (no `localStorage`, no logs, no parent-state leakage).
 - The DNS-TXT `verificationValue` is shown exactly once on register and never re-fetched; the server stores only its hash.
 - The container's permission-denied (403) state renders the safe, non-leaky message: "You don't have permission to manage workspace integrations."
+
+### Follow-up stories from browser revalidation
+
+- `fix(accounts-service): return safe validation errors for workspace domain create` — Browser revalidation on 2026-05-05 confirmed the frontend calls `POST /workspaces/:workspaceId/domains` through the gateway, but local backend creation of `example.com` failed with Postgres check constraint `workspace_domains_hostname_shape` and surfaced to the browser as `500 Internal Server Error`. The backend should align hostname normalization/validation with the database constraint and return a safe 4xx validation response instead of an internal error.
+- `fix(accounts-service): redact workspace-domain verification hashes from DB error logs` — The same failed create path logged the failed insert query and parameters, including `verification_value_hash`. Domain verification secret material must remain hash-only in storage and must not appear in service logs, error payloads, telemetry snippets, or debugging output.

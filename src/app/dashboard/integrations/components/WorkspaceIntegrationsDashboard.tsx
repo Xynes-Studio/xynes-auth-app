@@ -39,13 +39,20 @@ import {
 import { useAuth, useWorkspace } from "@xynes/auth-sdk";
 import {
   WorkspaceIntegrationsApiError,
+  deleteWorkspaceDomain,
   listWorkspaceApiKeys,
   listWorkspaceDomains,
+  registerWorkspaceDomain,
+  verifyWorkspaceDomain,
 } from "@/lib/integrations/workspace-integrations-client";
 import type {
   WorkspaceApiKey,
   WorkspaceDomain,
 } from "@/lib/integrations/workspace-integrations-types";
+import {
+  DomainManagementPanel,
+  type PendingDomainVerificationValue,
+} from "./DomainManagementPanel";
 
 function getIntegrationsLoadErrorMessage(error: unknown): string {
   if (!(error instanceof WorkspaceIntegrationsApiError)) {
@@ -80,6 +87,19 @@ export function WorkspaceIntegrationsDashboard() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadCounter, setReloadCounter] = useState<number>(0);
+  // One-time DNS TXT verification value reveal — held in container state
+  // and surfaced to the panel as a prop. The raw value is shown exactly
+  // once and never persisted beyond this slot.
+  const [pendingVerificationValue, setPendingVerificationValue] =
+    useState<PendingDomainVerificationValue | null>(null);
+
+  // Cross-workspace leakage guard: if the active workspace changes, drop
+  // any DNS TXT verification value left over from the previous workspace.
+  // This runs separately from the load effect so the reveal slot is
+  // cleared even when `workspaceId` flips to "" (signed-out / unselected).
+  useEffect(() => {
+    setPendingVerificationValue(null);
+  }, [workspaceId]);
 
   // Pin `getAccessToken` to a ref so the load effect does not refetch on
   // every render just because the SDK hands back a fresh function reference.
@@ -91,6 +111,84 @@ export function WorkspaceIntegrationsDashboard() {
 
   const handleRetry = useCallback(() => {
     setReloadCounter((count) => count + 1);
+  }, []);
+
+  // Domain mutation handlers — passed to DomainManagementPanel. Each
+  // handler refreshes the domain list on success by bumping the reload
+  // counter; failures bubble up to surface in the load-error alert.
+  const handleRegisterDomain = useCallback(
+    async (hostname: string) => {
+      if (!workspaceId) return;
+      const callerGetAccessToken = () => getAccessTokenRef.current();
+      try {
+        const result = await registerWorkspaceDomain({
+          apiBaseUrl,
+          workspaceId,
+          getAccessToken: callerGetAccessToken,
+          hostname,
+        });
+        setPendingVerificationValue({
+          domainId: result.domain.id,
+          verificationValue: result.verificationValue,
+        });
+        setLoadError(null);
+        setReloadCounter((count) => count + 1);
+      } catch (error: unknown) {
+        setLoadError(getIntegrationsLoadErrorMessage(error));
+        throw error;
+      }
+    },
+    [apiBaseUrl, workspaceId],
+  );
+
+  const handleVerifyDomain = useCallback(
+    async (domainId: string) => {
+      if (!workspaceId) return;
+      const callerGetAccessToken = () => getAccessTokenRef.current();
+      try {
+        await verifyWorkspaceDomain({
+          apiBaseUrl,
+          workspaceId,
+          getAccessToken: callerGetAccessToken,
+          domainId,
+        });
+        setLoadError(null);
+        setReloadCounter((count) => count + 1);
+      } catch (error: unknown) {
+        setLoadError(getIntegrationsLoadErrorMessage(error));
+        throw error;
+      }
+    },
+    [apiBaseUrl, workspaceId],
+  );
+
+  const handleDeleteDomain = useCallback(
+    async (domainId: string) => {
+      if (!workspaceId) return;
+      const callerGetAccessToken = () => getAccessTokenRef.current();
+      try {
+        await deleteWorkspaceDomain({
+          apiBaseUrl,
+          workspaceId,
+          getAccessToken: callerGetAccessToken,
+          domainId,
+        });
+        // If the removed domain matches the current reveal, clear it.
+        setPendingVerificationValue((previous) =>
+          previous && previous.domainId === domainId ? null : previous,
+        );
+        setLoadError(null);
+        setReloadCounter((count) => count + 1);
+      } catch (error: unknown) {
+        setLoadError(getIntegrationsLoadErrorMessage(error));
+        throw error;
+      }
+    },
+    [apiBaseUrl, workspaceId],
+  );
+
+  const handleDismissVerificationValue = useCallback(() => {
+    setPendingVerificationValue(null);
   }, []);
 
   useEffect(() => {
@@ -184,7 +282,7 @@ export function WorkspaceIntegrationsDashboard() {
       </header>
 
       {loadError ? (
-        <Alert variant="danger" title="Couldn’t load integrations">
+        <Alert variant="error" title="Couldn’t load integrations">
           <Flex direction="col" gap="sm">
             <span>{loadError}</span>
             <div>
@@ -230,14 +328,15 @@ export function WorkspaceIntegrationsDashboard() {
             >
               {domains.length}
             </span>
-            {!isLoading && !loadError && domains.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No verified domains yet. Add one to start publishing from a
-                custom domain.
-              </p>
-            ) : null}
-            {/* Per-row rendering and the add-domain form land in
-                DomainManagementPanel (Task 3). */}
+            <DomainManagementPanel
+              domains={domains}
+              isLoading={isLoading}
+              onRegisterDomain={handleRegisterDomain}
+              onVerifyDomain={handleVerifyDomain}
+              onDeleteDomain={handleDeleteDomain}
+              pendingVerificationValue={pendingVerificationValue}
+              onDismissVerificationValue={handleDismissVerificationValue}
+            />
           </CardContent>
         </Card>
 
