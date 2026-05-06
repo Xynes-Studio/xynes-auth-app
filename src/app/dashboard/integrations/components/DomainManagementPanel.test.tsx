@@ -167,8 +167,18 @@ const failedDomain: WorkspaceDomain = {
   failureMessage: "DNS TXT record not found",
 };
 
+// Escape regex metacharacters before interpolating dynamic strings (such as
+// hostnames containing ".") into a `new RegExp(...)`. Without this, the dot in
+// "example.com" would match any character, broadening the test assertion and
+// triggering CodeQL's "Incomplete regular expression for hostnames" rule.
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // Default panel handlers — overridable per-test via spread in `render`.
-function defaultProps(overrides: Partial<React.ComponentProps<typeof DomainManagementPanel>> = {}) {
+function defaultProps(
+  overrides: Partial<React.ComponentProps<typeof DomainManagementPanel>> = {},
+) {
   return {
     domains: [] as WorkspaceDomain[],
     isLoading: false,
@@ -192,9 +202,7 @@ describe("DomainManagementPanel", () => {
   it("invites the workspace owner to add a domain when the list is empty", () => {
     render(<DomainManagementPanel {...defaultProps()} />);
 
-    expect(
-      screen.getByText(/no verified domains yet/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/no verified domains yet/i)).toBeInTheDocument();
     // The add-domain form is always available so an owner can add one.
     expect(screen.getByLabelText(/^domain$/i)).toBeInTheDocument();
     expect(
@@ -218,9 +226,7 @@ describe("DomainManagementPanel", () => {
 
   it("renders a pending domain row with the DNS TXT name and value", () => {
     render(
-      <DomainManagementPanel
-        {...defaultProps({ domains: [pendingDomain] })}
-      />,
+      <DomainManagementPanel {...defaultProps({ domains: [pendingDomain] })} />,
     );
 
     const row = screen.getByTestId(`domain-row-${pendingDomain.id}`);
@@ -248,6 +254,10 @@ describe("DomainManagementPanel", () => {
 
     const reveal = screen.getByTestId("domain-verification-reveal");
     expect(reveal).toHaveTextContent("xynes-verify=abc123");
+    // Reveal must be an explicit live region so SR users hear the new
+    // instructions even if the surrounding `InlineAlert` internals change.
+    expect(reveal).toHaveAttribute("role", "status");
+    expect(reveal).toHaveAttribute("aria-live", "polite");
 
     const dismiss = screen.getByRole("button", {
       name: /dismiss verification value/i,
@@ -258,9 +268,7 @@ describe("DomainManagementPanel", () => {
 
   it("renders a failed domain row with a safe failure message", () => {
     render(
-      <DomainManagementPanel
-        {...defaultProps({ domains: [failedDomain] })}
-      />,
+      <DomainManagementPanel {...defaultProps({ domains: [failedDomain] })} />,
     );
 
     const row = screen.getByTestId(`domain-row-${failedDomain.id}`);
@@ -279,13 +287,9 @@ describe("DomainManagementPanel", () => {
       verificationValueHash: "DO_NOT_RENDER_HASH",
     } as unknown as WorkspaceDomain;
     render(
-      <DomainManagementPanel
-        {...defaultProps({ domains: [hostileDomain] })}
-      />,
+      <DomainManagementPanel {...defaultProps({ domains: [hostileDomain] })} />,
     );
-    expect(
-      screen.queryByText(/DO_NOT_RENDER_HASH/),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/DO_NOT_RENDER_HASH/)).not.toBeInTheDocument();
   });
 
   it("validates that the add-domain form rejects empty input without calling the handler", async () => {
@@ -318,9 +322,7 @@ describe("DomainManagementPanel", () => {
       screen.getByLabelText(/^domain$/i),
       "  new.example.com  ",
     );
-    await userEvent.click(
-      screen.getByRole("button", { name: /add domain/i }),
-    );
+    await userEvent.click(screen.getByRole("button", { name: /add domain/i }));
 
     await waitFor(() => {
       expect(onRegister).toHaveBeenCalledTimes(1);
@@ -340,7 +342,10 @@ describe("DomainManagementPanel", () => {
     );
 
     const recheck = screen.getByRole("button", {
-      name: new RegExp(`recheck verification.*${pendingDomain.hostname}`, "i"),
+      name: new RegExp(
+        `recheck verification.*${escapeRegExp(pendingDomain.hostname)}`,
+        "i",
+      ),
     });
     await userEvent.click(recheck);
 
@@ -365,7 +370,7 @@ describe("DomainManagementPanel", () => {
     await userEvent.click(
       screen.getByRole("button", {
         name: new RegExp(
-          `disable.*${verifiedDomain.hostname}`,
+          `disable.*${escapeRegExp(verifiedDomain.hostname)}`,
           "i",
         ),
       }),
@@ -375,17 +380,24 @@ describe("DomainManagementPanel", () => {
     // Confirm dialog is now visible and announced.
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText(new RegExp(verifiedDomain.hostname, "i")),
+      within(dialog).getByText(
+        new RegExp(escapeRegExp(verifiedDomain.hostname), "i"),
+      ),
     ).toBeInTheDocument();
 
     // Cancel does NOT delete.
-    await userEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: /cancel/i }),
+    );
     expect(onDelete).not.toHaveBeenCalled();
 
     // Reopen + confirm DOES delete.
     await userEvent.click(
       screen.getByRole("button", {
-        name: new RegExp(`disable.*${verifiedDomain.hostname}`, "i"),
+        name: new RegExp(
+          `disable.*${escapeRegExp(verifiedDomain.hostname)}`,
+          "i",
+        ),
       }),
     );
     const dialog2 = await screen.findByRole("dialog");
@@ -411,11 +423,12 @@ describe("DomainManagementPanel", () => {
 
     expect(
       screen.getByRole("button", {
-        name: new RegExp(`recheck verification.*${pendingDomain.hostname}`, "i"),
+        name: new RegExp(
+          `recheck verification.*${escapeRegExp(pendingDomain.hostname)}`,
+          "i",
+        ),
       }),
     ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: /add domain/i }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: /add domain/i })).toBeDisabled();
   });
 });

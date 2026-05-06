@@ -465,4 +465,37 @@ describe("WorkspaceIntegrationsDashboard", () => {
     );
     expect(input).toHaveValue("new.example.com");
   });
+
+  it("clears the one-time DNS verification reveal when the active workspace changes", async () => {
+    // Cross-workspace leakage guard: a verification token that was just
+    // revealed for workspace A must not remain visible after the user
+    // switches to workspace B.
+    const user = userEvent.setup();
+    mockListWorkspaceDomains.mockResolvedValue([]);
+
+    const { rerender } = render(<WorkspaceIntegrationsDashboard />);
+
+    // Trigger the reveal for workspace A.
+    const input = await screen.findByLabelText(/^domain$/i);
+    await user.type(input, "first.example.com");
+    await user.click(screen.getByRole("button", { name: /add domain/i }));
+
+    expect(
+      await screen.findByTestId("domain-verification-reveal"),
+    ).toHaveTextContent("xynes-verify=abc123");
+
+    // Switch to a different workspace and re-render.
+    workspaceState.currentWorkspace = {
+      id: "ws-2",
+      name: "Second",
+      slug: "second",
+    };
+    rerender(<WorkspaceIntegrationsDashboard />);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("domain-verification-reveal"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

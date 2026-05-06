@@ -93,6 +93,14 @@ export function WorkspaceIntegrationsDashboard() {
   const [pendingVerificationValue, setPendingVerificationValue] =
     useState<PendingDomainVerificationValue | null>(null);
 
+  // Cross-workspace leakage guard: if the active workspace changes, drop
+  // any DNS TXT verification value left over from the previous workspace.
+  // This runs separately from the load effect so the reveal slot is
+  // cleared even when `workspaceId` flips to "" (signed-out / unselected).
+  useEffect(() => {
+    setPendingVerificationValue(null);
+  }, [workspaceId]);
+
   // Pin `getAccessToken` to a ref so the load effect does not refetch on
   // every render just because the SDK hands back a fresh function reference.
   // The latest token-fetching function is always read at call time.

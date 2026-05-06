@@ -196,6 +196,8 @@ export function DomainManagementPanel({
           <div
             data-testid="domain-verification-reveal"
             className="flex flex-col gap-2"
+            role="status"
+            aria-live="polite"
           >
             <p className="text-sm font-medium">
               Add this DNS TXT record to verify your domain. We only show this
@@ -252,11 +254,7 @@ export function DomainManagementPanel({
           </p>
         ) : null}
         <div>
-          <Button
-            type="submit"
-            disabled={isPanelBusy}
-            aria-label="Add domain"
-          >
+          <Button type="submit" disabled={isPanelBusy} aria-label="Add domain">
             Add domain
           </Button>
         </div>
