@@ -43,7 +43,7 @@ vi.mock("@lumia-ui/components", () => ({
   }: {
     size?: number | string;
     "aria-label"?: string;
-    "aria-hidden"?: boolean | string;
+    "aria-hidden"?: boolean | "true" | "false";
   }) => (
     <div
       data-testid="spinner"

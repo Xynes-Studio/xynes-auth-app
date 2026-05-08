@@ -372,9 +372,17 @@ Directory V1 validation commands:
 - Tier 2 components/hooks: 70% coverage target.
 - Do not merge below 80% overall coverage.
 
-## Linting
+## Quality Gates (Release Gates)
 
-- Always run `pnpm lint` before PR or handoff.
+Run all of the following before raising a PR or handing off:
+
+- `pnpm lint` — ESLint over source.
+- `pnpm typecheck` — `tsc --noEmit` across the project. Catches type drift that `next lint` does not enforce. **Release gate** (CI runs it on every PR).
+- `pnpm test` — full Vitest suite.
+- `pnpm test:coverage` — coverage threshold gate (>= 80% lines / branches overall).
+- `pnpm build` — production Next.js build. Catches runtime-only errors (`<Html>` outside `_document`, missing exported members from linked workspaces) that `tsc --noEmit` cannot.
+
+If `pnpm typecheck` reveals errors in linked-workspace consumers (`@lumia-ui/components`, `@lumia-ui/forms`, `@xynes/auth-sdk`), coordinate with the owning repo. Do NOT silence the type errors with broad `as any` casts; either fix the downstream export or narrow the consumer with a targeted, commented cast.
 
 ## Workspace Admin Integrations (Source-of-Truth Surface)
 
