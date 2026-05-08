@@ -27,6 +27,17 @@ const workspaceState = vi.hoisted(() => ({
   } as { id: string; name: string; slug: string } | null,
 }));
 
+// Hoisted searchParams stub used by the deep-link tests below (Task 5).
+// We reset `searchParamsState.query` in `beforeEach` so other tests run with
+// a clean URL by default.
+const searchParamsState = vi.hoisted(() => ({
+  query: "",
+}));
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(searchParamsState.query),
+}));
+
 vi.mock("@xynes/auth-sdk", () => ({
   useAuth: () => ({
     getAccessToken: async () => "token",
@@ -77,9 +88,16 @@ vi.mock("@lumia-ui/components", () => ({
   CardHeader: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="card-header">{children}</div>
   ),
-  CardTitle: ({ children, id }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h2 id={id}>{children}</h2>
-  ),
+  CardTitle: React.forwardRef<
+    HTMLHeadingElement,
+    React.HTMLAttributes<HTMLHeadingElement>
+  >(function CardTitle({ children, ...rest }, ref) {
+    return (
+      <h2 ref={ref} {...rest}>
+        {children}
+      </h2>
+    );
+  }),
   CardDescription: ({ children }: { children: React.ReactNode }) => (
     <p>{children}</p>
   ),
@@ -258,6 +276,7 @@ beforeEach(() => {
     name: "Xynes",
     slug: "xynes",
   };
+  searchParamsState.query = "";
   mockListWorkspaceDomains.mockReset();
   mockListWorkspaceApiKeys.mockReset();
   mockRegisterWorkspaceDomain.mockReset();
@@ -617,5 +636,121 @@ describe("WorkspaceIntegrationsDashboard", () => {
     expect(
       screen.queryByText(/xynes_live_newkeysecret/),
     ).not.toBeInTheDocument();
+  });
+
+  // ── Task 5: Deep-link query support ────────────────────────────────────
+  //
+  // CMS console builds links like
+  //   /dashboard/integrations?tab=api-keys&preset=cms_publisher
+  // (see `xynes-front-end/xynes-cms-console-web/src/features/integrations/workspace-admin-links.ts`).
+  // The auth dashboard must:
+  //   1. Pre-select the requested preset in the create-API-key form.
+  //   2. Move keyboard focus to the API keys section when `tab=api-keys`,
+  //      so screen-reader and keyboard users land on the relevant heading
+  //      without scrolling.
+  //   3. Move keyboard focus to the Verified domains heading when
+  //      `tab=domains`.
+  //   4. Reject unknown / hostile values for both params (no crash, no
+  //      preset preselect, no random focus jump).
+
+  it("preselects the cms_readonly preset when ?preset=cms_readonly is present", async () => {
+    searchParamsState.query = "preset=cms_readonly";
+    mockListWorkspaceApiKeys.mockResolvedValue([]);
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const presetSelect = await screen.findByLabelText(/^preset$/i);
+    await waitFor(() => {
+      expect(presetSelect).toHaveValue("cms_readonly");
+    });
+  });
+
+  it("preselects the cms_publisher preset when ?preset=cms_publisher is present", async () => {
+    searchParamsState.query = "preset=cms_publisher";
+    mockListWorkspaceApiKeys.mockResolvedValue([]);
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const presetSelect = await screen.findByLabelText(/^preset$/i);
+    await waitFor(() => {
+      expect(presetSelect).toHaveValue("cms_publisher");
+    });
+  });
+
+  it("ignores an unknown preset value and does not change the default", async () => {
+    searchParamsState.query = "preset=__not_a_preset__";
+    mockListWorkspaceApiKeys.mockResolvedValue([]);
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const presetSelect = await screen.findByLabelText(/^preset$/i);
+    // Default in the panel is `cms_readonly` and unknown presets must NOT
+    // change it (no crash, no `__not_a_preset__` selection).
+    await waitFor(() => {
+      expect(presetSelect).toHaveValue("cms_readonly");
+    });
+  });
+
+  it("moves focus to the API keys heading when ?tab=api-keys is present", async () => {
+    searchParamsState.query = "tab=api-keys";
+    mockListWorkspaceApiKeys.mockResolvedValue([]);
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const apiKeysHeading = await screen.findByRole("heading", {
+      name: /workspace api keys/i,
+    });
+    await waitFor(() => {
+      expect(apiKeysHeading).toHaveFocus();
+    });
+  });
+
+  it("moves focus to the Verified domains heading when ?tab=domains is present", async () => {
+    searchParamsState.query = "tab=domains";
+    mockListWorkspaceDomains.mockResolvedValue([]);
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const domainsHeading = await screen.findByRole("heading", {
+      name: /verified domains/i,
+    });
+    await waitFor(() => {
+      expect(domainsHeading).toHaveFocus();
+    });
+  });
+
+  it("ignores an unknown tab value and does not move focus", async () => {
+    searchParamsState.query = "tab=__not_a_tab__";
+    mockListWorkspaceApiKeys.mockResolvedValue([]);
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    // Wait for content to render so any synchronous focus side-effect
+    // would have fired by now.
+    await screen.findByRole("heading", { name: /verified domains/i });
+
+    expect(
+      screen.getByRole("heading", { name: /verified domains/i }),
+    ).not.toHaveFocus();
+    expect(
+      screen.getByRole("heading", { name: /workspace api keys/i }),
+    ).not.toHaveFocus();
+  });
+
+  it("supports combined ?tab=api-keys&preset=cms_publisher", async () => {
+    searchParamsState.query = "tab=api-keys&preset=cms_publisher";
+    mockListWorkspaceApiKeys.mockResolvedValue([]);
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const apiKeysHeading = await screen.findByRole("heading", {
+      name: /workspace api keys/i,
+    });
+    await waitFor(() => {
+      expect(apiKeysHeading).toHaveFocus();
+    });
+
+    const presetSelect = screen.getByLabelText(/^preset$/i);
+    expect(presetSelect).toHaveValue("cms_publisher");
   });
 });
