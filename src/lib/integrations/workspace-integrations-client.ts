@@ -29,6 +29,7 @@ import {
   type WorkspaceApiKeyPresetKey,
   type WorkspaceApiKeyStatus,
   type WorkspaceDomain,
+  type WorkspaceDomainFailureCode,
   type WorkspaceDomainStatus,
 } from "./workspace-integrations-types";
 
@@ -171,6 +172,32 @@ function asDomainStatus(value: unknown): WorkspaceDomainStatus {
   return "pending";
 }
 
+// Closed allowlist for `WorkspaceDomain.failureCode` — must mirror the
+// `WorkspaceDomainFailureCode` union in workspace-integrations-types.ts.
+// Anything outside this set is coerced to `null` so an unknown upstream
+// token cannot bleed into the diagnostic strip and render a misleading
+// status. The codes themselves are sourced from
+// `xynes-accounts-service/src/actions/handlers/integrations/domains.ts`.
+const VALID_DOMAIN_FAILURE_CODES: ReadonlyArray<WorkspaceDomainFailureCode> = [
+  "NXDOMAIN",
+  "TIMEOUT",
+  "DNS_ERROR",
+  "NO_RECORDS",
+  "MISMATCH",
+];
+
+function asDomainFailureCode(
+  value: unknown,
+): WorkspaceDomainFailureCode | null {
+  if (
+    typeof value === "string" &&
+    (VALID_DOMAIN_FAILURE_CODES as ReadonlyArray<string>).includes(value)
+  ) {
+    return value as WorkspaceDomainFailureCode;
+  }
+  return null;
+}
+
 function normalizeDomain(value: unknown): WorkspaceDomain | null {
   const record = asRecord(value);
   if (!record) return null;
@@ -180,6 +207,18 @@ function normalizeDomain(value: unknown): WorkspaceDomain | null {
   if (!id || !hostname) return null;
 
   const verificationName = asString(record.verificationName);
+
+  // dnsRecordsFound: count-only diagnostic added in Phase B
+  // (workspace-domain-verification-ux). Coerce to integer or null;
+  // never trust a raw upstream value to be a number, and never carry
+  // any other shape forward (e.g. an array — that would be a bug).
+  let dnsRecordsFound: number | null = null;
+  if (
+    typeof record.dnsRecordsFound === "number" &&
+    Number.isFinite(record.dnsRecordsFound)
+  ) {
+    dnsRecordsFound = Math.max(0, Math.trunc(record.dnsRecordsFound));
+  }
 
   // verificationMethod is currently the only supported method (`dns_txt`).
   // Coerce any unknown/missing value to the canonical literal so the typed
@@ -192,10 +231,11 @@ function normalizeDomain(value: unknown): WorkspaceDomain | null {
     verificationName: verificationName ?? "",
     lastCheckedAt: asNullableString(record.lastCheckedAt),
     verifiedAt: asNullableString(record.verifiedAt),
-    failureCode: asNullableString(record.failureCode),
+    failureCode: asDomainFailureCode(record.failureCode),
     failureMessage: asNullableString(record.failureMessage),
     createdAt: asString(record.createdAt),
     updatedAt: asString(record.updatedAt),
+    dnsRecordsFound,
   };
   return domain;
 }
@@ -360,6 +400,71 @@ export async function verifyWorkspaceDomain(
     );
   }
   return domain;
+}
+
+// ── Domains: regenerate verification ────────────────────────────
+
+/**
+ * Issue a fresh DNS TXT verification token for an existing
+ * pending/failed domain row. The user clicks "Get new value" when they
+ * have lost the original one-time reveal; the server stores ONLY the
+ * SHA-256 hash of the verification value, so recopying an
+ * already-revealed value is impossible by design — this is the supported
+ * recovery path.
+ *
+ * Returns the same shape as `registerWorkspaceDomain` so the panel can
+ * use the same one-time reveal slot.
+ *
+ * Backend contract: `platform.domains.regenerateVerification` (see
+ * xynes-accounts-service/src/actions/handlers/integrations/domains.ts).
+ * Allowed only when `status IN ('pending','failed')`; verified/disabled
+ * rows return 409 CONFLICT.
+ */
+export async function regenerateWorkspaceDomainVerification(
+  args: DomainOperationArgs,
+): Promise<RegisteredWorkspaceDomain> {
+  const domainId = ensurePathParam(args.domainId, "Domain id");
+  const baseUrl = ensureBaseUrl(args.apiBaseUrl);
+  const workspaceId = ensureWorkspaceId(args.workspaceId);
+  const headers = await buildAuthHeaders(args.getAccessToken, true);
+
+  const response = await fetch(
+    `${baseUrl}/workspaces/${encodeURIComponent(workspaceId)}/domains/${encodeURIComponent(domainId)}/regenerate-verification`,
+    {
+      method: "POST",
+      headers,
+      // Empty JSON body — the route is path-driven, but the gateway's
+      // body-limit middleware requires a Content-Length header on POST,
+      // so we send `{}` to satisfy it without leaking any state.
+      body: "{}",
+      signal: args.signal,
+    },
+  );
+
+  const rawPayload = await parseJson(response);
+  await failIfNotOk(response, rawPayload);
+
+  const payload = unwrapGatewayEnvelope(rawPayload);
+  const domain = normalizeDomain(payload);
+  if (!domain) {
+    throw new WorkspaceIntegrationsApiError(
+      500,
+      "Unexpected response while regenerating verification",
+    );
+  }
+
+  const verificationValue = asString(asRecord(payload)?.verificationValue);
+  if (!verificationValue) {
+    // Fail closed: if the upstream omits the new raw value, the user has
+    // no way to update their DNS record — surface this rather than
+    // silently leaving them with a fresh hash they can't satisfy.
+    throw new WorkspaceIntegrationsApiError(
+      500,
+      "Verification value missing from server response",
+    );
+  }
+
+  return { domain, verificationValue };
 }
 
 // ── Domains: delete (soft-disable) ──────────────────────────────

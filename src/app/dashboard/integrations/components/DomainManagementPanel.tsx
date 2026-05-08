@@ -58,6 +58,14 @@ export interface DomainManagementPanelProps {
   onRegisterDomain: (hostname: string) => Promise<void>;
   /** Re-run DNS TXT verification for a pending or failed domain. */
   onVerifyDomain: (domainId: string) => Promise<void>;
+  /**
+   * Issue a fresh DNS TXT verification token for a pending/failed
+   * domain. The server stores only the hash, so a recopy of the original
+   * one-time reveal is impossible by design — this is the supported
+   * recovery path. On success the container surfaces the new raw value
+   * via `pendingVerificationValue`.
+   */
+  onRegenerateVerification: (domainId: string) => Promise<void>;
   /** Soft-disable a domain (server-side soft delete). */
   onDeleteDomain: (domainId: string) => Promise<void>;
   /**
@@ -103,6 +111,201 @@ function statusLabel(status: WorkspaceDomainStatus): string {
   }
 }
 
+// Status-aware copy for the destructive action.
+//
+// The backend `platform.domains.delete` is a soft-delete (status flip to
+// 'disabled') regardless of the prior status, so we don't need separate
+// actions — but the UI copy MUST match what the user actually intends:
+//
+//   - pending  → "Cancel"  (the user is abandoning a verification attempt
+//                 they never finished; "Disable" implies live behaviour)
+//   - failed   → "Remove"  (the attempt finished and failed; the row has
+//                 never accepted any traffic; nothing to "disable")
+//   - verified → "Disable" (the only state where the row is actually live)
+//   - disabled → already inert; the panel never renders the destructive
+//                 button for this status.
+//
+// The same status drives the ConfirmDialog title + description so the
+// confirmation conversation matches what the button promised.
+type DestructiveCopy = {
+  buttonLabel: string;
+  ariaLabelPrefix: string;
+  dialogTitle: string;
+  dialogPrimary: string;
+  dialogSecondary: string;
+  confirmLabel: string;
+};
+
+function destructiveCopy(status: WorkspaceDomainStatus): DestructiveCopy {
+  switch (status) {
+    case "pending":
+      return {
+        buttonLabel: "Cancel",
+        ariaLabelPrefix: "Cancel domain verification for",
+        dialogTitle: "Cancel domain verification?",
+        dialogPrimary: "will stop being tracked. You can re-add it any time.",
+        dialogSecondary: "No traffic was ever accepted from this domain.",
+        confirmLabel: "Cancel verification",
+      };
+    case "failed":
+      return {
+        buttonLabel: "Remove",
+        ariaLabelPrefix: "Remove failed domain",
+        dialogTitle: "Remove failed domain?",
+        dialogPrimary:
+          "will be removed from this workspace. You can re-add it any time.",
+        dialogSecondary: "No traffic was ever accepted from this domain.",
+        confirmLabel: "Remove",
+      };
+    case "verified":
+    default:
+      return {
+        buttonLabel: "Disable",
+        ariaLabelPrefix: "Disable domain",
+        dialogTitle: "Disable domain?",
+        dialogPrimary: "will stop accepting traffic from this workspace.",
+        dialogSecondary: "You can re-add it later if needed.",
+        confirmLabel: "Disable",
+      };
+  }
+}
+
+// 3-step diagnostic strip — Phase B+D.
+//
+// Read the categorized `failureCode` from the verify handler and the
+// count-only `dnsRecordsFound` and project them into a small
+// presentational shape. The strip never renders raw TXT record values —
+// the count is sufficient to drive the "value match" question.
+//
+// Steps:
+//   1. DNS lookup    — ✓ when `failureCode` is null OR is a non-DNS-error
+//                       category (NO_RECORDS / MISMATCH); ✗ on
+//                       NXDOMAIN / TIMEOUT / DNS_ERROR.
+//   2. TXT records   — neutral until DNS step passed; "0 records" ✗ on
+//                       NO_RECORDS; "N records" ✓ when ≥1.
+//   3. Value match   — neutral until both steps passed; ✓ when status
+//                       === 'verified'; ✗ on MISMATCH.
+type DiagnosticStepStatus = "pass" | "fail" | "skipped";
+
+interface DiagnosticStep {
+  /** Stable label for screen readers + visible text. */
+  label: string;
+  /** Visible secondary detail (e.g. record count). */
+  detail: string;
+  /** Visual status. */
+  status: DiagnosticStepStatus;
+}
+
+function isDnsLookupFailure(
+  failureCode: string | null | undefined,
+): failureCode is "NXDOMAIN" | "TIMEOUT" | "DNS_ERROR" {
+  return (
+    failureCode === "NXDOMAIN" ||
+    failureCode === "TIMEOUT" ||
+    failureCode === "DNS_ERROR"
+  );
+}
+
+function buildDiagnosticStrip(
+  domain: WorkspaceDomain,
+): DiagnosticStep[] | null {
+  // Only render diagnostics on a failed row OR a verified row. Pending
+  // rows haven't been verified yet, so there's nothing to diagnose; the
+  // verify-now button is the right CTA there.
+  if (domain.status !== "failed" && domain.status !== "verified") {
+    return null;
+  }
+
+  // `failureCode` is already narrowed to `WorkspaceDomainFailureCode | null`
+  // by the type system; the client's `asDomainFailureCode` allowlist
+  // guarantees only known codes ever reach this function.
+  const code = domain.failureCode ?? null;
+  const recordCount = domain.dnsRecordsFound ?? null;
+
+  // Step 1: DNS lookup
+  const dnsFailed = isDnsLookupFailure(code);
+  const lookupStep: DiagnosticStep = dnsFailed
+    ? {
+        label: "DNS lookup",
+        detail:
+          code === "NXDOMAIN"
+            ? "No record found"
+            : code === "TIMEOUT"
+              ? "Timed out"
+              : "Failed",
+        status: "fail",
+      }
+    : {
+        label: "DNS lookup",
+        detail: "Resolved",
+        status: "pass",
+      };
+
+  // Step 2: TXT records found
+  let recordsStep: DiagnosticStep;
+  if (dnsFailed) {
+    recordsStep = {
+      label: "TXT records",
+      detail: "—",
+      status: "skipped",
+    };
+  } else if (code === "NO_RECORDS" || recordCount === 0) {
+    recordsStep = {
+      label: "TXT records",
+      detail: "0 found",
+      status: "fail",
+    };
+  } else if (typeof recordCount === "number" && recordCount > 0) {
+    recordsStep = {
+      label: "TXT records",
+      detail: `${recordCount} found`,
+      status: "pass",
+    };
+  } else if (domain.status === "verified") {
+    // Verified path with no count carried (older row pre-Phase-B).
+    // Trust the verified status — the row was confirmed at some point.
+    recordsStep = {
+      label: "TXT records",
+      detail: "Found",
+      status: "pass",
+    };
+  } else {
+    // Non-verified row with missing/untrustworthy count. Don't draw a
+    // green check from a fallback — show "skipped" so the user (and
+    // SR users) can see the diagnostic is incomplete rather than
+    // misleadingly healthy.
+    recordsStep = {
+      label: "TXT records",
+      detail: "—",
+      status: "skipped",
+    };
+  }
+
+  // Step 3: Value match
+  let matchStep: DiagnosticStep;
+  if (domain.status === "verified") {
+    matchStep = {
+      label: "Value match",
+      detail: "Matched",
+      status: "pass",
+    };
+  } else if (code === "MISMATCH") {
+    matchStep = {
+      label: "Value match",
+      detail: "No record matched",
+      status: "fail",
+    };
+  } else {
+    matchStep = {
+      label: "Value match",
+      detail: "—",
+      status: "skipped",
+    };
+  }
+
+  return [lookupStep, recordsStep, matchStep];
+}
+
 // Component
 
 export function DomainManagementPanel({
@@ -110,6 +313,7 @@ export function DomainManagementPanel({
   isLoading,
   onRegisterDomain,
   onVerifyDomain,
+  onRegenerateVerification,
   onDeleteDomain,
   pendingVerificationValue,
   onDismissVerificationValue,
@@ -166,6 +370,39 @@ export function DomainManagementPanel({
     [onVerifyDomain],
   );
 
+  const handleRegenerate = useCallback(
+    async (domainId: string) => {
+      setPendingActionDomainId(domainId);
+      try {
+        await onRegenerateVerification(domainId);
+      } catch {
+        // The container renders the safe error message.
+      } finally {
+        setPendingActionDomainId(null);
+      }
+    },
+    [onRegenerateVerification],
+  );
+
+  const handleCopyVerificationValue = useCallback(async () => {
+    if (!pendingVerificationValue) return;
+    // navigator.clipboard is available in modern browsers (and is the
+    // only way to copy programmatically without a permission prompt).
+    // We never persist the value beyond this slot — the user copies and
+    // then explicitly dismisses the reveal.
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(
+          pendingVerificationValue.verificationValue,
+        );
+      } catch {
+        // Some browsers reject clipboard writes when not user-gesture
+        // initiated. We silently ignore — the value is still visible in
+        // the reveal block for manual copy.
+      }
+    }
+  }, [pendingVerificationValue]);
+
   const requestDelete = useCallback(
     (domain: WorkspaceDomain) => {
       setDomainToDelete(domain);
@@ -206,15 +443,22 @@ export function DomainManagementPanel({
             <code className="block break-all rounded bg-muted px-2 py-1 font-mono text-xs">
               {pendingVerificationValue.verificationValue}
             </code>
-            <div>
+            <Flex gap="sm" wrap="wrap">
+              <Button
+                type="button"
+                onClick={handleCopyVerificationValue}
+                aria-label="Copy verification value"
+              >
+                Copy
+              </Button>
               <Button
                 type="button"
                 onClick={onDismissVerificationValue}
                 aria-label="Dismiss verification value"
               >
-                Copied
+                I’ve added it
               </Button>
-            </div>
+            </Flex>
           </div>
         </InlineAlert>
       ) : null}
@@ -310,6 +554,53 @@ export function DomainManagementPanel({
                     </p>
                   ) : null}
 
+                  {(() => {
+                    // Phase D: 3-step diagnostic strip on failed/verified
+                    // rows. Driven by Phase B's `failureCode` +
+                    // `dnsRecordsFound`. Never echoes raw TXT record
+                    // values back — counts only.
+                    const strip = buildDiagnosticStrip(domain);
+                    if (!strip) return null;
+                    return (
+                      <ul
+                        data-testid={`domain-diagnostic-strip-${domain.id}`}
+                        aria-label={`Verification diagnostic for ${domain.hostname}`}
+                        className="flex flex-col gap-1 rounded border border-border bg-muted/40 p-2 text-xs"
+                      >
+                        {strip.map((step) => {
+                          const icon =
+                            step.status === "pass"
+                              ? "✓"
+                              : step.status === "fail"
+                                ? "✗"
+                                : "·";
+                          const colorClass =
+                            step.status === "pass"
+                              ? "text-emerald-700"
+                              : step.status === "fail"
+                                ? "text-destructive"
+                                : "text-muted-foreground";
+                          return (
+                            <li
+                              key={step.label}
+                              data-status={step.status}
+                              className="flex items-center gap-2"
+                            >
+                              <span aria-hidden="true" className={colorClass}>
+                                {icon}
+                              </span>
+                              <span className="font-medium">{step.label}:</span>
+                              <span className="text-muted-foreground">
+                                {step.detail}
+                              </span>
+                              <span className="sr-only">{step.status}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    );
+                  })()}
+
                   <Flex gap="sm" wrap="wrap">
                     {showRecheck ? (
                       <Button
@@ -321,14 +612,38 @@ export function DomainManagementPanel({
                         Recheck
                       </Button>
                     ) : null}
-                    <Button
-                      type="button"
-                      onClick={() => requestDelete(domain)}
-                      disabled={isLoading || isRowPending}
-                      aria-label={`Disable domain ${domain.hostname}`}
-                    >
-                      Disable
-                    </Button>
+                    {showRecheck ? (
+                      <Button
+                        type="button"
+                        onClick={() => handleRegenerate(domain.id)}
+                        disabled={isLoading || isRowPending}
+                        aria-label={`Get a new verification value for ${domain.hostname}`}
+                      >
+                        Get new value
+                      </Button>
+                    ) : null}
+                    {/*
+                      Destructive CTA: render only for rows that can
+                      still be acted on. A `disabled` row is the result
+                      of a soft-delete and is already inert — clicking
+                      "Disable" again would dispatch another pointless
+                      delete to the gateway and confuse the operator.
+                    */}
+                    {domain.status !== "disabled"
+                      ? (() => {
+                          const copy = destructiveCopy(domain.status);
+                          return (
+                            <Button
+                              type="button"
+                              onClick={() => requestDelete(domain)}
+                              disabled={isLoading || isRowPending}
+                              aria-label={`${copy.ariaLabelPrefix} ${domain.hostname}`}
+                            >
+                              {copy.buttonLabel}
+                            </Button>
+                          );
+                        })()
+                      : null}
                   </Flex>
                 </Flex>
               </li>
@@ -337,28 +652,40 @@ export function DomainManagementPanel({
         </ul>
       )}
 
-      {/* Confirmation dialog for destructive delete/disable. */}
-      <ConfirmDialog
-        title="Disable domain?"
-        description={
-          domainToDelete ? (
-            <span className="block space-y-1">
-              <span className="block">
-                <span className="font-medium">{domainToDelete.hostname}</span>{" "}
-                will stop accepting traffic from this workspace.
-              </span>
-              <span className="block">You can re-add it later if needed.</span>
-            </span>
-          ) : (
-            "This domain will be disabled."
-          )
-        }
-        confirmLabel="Disable"
-        cancelLabel="Cancel"
-        destructive
-        onConfirm={handleConfirmDelete}
-        {...confirmDelete.dialogProps}
-      />
+      {/* Confirmation dialog for destructive delete/disable.
+          Copy is status-aware: pending → Cancel, failed → Remove,
+          verified → Disable. Default to the verified copy when no
+          target is selected (the dialog isn't visible in that case). */}
+      {(() => {
+        const copy = domainToDelete
+          ? destructiveCopy(domainToDelete.status)
+          : destructiveCopy("verified");
+        return (
+          <ConfirmDialog
+            title={copy.dialogTitle}
+            description={
+              domainToDelete ? (
+                <span className="block space-y-1">
+                  <span className="block">
+                    <span className="font-medium">
+                      {domainToDelete.hostname}
+                    </span>{" "}
+                    {copy.dialogPrimary}
+                  </span>
+                  <span className="block">{copy.dialogSecondary}</span>
+                </span>
+              ) : (
+                copy.dialogPrimary
+              )
+            }
+            confirmLabel={copy.confirmLabel}
+            cancelLabel="Cancel"
+            destructive
+            onConfirm={handleConfirmDelete}
+            {...confirmDelete.dialogProps}
+          />
+        );
+      })()}
     </Flex>
   );
 }

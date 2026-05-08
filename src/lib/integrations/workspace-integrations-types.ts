@@ -18,6 +18,23 @@ export type WorkspaceDomainStatus =
   | "failed"
   | "disabled";
 
+/**
+ * Categorized failure codes surfaced by the verify handler. Mirrors the
+ * `DomainFailureCode` union in
+ * `xynes-accounts-service/src/actions/handlers/integrations/domains.ts`.
+ *
+ * The frontend translates these into a 3-step diagnostic strip:
+ *   - DNS lookup    → ✗ on NXDOMAIN | TIMEOUT | DNS_ERROR; ✓ otherwise
+ *   - TXT records   → "N records" (✗ when 0 → NO_RECORDS; ✓ when ≥1)
+ *   - Value match   → ✗ on MISMATCH; ✓ on verified
+ */
+export type WorkspaceDomainFailureCode =
+  | "NXDOMAIN"
+  | "TIMEOUT"
+  | "DNS_ERROR"
+  | "NO_RECORDS"
+  | "MISMATCH";
+
 export type WorkspaceDomain = {
   id: string;
   hostname: string;
@@ -26,10 +43,26 @@ export type WorkspaceDomain = {
   verificationName: string;
   lastCheckedAt?: string | null;
   verifiedAt?: string | null;
-  failureCode?: string | null;
+  /**
+   * Categorized failure code from the most recent verify attempt.
+   * Narrowed to the closed `WorkspaceDomainFailureCode` union so the
+   * compiler enforces the panel's diagnostic-strip contract. The
+   * client normalizer coerces any unknown upstream string to `null`,
+   * so an unexpected backend token can never reach the strip and
+   * silently render a misleading status.
+   */
+  failureCode?: WorkspaceDomainFailureCode | null;
   failureMessage?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  /**
+   * Count of TXT records returned by the resolver in the most recent
+   * verify attempt. NULL when no attempt has been made or DNS lookup
+   * itself errored before records could be enumerated. NEVER carries
+   * raw record values (those could be attacker-supplied content from a
+   * hostile DNS zone). Used by the panel's diagnostic strip.
+   */
+  dnsRecordsFound?: number | null;
 };
 
 /**

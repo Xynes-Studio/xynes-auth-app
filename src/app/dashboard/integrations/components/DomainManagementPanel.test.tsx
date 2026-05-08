@@ -184,6 +184,7 @@ function defaultProps(
     isLoading: false,
     onRegisterDomain: vi.fn().mockResolvedValue(undefined),
     onVerifyDomain: vi.fn().mockResolvedValue(undefined),
+    onRegenerateVerification: vi.fn().mockResolvedValue(undefined),
     onDeleteDomain: vi.fn().mockResolvedValue(undefined),
     pendingVerificationValue: null as null | {
       domainId: string;
@@ -430,5 +431,532 @@ describe("DomainManagementPanel", () => {
       }),
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: /add domain/i })).toBeDisabled();
+  });
+
+  // ── Phase C: status-aware destructive copy ───────────────────────────────
+  //
+  // The backend `platform.domains.delete` is a soft-delete that handles
+  // any non-disabled status, so the FE drives copy off the row's current
+  // status to match what the user actually intends. The same status
+  // drives the ConfirmDialog so the button label and dialog conversation
+  // match.
+
+  it("renders 'Cancel' button copy on a pending domain row", () => {
+    render(
+      <DomainManagementPanel {...defaultProps({ domains: [pendingDomain] })} />,
+    );
+    const row = screen.getByTestId(`domain-row-${pendingDomain.id}`);
+    // Button label is "Cancel" (not "Disable").
+    expect(
+      within(row).getByRole("button", { name: /^cancel/i }),
+    ).toHaveTextContent(/^cancel$/i);
+    // The "Disable" copy must NOT appear on this row.
+    expect(within(row).queryByRole("button", { name: /^disable/i })).toBeNull();
+  });
+
+  it("renders 'Remove' button copy on a failed domain row", () => {
+    render(
+      <DomainManagementPanel {...defaultProps({ domains: [failedDomain] })} />,
+    );
+    const row = screen.getByTestId(`domain-row-${failedDomain.id}`);
+    expect(
+      within(row).getByRole("button", { name: /^remove/i }),
+    ).toHaveTextContent(/^remove$/i);
+    expect(within(row).queryByRole("button", { name: /^disable/i })).toBeNull();
+    expect(within(row).queryByRole("button", { name: /^cancel/i })).toBeNull();
+  });
+
+  it("renders 'Disable' button copy on a verified domain row", () => {
+    render(
+      <DomainManagementPanel
+        {...defaultProps({ domains: [verifiedDomain] })}
+      />,
+    );
+    const row = screen.getByTestId(`domain-row-${verifiedDomain.id}`);
+    expect(
+      within(row).getByRole("button", { name: /^disable/i }),
+    ).toHaveTextContent(/^disable$/i);
+  });
+
+  it("uses 'Cancel domain verification?' dialog title for a pending row", async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DomainManagementPanel
+        {...defaultProps({
+          domains: [pendingDomain],
+          onDeleteDomain: onDelete,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: new RegExp(
+          `cancel domain verification for ${escapeRegExp(pendingDomain.hostname)}`,
+          "i",
+        ),
+      }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/cancel domain verification\?/i),
+    ).toBeInTheDocument();
+    // Dialog confirm button label matches the action — it is NOT "Disable".
+    expect(
+      within(dialog).getByRole("button", { name: /cancel verification/i }),
+    ).toBeInTheDocument();
+    // The dialog must NOT promise traffic-stopping behaviour for a row
+    // that has never accepted any traffic.
+    expect(within(dialog).queryByText(/stop accepting traffic/i)).toBeNull();
+  });
+
+  it("uses 'Remove failed domain?' dialog title for a failed row", async () => {
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DomainManagementPanel
+        {...defaultProps({
+          domains: [failedDomain],
+          onDeleteDomain: onDelete,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: new RegExp(
+          `remove failed domain ${escapeRegExp(failedDomain.hostname)}`,
+          "i",
+        ),
+      }),
+    );
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/remove failed domain\?/i),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /^remove$/i }),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/stop accepting traffic/i)).toBeNull();
+  });
+
+  it("calls onDeleteDomain with the pending row's id from the Cancel dialog", async () => {
+    // Backend contract: same `platform.domains.delete` action regardless of
+    // status. The FE only renames the button + dialog copy.
+    const onDelete = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DomainManagementPanel
+        {...defaultProps({
+          domains: [pendingDomain],
+          onDeleteDomain: onDelete,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: new RegExp(
+          `cancel domain verification for ${escapeRegExp(pendingDomain.hostname)}`,
+          "i",
+        ),
+      }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: /cancel verification/i }),
+    );
+    await waitFor(() => {
+      expect(onDelete).toHaveBeenCalledWith(pendingDomain.id);
+    });
+  });
+
+  // ── Phase D: recopy + regenerate UI + diagnostic strip ──────────────────
+
+  it("renders a 'Copy verification value' button only while a fresh reveal is active", () => {
+    // No reveal slot → no Copy button (the secret can't be recopied
+    // because the server stores ONLY the SHA-256 hash; a stale reveal
+    // would lie about what the user actually has).
+    const { rerender } = render(
+      <DomainManagementPanel {...defaultProps({ domains: [pendingDomain] })} />,
+    );
+    expect(
+      screen.queryByRole("button", { name: /copy verification value/i }),
+    ).toBeNull();
+
+    rerender(
+      <DomainManagementPanel
+        {...defaultProps({
+          domains: [pendingDomain],
+          pendingVerificationValue: {
+            domainId: pendingDomain.id,
+            verificationValue: "xynes-verify=abc123",
+          },
+        })}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: /copy verification value/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("calls navigator.clipboard.writeText with the raw verification value when Copy is clicked", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    // Stub the clipboard API for this test only — `defineProperty` is
+    // safer than reassigning the read-only `navigator.clipboard`.
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    render(
+      <DomainManagementPanel
+        {...defaultProps({
+          domains: [pendingDomain],
+          pendingVerificationValue: {
+            domainId: pendingDomain.id,
+            verificationValue: "xynes-verify=copythisvalue",
+          },
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /copy verification value/i }),
+    );
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith("xynes-verify=copythisvalue");
+    });
+  });
+
+  it("renders a 'Get new value' button on pending and failed rows but not verified rows", () => {
+    render(
+      <DomainManagementPanel
+        {...defaultProps({
+          domains: [pendingDomain, failedDomain, verifiedDomain],
+        })}
+      />,
+    );
+
+    // Pending row gets the regenerate CTA.
+    expect(
+      screen.getByRole("button", {
+        name: new RegExp(
+          `get a new verification value for ${escapeRegExp(pendingDomain.hostname)}`,
+          "i",
+        ),
+      }),
+    ).toBeInTheDocument();
+
+    // Failed row gets the regenerate CTA.
+    expect(
+      screen.getByRole("button", {
+        name: new RegExp(
+          `get a new verification value for ${escapeRegExp(failedDomain.hostname)}`,
+          "i",
+        ),
+      }),
+    ).toBeInTheDocument();
+
+    // Verified row must NOT get the regenerate CTA — regenerating a
+    // verified domain would silently revoke verification, which is the
+    // backend 409 path. The panel guards against that by hiding the
+    // button entirely.
+    expect(
+      screen.queryByRole("button", {
+        name: new RegExp(
+          `get a new verification value for ${escapeRegExp(verifiedDomain.hostname)}`,
+          "i",
+        ),
+      }),
+    ).toBeNull();
+  });
+
+  it("calls onRegenerateVerification(domainId) when the Get-new-value button is clicked", async () => {
+    const onRegenerate = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DomainManagementPanel
+        {...defaultProps({
+          domains: [pendingDomain],
+          onRegenerateVerification: onRegenerate,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: new RegExp(
+          `get a new verification value for ${escapeRegExp(pendingDomain.hostname)}`,
+          "i",
+        ),
+      }),
+    );
+
+    await waitFor(() => {
+      expect(onRegenerate).toHaveBeenCalledWith(pendingDomain.id);
+    });
+  });
+
+  // ── Diagnostic strip — Phase B+D ─────────────────────────────────────
+
+  it("does not render the diagnostic strip on a pending row (no diagnosis available yet)", () => {
+    render(
+      <DomainManagementPanel {...defaultProps({ domains: [pendingDomain] })} />,
+    );
+    expect(
+      screen.queryByTestId(`domain-diagnostic-strip-${pendingDomain.id}`),
+    ).toBeNull();
+  });
+
+  it("renders a 3-step strip on a failed row with NXDOMAIN", () => {
+    const nxDomain: WorkspaceDomain = {
+      ...failedDomain,
+      id: "dom-nxdomain",
+      hostname: "nope.example.com",
+      failureCode: "NXDOMAIN",
+      failureMessage:
+        "No DNS record found at the verification name yet. DNS propagation can take up to 24h.",
+      dnsRecordsFound: null,
+    };
+    render(
+      <DomainManagementPanel {...defaultProps({ domains: [nxDomain] })} />,
+    );
+
+    const strip = screen.getByTestId(`domain-diagnostic-strip-${nxDomain.id}`);
+    expect(strip).toHaveAttribute(
+      "aria-label",
+      `Verification diagnostic for ${nxDomain.hostname}`,
+    );
+
+    // Step 1 fails with "No record found"; steps 2 + 3 are skipped (we
+    // can't enumerate records or compare values without a successful
+    // DNS lookup).
+    const items = within(strip).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(items[0]).toHaveAttribute("data-status", "fail");
+    expect(items[0]).toHaveTextContent(/dns lookup/i);
+    expect(items[0]).toHaveTextContent(/no record found/i);
+    expect(items[1]).toHaveAttribute("data-status", "skipped");
+    expect(items[2]).toHaveAttribute("data-status", "skipped");
+  });
+
+  it("renders the strip with TXT-records-found pass + value-match fail on MISMATCH", () => {
+    const mismatch: WorkspaceDomain = {
+      ...failedDomain,
+      id: "dom-mismatch",
+      hostname: "mismatch.example.com",
+      failureCode: "MISMATCH",
+      failureMessage:
+        "Found 3 TXT records at the verification name, but none matched.",
+      dnsRecordsFound: 3,
+    };
+    render(
+      <DomainManagementPanel {...defaultProps({ domains: [mismatch] })} />,
+    );
+
+    const strip = screen.getByTestId(`domain-diagnostic-strip-${mismatch.id}`);
+    const items = within(strip).getAllByRole("listitem");
+
+    expect(items[0]).toHaveAttribute("data-status", "pass");
+    expect(items[0]).toHaveTextContent(/dns lookup/i);
+
+    expect(items[1]).toHaveAttribute("data-status", "pass");
+    // Count comes through; raw record values do NOT.
+    expect(items[1]).toHaveTextContent(/3 found/i);
+
+    expect(items[2]).toHaveAttribute("data-status", "fail");
+    expect(items[2]).toHaveTextContent(/no record matched/i);
+  });
+
+  it("renders the strip with NO_RECORDS marking step 2 as fail", () => {
+    const noRecords: WorkspaceDomain = {
+      ...failedDomain,
+      id: "dom-norecords",
+      hostname: "empty.example.com",
+      failureCode: "NO_RECORDS",
+      failureMessage:
+        "No TXT records found at the verification name. DNS propagation can take up to 24h.",
+      dnsRecordsFound: 0,
+    };
+    render(
+      <DomainManagementPanel {...defaultProps({ domains: [noRecords] })} />,
+    );
+
+    const strip = screen.getByTestId(`domain-diagnostic-strip-${noRecords.id}`);
+    const items = within(strip).getAllByRole("listitem");
+
+    expect(items[0]).toHaveAttribute("data-status", "pass");
+    expect(items[1]).toHaveAttribute("data-status", "fail");
+    expect(items[1]).toHaveTextContent(/0 found/i);
+    expect(items[2]).toHaveAttribute("data-status", "skipped");
+  });
+
+  it("renders an all-pass strip on a verified row", () => {
+    render(
+      <DomainManagementPanel
+        {...defaultProps({ domains: [verifiedDomain] })}
+      />,
+    );
+
+    const strip = screen.getByTestId(
+      `domain-diagnostic-strip-${verifiedDomain.id}`,
+    );
+    const items = within(strip).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    for (const item of items) {
+      expect(item).toHaveAttribute("data-status", "pass");
+    }
+    // Match step explicitly says "Matched" so SR users hear the
+    // resolution rather than just an icon.
+    expect(items[2]).toHaveTextContent(/matched/i);
+  });
+
+  it("never echoes a hostile dnsRecordsFound array (count-only contract)", () => {
+    // Defense in depth: the client normalizer should already coerce
+    // anything non-numeric to null, but if the panel ever started
+    // rendering this field directly, an attacker-supplied DNS zone
+    // could feed strings or arrays through. The strip must not crash
+    // and must not echo such data.
+    const hostile = {
+      ...failedDomain,
+      id: "dom-hostile-count",
+      hostname: "hostile.example.com",
+      failureCode: "MISMATCH",
+      dnsRecordsFound: ["leaked-record-a", "leaked-record-b"],
+    } as unknown as WorkspaceDomain;
+    render(<DomainManagementPanel {...defaultProps({ domains: [hostile] })} />);
+
+    expect(screen.queryByText(/leaked-record-a/)).toBeNull();
+    expect(screen.queryByText(/leaked-record-b/)).toBeNull();
+  });
+
+  it("disables the Get-new-value button while loading to avoid double-submits", () => {
+    render(
+      <DomainManagementPanel
+        {...defaultProps({
+          domains: [pendingDomain],
+          isLoading: true,
+        })}
+      />,
+    );
+    expect(
+      screen.getByRole("button", {
+        name: new RegExp(
+          `get a new verification value for ${escapeRegExp(pendingDomain.hostname)}`,
+          "i",
+        ),
+      }),
+    ).toBeDisabled();
+  });
+
+  // ── Disabled-row destructive CTA suppression ────────────────────────
+  //
+  // A `disabled` row is the soft-deleted result of an earlier
+  // platform.domains.delete. Re-rendering "Disable" for it would
+  // dispatch another pointless delete and confuse the operator.
+  // CodeRabbit review (PR #47) flagged this as a fall-through bug
+  // because `destructiveCopy("disabled")` defaulted to the verified
+  // copy.
+
+  it("does NOT render a destructive button for a disabled domain row", () => {
+    const disabledDomain: WorkspaceDomain = {
+      id: "dom-disabled",
+      hostname: "disabled.example.com",
+      status: "disabled",
+      verificationMethod: "dns_txt",
+      verificationName: "_xynes.disabled.example.com",
+    };
+    render(
+      <DomainManagementPanel
+        {...defaultProps({ domains: [disabledDomain] })}
+      />,
+    );
+    const row = screen.getByTestId(`domain-row-${disabledDomain.id}`);
+    // None of the destructive copy variants should render on a
+    // disabled row.
+    expect(within(row).queryByRole("button", { name: /^disable/i })).toBeNull();
+    expect(within(row).queryByRole("button", { name: /^remove/i })).toBeNull();
+    expect(within(row).queryByRole("button", { name: /^cancel/i })).toBeNull();
+  });
+
+  it("does NOT render a Get-new-value button for a disabled domain row", () => {
+    // The Get-new-value CTA is gated on `showRecheck`, which is
+    // already false for disabled rows; this test pins that contract
+    // alongside the destructive CTA suppression test above so they
+    // can't drift apart.
+    const disabledDomain: WorkspaceDomain = {
+      id: "dom-disabled-2",
+      hostname: "disabled2.example.com",
+      status: "disabled",
+      verificationMethod: "dns_txt",
+      verificationName: "_xynes.disabled2.example.com",
+    };
+    render(
+      <DomainManagementPanel
+        {...defaultProps({ domains: [disabledDomain] })}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: /get a new verification value/i }),
+    ).toBeNull();
+  });
+
+  // ── recordsStep `skipped` fallback for failed rows ──────────────────
+  //
+  // When a failed row carries a known failureCode that doesn't itself
+  // pin the records step (e.g. an unforeseen future code that survives
+  // the allowlist) but no trustworthy `dnsRecordsFound`, the strip
+  // must NOT default to a green check. CodeRabbit review (PR #47)
+  // flagged the prior behaviour where the `else` fallback drew "pass".
+
+  it("renders TXT records as 'skipped' on a failed row missing dnsRecordsFound", () => {
+    // Construct a failed row whose failureCode survives the allowlist
+    // but doesn't pin step 2 (e.g. MISMATCH). Drop dnsRecordsFound to
+    // simulate older rows or a transient backend gap.
+    const failedNoCount: WorkspaceDomain = {
+      ...failedDomain,
+      id: "dom-failed-nocount",
+      hostname: "nocount.example.com",
+      failureCode: "MISMATCH",
+      // dnsRecordsFound omitted on purpose
+    };
+    render(
+      <DomainManagementPanel {...defaultProps({ domains: [failedNoCount] })} />,
+    );
+    const strip = screen.getByTestId(
+      `domain-diagnostic-strip-${failedNoCount.id}`,
+    );
+    const items = within(strip).getAllByRole("listitem");
+    // Step 1: DNS lookup passed (MISMATCH implies a successful resolve).
+    expect(items[0]).toHaveAttribute("data-status", "pass");
+    // Step 2: must be 'skipped' — NOT 'pass' — because we have no
+    // trustworthy count to report.
+    expect(items[1]).toHaveAttribute("data-status", "skipped");
+    expect(items[1]).toHaveTextContent(/—/);
+    // Step 3: still flagged 'fail' because the row's status === failed
+    // and the code is MISMATCH.
+    expect(items[2]).toHaveAttribute("data-status", "fail");
+  });
+
+  it("still renders TXT records as 'pass' on a verified row missing dnsRecordsFound (legacy data)", () => {
+    // Verified rows from before Phase B don't carry the count. Trust
+    // the verified status — they were confirmed at some point.
+    const verifiedNoCount: WorkspaceDomain = {
+      ...verifiedDomain,
+      id: "dom-verified-nocount",
+      // dnsRecordsFound omitted on purpose
+    };
+    render(
+      <DomainManagementPanel
+        {...defaultProps({ domains: [verifiedNoCount] })}
+      />,
+    );
+    const strip = screen.getByTestId(
+      `domain-diagnostic-strip-${verifiedNoCount.id}`,
+    );
+    const items = within(strip).getAllByRole("listitem");
+    expect(items[1]).toHaveAttribute("data-status", "pass");
+    expect(items[1]).toHaveTextContent(/found/i);
   });
 });
