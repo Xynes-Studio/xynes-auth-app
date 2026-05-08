@@ -394,6 +394,18 @@ Other apps (CMS console, future consumers) link **into** this surface as context
 - `src/app/dashboard/integrations/components/DomainManagementPanel.tsx` — verified-domain lifecycle UI (Task 3, landed 2026-05-05). Renders the domain list, registration form, DNS-TXT verification action, and soft-delete confirmation with Lumia DS primitives. It keeps the one-time `verificationValue` local to the panel reveal state, never renders hash/internal audit fields, preserves typed input on failed registration, and exposes loading/error/empty/permission states through accessible status regions and labels.
 - `src/app/dashboard/integrations/components/ApiKeyManagementPanel.tsx` — workspace API key lifecycle UI (Task 4, landed 2026-05-08). Renders the API key list (name, prefix, status pill, preset label, last used, expiry), the create-key form (Name input + Preset `Select`), and the revoke confirmation flow with Lumia DS primitives. The one-time raw key (`xynes_live_<hex>`) is held in container state ONLY (`pendingRawApiKey`) and forwarded to the panel via prop; the panel renders it exactly once inside an `InlineAlert` (`role="status"`, `aria-live="polite"`) with the warning copy "You won't see this key again", a single "Dismiss API key" button, and never copies it into any other state. Status pill mapping uses Lumia's `success | warning | error | info` variants only (`active`→success, `expired`→warning, `revoked`→error). Revoked and expired keys correctly do NOT render a Revoke button. The destructive Revoke action is gated by Lumia `ConfirmDialog` (a real focus-trapped `alertdialog`). Preset labels follow `WORKSPACE_API_KEY_PRESET_KEYS` (`CMS Read-only`, `CMS Authoring`, `CMS Publisher`, `Telemetry Read`, `Workspace Admin`).
 
+### Deep-link contract (Task 5, landed 2026-05-08)
+
+The `/dashboard/integrations` page honors deep-link query parameters from CMS console links built by `xynes-front-end/xynes-cms-console-web/src/features/integrations/workspace-admin-links.ts`:
+
+- `?tab=domains` — moves keyboard focus to the "Verified domains" heading on first load so screen-reader and keyboard users land on the relevant section without scrolling. The heading carries `tabIndex={-1}` so it is programmatically focusable but not part of the natural tab order.
+- `?tab=api-keys` — same focus contract for the "Workspace API keys" heading.
+- `?preset=cms_readonly` or `?preset=cms_publisher` — pre-selects the matching option in the create-API-key form's Preset `Select`. Only the values in the local allowlist (validated against `WORKSPACE_API_KEY_PRESET_KEYS`) are honored; unknown / hostile values are silently ignored and the default `cms_readonly` is preserved.
+
+Both parameters can be combined: CMS uses targets `cms_readonly_key` (`?tab=api-keys&preset=cms_readonly`) and `cms_publisher_key` (`?tab=api-keys&preset=cms_publisher`).
+
+The container uses `useSearchParams()` (from `next/navigation`), so `page.tsx` wraps the container in a `<Suspense>` boundary with a `Spinner` fallback — required by Next.js 15 for client-side search-params reads during static prerender.
+
 ### Container patterns to reuse
 
 Pin `getAccessToken` to a `useRef` so the load effect doesn't re-fire on every parent re-render. The auth-sdk's `useAuth()` may return a fresh function reference, and listing it in the effect dependency array causes a refetch storm:

@@ -24,7 +24,7 @@
  *   this container even if the upstream serialises them.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -36,6 +36,7 @@ import {
   Flex,
   Spinner,
 } from "@lumia-ui/components";
+import { useSearchParams } from "next/navigation";
 import { useAuth, useWorkspace } from "@xynes/auth-sdk";
 import {
   WorkspaceIntegrationsApiError,
@@ -60,6 +61,10 @@ import {
   type ApiKeyManagementPanelCreateInput,
   type PendingWorkspaceRawApiKey,
 } from "./ApiKeyManagementPanel";
+import {
+  WORKSPACE_API_KEY_PRESET_KEYS,
+  type WorkspaceApiKeyPresetKey,
+} from "@/lib/integrations/workspace-integrations-types";
 
 function getIntegrationsLoadErrorMessage(error: unknown): string {
   if (!(error instanceof WorkspaceIntegrationsApiError)) {
@@ -84,10 +89,37 @@ function getIntegrationsLoadErrorMessage(error: unknown): string {
 export function WorkspaceIntegrationsDashboard() {
   const { currentWorkspace } = useWorkspace();
   const { getAccessToken } = useAuth();
+  const searchParams = useSearchParams();
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const workspaceId = currentWorkspace?.id ?? "";
   const workspaceSlug = currentWorkspace?.slug ?? null;
+
+  // ── Deep-link query support (Task 5) ───────────────────────────────────
+  // CMS console uses these query parameters to deep-link into Workspace
+  // Admin (see `xynes-front-end/xynes-cms-console-web/src/features/integrations/workspace-admin-links.ts`).
+  //   - `tab=domains | api-keys` moves keyboard focus to the matching
+  //     section heading so SR / keyboard users land on the relevant
+  //     surface without scrolling.
+  //   - `preset=cms_readonly | cms_publisher` (subset of the full preset
+  //     allowlist) pre-selects the create-API-key preset.
+  // Unknown values are ignored — no preset preselect, no random focus jump.
+  const tabParam = searchParams?.get("tab") ?? null;
+  const presetParam = searchParams?.get("preset") ?? null;
+
+  const initialPresetKey = useMemo<WorkspaceApiKeyPresetKey | undefined>(
+    () =>
+      presetParam &&
+      (WORKSPACE_API_KEY_PRESET_KEYS as ReadonlyArray<string>).includes(
+        presetParam,
+      )
+        ? (presetParam as WorkspaceApiKeyPresetKey)
+        : undefined,
+    [presetParam],
+  );
+
+  const domainsHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const apiKeysHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
   const [domains, setDomains] = useState<WorkspaceDomain[]>([]);
   const [apiKeys, setApiKeys] = useState<WorkspaceApiKey[]>([]);
@@ -261,6 +293,17 @@ export function WorkspaceIntegrationsDashboard() {
     setPendingRawApiKey(null);
   }, []);
 
+  // Move keyboard focus to the deep-linked section heading once the
+  // headings are mounted. Runs only when the tab parameter changes so
+  // re-renders triggered by data fetches do not steal focus from the user.
+  useEffect(() => {
+    if (tabParam === "api-keys") {
+      apiKeysHeadingRef.current?.focus();
+    } else if (tabParam === "domains") {
+      domainsHeadingRef.current?.focus();
+    }
+  }, [tabParam]);
+
   useEffect(() => {
     if (!workspaceId) {
       setDomains([]);
@@ -384,7 +427,11 @@ export function WorkspaceIntegrationsDashboard() {
           role="region"
         >
           <CardHeader>
-            <CardTitle id="workspace-integrations-domains-heading">
+            <CardTitle
+              id="workspace-integrations-domains-heading"
+              ref={domainsHeadingRef}
+              tabIndex={-1}
+            >
               Verified domains
             </CardTitle>
             <CardDescription>
@@ -415,7 +462,11 @@ export function WorkspaceIntegrationsDashboard() {
           role="region"
         >
           <CardHeader>
-            <CardTitle id="workspace-integrations-api-keys-heading">
+            <CardTitle
+              id="workspace-integrations-api-keys-heading"
+              ref={apiKeysHeadingRef}
+              tabIndex={-1}
+            >
               Workspace API keys
             </CardTitle>
             <CardDescription>
@@ -437,6 +488,7 @@ export function WorkspaceIntegrationsDashboard() {
               onRevokeApiKey={handleRevokeApiKey}
               pendingRawKey={pendingRawApiKey}
               onDismissRawKey={handleDismissRawApiKey}
+              initialPresetKey={initialPresetKey}
             />
           </CardContent>
         </Card>

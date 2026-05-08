@@ -82,6 +82,12 @@ export interface ApiKeyManagementPanelProps {
   pendingRawKey: PendingWorkspaceRawApiKey | null;
   /** Clear the one-time raw key reveal. */
   onDismissRawKey: () => void;
+  /**
+   * Optional initial value for the create-form preset selector. Used by
+   * the container to honor `?preset=…` deep links from the CMS console.
+   * Unknown values are ignored (the panel falls back to `cms_readonly`).
+   */
+  initialPresetKey?: WorkspaceApiKeyPresetKey;
 }
 
 // Status presentation
@@ -126,7 +132,9 @@ const PRESET_LABELS: Record<WorkspaceApiKeyPresetKey, string> = {
 
 function presetLabel(presetKey: string | null | undefined): string | null {
   if (!presetKey) return null;
-  if ((WORKSPACE_API_KEY_PRESET_KEYS as ReadonlyArray<string>).includes(presetKey)) {
+  if (
+    (WORKSPACE_API_KEY_PRESET_KEYS as ReadonlyArray<string>).includes(presetKey)
+  ) {
     return PRESET_LABELS[presetKey as WorkspaceApiKeyPresetKey];
   }
   return presetKey;
@@ -148,10 +156,12 @@ export function ApiKeyManagementPanel({
   onRevokeApiKey,
   pendingRawKey,
   onDismissRawKey,
+  initialPresetKey,
 }: ApiKeyManagementPanelProps) {
   const [nameInput, setNameInput] = useState<string>("");
-  const [presetInput, setPresetInput] =
-    useState<WorkspaceApiKeyPresetKey>("cms_readonly");
+  const [presetInput, setPresetInput] = useState<WorkspaceApiKeyPresetKey>(
+    initialPresetKey ?? "cms_readonly",
+  );
   const [validationMessage, setValidationMessage] = useState<string | null>(
     null,
   );
