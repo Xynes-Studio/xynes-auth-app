@@ -45,6 +45,7 @@ import {
   listWorkspaceApiKeys,
   listWorkspaceDomains,
   registerWorkspaceDomain,
+  regenerateWorkspaceDomainVerification,
   revokeWorkspaceApiKey,
   verifyWorkspaceDomain,
 } from "@/lib/integrations/workspace-integrations-client";
@@ -195,6 +196,36 @@ export function WorkspaceIntegrationsDashboard() {
           workspaceId,
           getAccessToken: callerGetAccessToken,
           domainId,
+        });
+        setLoadError(null);
+        setReloadCounter((count) => count + 1);
+      } catch (error: unknown) {
+        setLoadError(getIntegrationsLoadErrorMessage(error));
+        throw error;
+      }
+    },
+    [apiBaseUrl, workspaceId],
+  );
+
+  // Regenerate verification token (Phase D recovery path).
+  // Behaviour mirrors `handleRegisterDomain`: store the new raw value in
+  // the one-time reveal slot so the panel surfaces it, then bump the
+  // reload counter to refresh the row state. The container is also
+  // responsible for surfacing user-facing API errors via `loadError`.
+  const handleRegenerateVerification = useCallback(
+    async (domainId: string) => {
+      if (!workspaceId) return;
+      const callerGetAccessToken = () => getAccessTokenRef.current();
+      try {
+        const result = await regenerateWorkspaceDomainVerification({
+          apiBaseUrl,
+          workspaceId,
+          getAccessToken: callerGetAccessToken,
+          domainId,
+        });
+        setPendingVerificationValue({
+          domainId: result.domain.id,
+          verificationValue: result.verificationValue,
         });
         setLoadError(null);
         setReloadCounter((count) => count + 1);
@@ -450,6 +481,7 @@ export function WorkspaceIntegrationsDashboard() {
               isLoading={isLoading}
               onRegisterDomain={handleRegisterDomain}
               onVerifyDomain={handleVerifyDomain}
+              onRegenerateVerification={handleRegenerateVerification}
               onDeleteDomain={handleDeleteDomain}
               pendingVerificationValue={pendingVerificationValue}
               onDismissVerificationValue={handleDismissVerificationValue}

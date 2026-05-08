@@ -8,6 +8,7 @@ import {
   registerWorkspaceDomain,
   revokeWorkspaceApiKey,
   verifyWorkspaceDomain,
+  regenerateWorkspaceDomainVerification,
 } from "./workspace-integrations-client";
 import type {
   CreatedWorkspaceApiKey,
@@ -112,7 +113,10 @@ describe("listWorkspaceDomains", () => {
     );
 
     const domains = await listWorkspaceDomains(baseClientArgs);
-    expect(domains[0]).toMatchObject({ hostname: "example.com", status: "pending" });
+    expect(domains[0]).toMatchObject({
+      hostname: "example.com",
+      status: "pending",
+    });
   });
 
   it("returns an empty list when the payload is malformed", async () => {
@@ -152,7 +156,10 @@ describe("listWorkspaceDomains", () => {
 
   it("throws when no access token is available", async () => {
     await expect(
-      listWorkspaceDomains({ ...baseClientArgs, getAccessToken: async () => null }),
+      listWorkspaceDomains({
+        ...baseClientArgs,
+        getAccessToken: async () => null,
+      }),
     ).rejects.toMatchObject({ statusCode: 401 });
   });
 
@@ -344,6 +351,198 @@ describe("verifyWorkspaceDomain", () => {
     await expect(
       verifyWorkspaceDomain({ ...baseClientArgs, domainId: "" }),
     ).rejects.toMatchObject({ statusCode: 400 });
+  });
+});
+
+describe("regenerateWorkspaceDomainVerification", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("posts to /workspaces/:workspaceId/domains/:domainId/regenerate-verification", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          ok: true,
+          data: {
+            id: "d1",
+            workspaceId: "ws-1",
+            hostname: "example.com",
+            status: "pending",
+            verificationMethod: "dns_txt",
+            verificationName: "_xynes.example.com",
+            verificationValue: "xynes-verify-newvalue",
+          },
+        },
+        201,
+      ),
+    );
+
+    const result = await regenerateWorkspaceDomainVerification({
+      ...baseClientArgs,
+      domainId: "d1",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4100/workspaces/ws-1/domains/d1/regenerate-verification",
+      expect.objectContaining({ method: "POST", body: "{}" }),
+    );
+    expect(result.domain.status).toBe("pending");
+    expect(result.verificationValue).toBe("xynes-verify-newvalue");
+  });
+
+  it("URL-encodes the domain id", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          ok: true,
+          data: {
+            id: "d/1",
+            workspaceId: "ws-1",
+            hostname: "example.com",
+            status: "pending",
+            verificationMethod: "dns_txt",
+            verificationName: "_xynes.example.com",
+            verificationValue: "xynes-verify-newvalue",
+          },
+        },
+        201,
+      ),
+    );
+
+    await regenerateWorkspaceDomainVerification({
+      ...baseClientArgs,
+      domainId: "d/1",
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:4100/workspaces/ws-1/domains/d%2F1/regenerate-verification",
+      expect.anything(),
+    );
+  });
+
+  it("forwards the bearer token to the gateway", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        ok: true,
+        data: {
+          id: "d1",
+          workspaceId: "ws-1",
+          hostname: "example.com",
+          status: "pending",
+          verificationMethod: "dns_txt",
+          verificationName: "_xynes.example.com",
+          verificationValue: "xynes-verify-newvalue",
+        },
+      }),
+    );
+
+    await regenerateWorkspaceDomainVerification({
+      ...baseClientArgs,
+      domainId: "d1",
+    });
+
+    const headers = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)
+      ?.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer test-token");
+    expect(headers["Content-Type"]).toBe("application/json");
+  });
+
+  it("rejects empty domain ids before hitting the network", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    await expect(
+      regenerateWorkspaceDomainVerification({
+        ...baseClientArgs,
+        domainId: "",
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed if the server omits the new verificationValue", async () => {
+    // Security invariant: if the upstream forgets to include the fresh
+    // raw value, the user has no way to update their DNS record. Better
+    // to surface this as an error than silently leave them with a
+    // mismatched hash they can't satisfy.
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          ok: true,
+          data: {
+            id: "d1",
+            workspaceId: "ws-1",
+            hostname: "example.com",
+            status: "pending",
+            verificationMethod: "dns_txt",
+            verificationName: "_xynes.example.com",
+            // verificationValue intentionally missing
+          },
+        },
+        201,
+      ),
+    );
+
+    await expect(
+      regenerateWorkspaceDomainVerification({
+        ...baseClientArgs,
+        domainId: "d1",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 500,
+      message: /verification value missing/i,
+    });
+  });
+
+  it("surfaces a 409 CONFLICT for verified/disabled rows", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          ok: false,
+          error: {
+            code: "CONFLICT",
+            message: "Cannot regenerate verification for a verified domain",
+          },
+        },
+        409,
+      ),
+    );
+
+    await expect(
+      regenerateWorkspaceDomainVerification({
+        ...baseClientArgs,
+        domainId: "d1",
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("never echoes verificationValueHash from the server payload", async () => {
+    // Defense in depth: even if a future bug made the server return the
+    // hash field, the client allowlist must NOT carry it forward. The
+    // resulting `domain` is built field-by-field from a small set of
+    // known-safe properties.
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        ok: true,
+        data: {
+          id: "d1",
+          workspaceId: "ws-1",
+          hostname: "example.com",
+          status: "pending",
+          verificationMethod: "dns_txt",
+          verificationName: "_xynes.example.com",
+          verificationValue: "xynes-verify-newvalue",
+          verificationValueHash: "DO_NOT_LEAK_THIS_HASH",
+        },
+      }),
+    );
+
+    const result = await regenerateWorkspaceDomainVerification({
+      ...baseClientArgs,
+      domainId: "d1",
+    });
+
+    const serialised = JSON.stringify(result);
+    expect(serialised).not.toContain("DO_NOT_LEAK_THIS_HASH");
+    expect(serialised).not.toContain("verificationValueHash");
   });
 });
 

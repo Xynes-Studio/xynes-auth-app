@@ -406,6 +406,36 @@ Both parameters can be combined: CMS uses targets `cms_readonly_key` (`?tab=api-
 
 The container uses `useSearchParams()` (from `next/navigation`), so `page.tsx` wraps the container in a `<Suspense>` boundary with a `Spinner` fallback — required by Next.js 15 for client-side search-params reads during static prerender.
 
+### Domain verification UX hardening (Phases A–D, landed 2026-05-08)
+
+The verified-domain lifecycle gained four coordinated UX improvements. Each phase ships across multiple repos; the auth-app side documented here is wired through `DomainManagementPanel` and `WorkspaceIntegrationsDashboard`.
+
+**TXT-only verification — kept as-is.** The MVP verifies domain ownership via a single DNS TXT record at `_xynes.<hostname>`. This matches the industry standard (Google Search Console, AWS ACM, Vercel, Cloudflare, Stripe Connect, GitHub Pages) and the CHECK enum on `platform.workspace_domains.verification_method` keeps the column extensible without schema churn. No HTTP file challenge or CAA path in the MVP.
+
+**Phase A — "Get new value" recovery.** Workspace owners who lose the original one-time DNS TXT reveal can click the per-row **Get new value** button on a pending or failed domain. The container calls `regenerateWorkspaceDomainVerification()` (gateway route `POST /workspaces/:workspaceId/domains/:domainId/regenerate-verification`, accounts-service action `platform.domains.regenerateVerification`, separate authz catalog entry with the SAME effective grants as `platform.domains.create`). On success the new raw `xynes-verify-<64-hex>` value lands in the same one-time reveal slot the register flow uses. The button is hidden on `verified` rows because regenerating a verified domain would silently revoke verification (backend returns 409 CONFLICT in that case anyway).
+
+**Phase B + D — structured verify diagnostics.** The verify handler now categorizes failures into a stable union (`NXDOMAIN | TIMEOUT | DNS_ERROR | NO_RECORDS | MISMATCH`) and surfaces a count-only `dnsRecordsFound` (NEVER raw record values — those could be attacker-supplied content from a hostile DNS zone). The panel renders a 3-step diagnostic strip on failed and verified rows:
+
+```text
+DNS lookup:    ✓ Resolved        (✗ on NXDOMAIN / TIMEOUT / DNS_ERROR)
+TXT records:   ✓ N found         (✗ when 0 → NO_RECORDS; · skipped when DNS errored)
+Value match:   ✓ Matched         (✗ on MISMATCH; · skipped until both prior steps pass)
+```
+
+Every step renders a per-status `data-status="pass|fail|skipped"` attribute and an `sr-only` status label so screen-reader users hear the same conversation as sighted users. The strip is tested per failure category in `DomainManagementPanel.test.tsx`.
+
+**Phase C — status-aware destructive copy.** The backend `platform.domains.delete` is a soft-delete (status flip to `disabled`) regardless of prior status, so the FE drives copy off the row's current status:
+
+| Row status | Button label   | Dialog title                       | Confirm label         |
+|------------|----------------|------------------------------------|-----------------------|
+| pending    | Cancel         | Cancel domain verification?        | Cancel verification   |
+| failed     | Remove         | Remove failed domain?              | Remove                |
+| verified   | Disable        | Disable domain?                    | Disable               |
+
+A pending row never says "will stop accepting traffic" because it never accepted any traffic. Same gateway route, same authz check, same audit trail.
+
+**Phase D — recopy via clipboard.** While a fresh reveal is active (`pendingVerificationValue !== null`), the reveal block renders an additional "Copy verification value" button that calls `navigator.clipboard.writeText()` with the raw value. The Copy button is gated on a non-null reveal slot so it can never lie about what the user actually has — once the slot is dismissed (or the workspace changes), the button unmounts.
+
 ### Container patterns to reuse
 
 Pin `getAccessToken` to a `useRef` so the load effect doesn't re-fire on every parent re-render. The auth-sdk's `useAuth()` may return a fresh function reference, and listing it in the effect dependency array causes a refetch storm:

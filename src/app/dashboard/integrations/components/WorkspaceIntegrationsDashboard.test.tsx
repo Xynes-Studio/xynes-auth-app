@@ -15,6 +15,7 @@ const mockListWorkspaceDomains = vi.fn();
 const mockListWorkspaceApiKeys = vi.fn();
 const mockRegisterWorkspaceDomain = vi.fn();
 const mockVerifyWorkspaceDomain = vi.fn();
+const mockRegenerateWorkspaceDomainVerification = vi.fn();
 const mockDeleteWorkspaceDomain = vi.fn();
 const mockCreateWorkspaceApiKey = vi.fn();
 const mockRevokeWorkspaceApiKey = vi.fn();
@@ -68,6 +69,8 @@ vi.mock("@/lib/integrations/workspace-integrations-client", () => {
       mockRegisterWorkspaceDomain(...args),
     verifyWorkspaceDomain: (...args: unknown[]) =>
       mockVerifyWorkspaceDomain(...args),
+    regenerateWorkspaceDomainVerification: (...args: unknown[]) =>
+      mockRegenerateWorkspaceDomainVerification(...args),
     deleteWorkspaceDomain: (...args: unknown[]) =>
       mockDeleteWorkspaceDomain(...args),
     createWorkspaceApiKey: (...args: unknown[]) =>
@@ -281,6 +284,7 @@ beforeEach(() => {
   mockListWorkspaceApiKeys.mockReset();
   mockRegisterWorkspaceDomain.mockReset();
   mockVerifyWorkspaceDomain.mockReset();
+  mockRegenerateWorkspaceDomainVerification.mockReset();
   mockDeleteWorkspaceDomain.mockReset();
   mockCreateWorkspaceApiKey.mockReset();
   mockRevokeWorkspaceApiKey.mockReset();
@@ -298,6 +302,13 @@ beforeEach(() => {
   mockVerifyWorkspaceDomain.mockResolvedValue({
     ...sampleDomain,
     status: "verified",
+  });
+  mockRegenerateWorkspaceDomainVerification.mockResolvedValue({
+    domain: {
+      ...sampleDomain,
+      status: "pending",
+    },
+    verificationValue: "xynes-verify=regen-default",
   });
   mockDeleteWorkspaceDomain.mockResolvedValue(undefined);
   mockCreateWorkspaceApiKey.mockResolvedValue({
@@ -547,6 +558,46 @@ describe("WorkspaceIntegrationsDashboard", () => {
         screen.queryByTestId("domain-verification-reveal"),
       ).not.toBeInTheDocument();
     });
+  });
+
+  it("regenerates the verification token through the gateway client and reveals the new value", async () => {
+    // Phase D: the user clicks "Get new value" on a pending/failed row
+    // when they've lost the original one-time reveal. The container
+    // calls `regenerateWorkspaceDomainVerification`, drops the new raw
+    // value into the same one-time reveal slot, and refreshes the row.
+    const user = userEvent.setup();
+    const pendingExisting = {
+      ...sampleDomain,
+      id: "dom-pending-existing",
+      hostname: "existing.example.com",
+      status: "pending" as const,
+      verificationName: "_xynes.existing.example.com",
+    };
+    mockListWorkspaceDomains.mockResolvedValue([pendingExisting]);
+    mockRegenerateWorkspaceDomainVerification.mockResolvedValue({
+      domain: { ...pendingExisting },
+      verificationValue: "xynes-verify=regen-fresh",
+    });
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const regenerateButton = await screen.findByRole("button", {
+      name: /get a new verification value for existing\.example\.com/i,
+    });
+    await user.click(regenerateButton);
+
+    await waitFor(() => {
+      expect(mockRegenerateWorkspaceDomainVerification).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "ws-1",
+          apiBaseUrl: "https://api.test.com",
+          domainId: pendingExisting.id,
+        }),
+      );
+    });
+
+    const reveal = await screen.findByTestId("domain-verification-reveal");
+    expect(reveal).toHaveTextContent("xynes-verify=regen-fresh");
   });
 
   it("creates an API key through the gateway client and reveals the raw key once", async () => {
