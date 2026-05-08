@@ -192,6 +192,105 @@ describe("listWorkspaceDomains", () => {
     expect(keys).not.toContain("keyHash");
     expect(keys).not.toContain("internalAuditNote");
   });
+
+  // Allowlist contract for `failureCode`. The frontend renders a 3-step
+  // diagnostic strip whose conclusions depend on a closed set of codes.
+  // Forwarding an unknown upstream string would silently feed the strip
+  // a value it doesn't understand and could draw a misleading status.
+  it("coerces unknown failureCode strings to null", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        ok: true,
+        data: {
+          domains: [
+            {
+              id: "d1",
+              workspaceId: "ws-1",
+              hostname: "example.com",
+              status: "failed",
+              verificationMethod: "dns_txt",
+              verificationName: "_xynes.example.com",
+              failureCode: "INJECTED_BAD_CODE",
+            },
+          ],
+        },
+      }),
+    );
+
+    const [domain] = await listWorkspaceDomains(baseClientArgs);
+    expect(domain?.failureCode).toBeNull();
+  });
+
+  it("preserves known failureCode values from the documented union", async () => {
+    const knownCodes = [
+      "NXDOMAIN",
+      "TIMEOUT",
+      "DNS_ERROR",
+      "NO_RECORDS",
+      "MISMATCH",
+    ] as const;
+    for (const code of knownCodes) {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: true,
+          data: {
+            domains: [
+              {
+                id: `d-${code}`,
+                workspaceId: "ws-1",
+                hostname: "example.com",
+                status: "failed",
+                verificationMethod: "dns_txt",
+                verificationName: "_xynes.example.com",
+                failureCode: code,
+              },
+            ],
+          },
+        }),
+      );
+
+      const [domain] = await listWorkspaceDomains(baseClientArgs);
+      expect(domain?.failureCode).toBe(code);
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("coerces non-string failureCode values (object, number, array) to null", async () => {
+    // Defense-in-depth: guards against a backend regression that
+    // accidentally forwards a structured object or array. Cannot be
+    // typed as `unknown` in the contract because the wire format is
+    // already JSON, but a normalizer must still reject non-strings.
+    const hostileShapes: unknown[] = [
+      { evil: "object" },
+      ["NXDOMAIN"],
+      42,
+      true,
+    ];
+    for (const value of hostileShapes) {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        jsonResponse({
+          ok: true,
+          data: {
+            domains: [
+              {
+                id: "d-hostile",
+                workspaceId: "ws-1",
+                hostname: "example.com",
+                status: "failed",
+                verificationMethod: "dns_txt",
+                verificationName: "_xynes.example.com",
+                failureCode: value,
+              },
+            ],
+          },
+        }),
+      );
+
+      const [domain] = await listWorkspaceDomains(baseClientArgs);
+      expect(domain?.failureCode).toBeNull();
+      vi.restoreAllMocks();
+    }
+  });
 });
 
 describe("registerWorkspaceDomain", () => {

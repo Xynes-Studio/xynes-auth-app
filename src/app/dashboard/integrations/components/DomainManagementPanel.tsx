@@ -39,7 +39,6 @@ import {
 import type {
   WorkspaceDomain,
   WorkspaceDomainStatus,
-  WorkspaceDomainFailureCode,
 } from "@/lib/integrations/workspace-integrations-types";
 
 export interface PendingDomainVerificationValue {
@@ -217,10 +216,10 @@ function buildDiagnosticStrip(
     return null;
   }
 
-  const code = domain.failureCode as
-    | WorkspaceDomainFailureCode
-    | null
-    | undefined;
+  // `failureCode` is already narrowed to `WorkspaceDomainFailureCode | null`
+  // by the type system; the client's `asDomainFailureCode` allowlist
+  // guarantees only known codes ever reach this function.
+  const code = domain.failureCode ?? null;
   const recordCount = domain.dnsRecordsFound ?? null;
 
   // Step 1: DNS lookup
@@ -262,12 +261,23 @@ function buildDiagnosticStrip(
       detail: `${recordCount} found`,
       status: "pass",
     };
-  } else {
+  } else if (domain.status === "verified") {
     // Verified path with no count carried (older row pre-Phase-B).
+    // Trust the verified status — the row was confirmed at some point.
     recordsStep = {
       label: "TXT records",
       detail: "Found",
       status: "pass",
+    };
+  } else {
+    // Non-verified row with missing/untrustworthy count. Don't draw a
+    // green check from a fallback — show "skipped" so the user (and
+    // SR users) can see the diagnostic is incomplete rather than
+    // misleadingly healthy.
+    recordsStep = {
+      label: "TXT records",
+      detail: "—",
+      status: "skipped",
     };
   }
 
@@ -612,19 +622,28 @@ export function DomainManagementPanel({
                         Get new value
                       </Button>
                     ) : null}
-                    {(() => {
-                      const copy = destructiveCopy(domain.status);
-                      return (
-                        <Button
-                          type="button"
-                          onClick={() => requestDelete(domain)}
-                          disabled={isLoading || isRowPending}
-                          aria-label={`${copy.ariaLabelPrefix} ${domain.hostname}`}
-                        >
-                          {copy.buttonLabel}
-                        </Button>
-                      );
-                    })()}
+                    {/*
+                      Destructive CTA: render only for rows that can
+                      still be acted on. A `disabled` row is the result
+                      of a soft-delete and is already inert — clicking
+                      "Disable" again would dispatch another pointless
+                      delete to the gateway and confuse the operator.
+                    */}
+                    {domain.status !== "disabled"
+                      ? (() => {
+                          const copy = destructiveCopy(domain.status);
+                          return (
+                            <Button
+                              type="button"
+                              onClick={() => requestDelete(domain)}
+                              disabled={isLoading || isRowPending}
+                              aria-label={`${copy.ariaLabelPrefix} ${domain.hostname}`}
+                            >
+                              {copy.buttonLabel}
+                            </Button>
+                          );
+                        })()
+                      : null}
                   </Flex>
                 </Flex>
               </li>

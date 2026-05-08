@@ -43,7 +43,15 @@ export type WorkspaceDomain = {
   verificationName: string;
   lastCheckedAt?: string | null;
   verifiedAt?: string | null;
-  failureCode?: string | null;
+  /**
+   * Categorized failure code from the most recent verify attempt.
+   * Narrowed to the closed `WorkspaceDomainFailureCode` union so the
+   * compiler enforces the panel's diagnostic-strip contract. The
+   * client normalizer coerces any unknown upstream string to `null`,
+   * so an unexpected backend token can never reach the strip and
+   * silently render a misleading status.
+   */
+  failureCode?: WorkspaceDomainFailureCode | null;
   failureMessage?: string | null;
   createdAt?: string;
   updatedAt?: string;

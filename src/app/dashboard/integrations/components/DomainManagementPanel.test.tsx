@@ -849,4 +849,114 @@ describe("DomainManagementPanel", () => {
       }),
     ).toBeDisabled();
   });
+
+  // ── Disabled-row destructive CTA suppression ────────────────────────
+  //
+  // A `disabled` row is the soft-deleted result of an earlier
+  // platform.domains.delete. Re-rendering "Disable" for it would
+  // dispatch another pointless delete and confuse the operator.
+  // CodeRabbit review (PR #47) flagged this as a fall-through bug
+  // because `destructiveCopy("disabled")` defaulted to the verified
+  // copy.
+
+  it("does NOT render a destructive button for a disabled domain row", () => {
+    const disabledDomain: WorkspaceDomain = {
+      id: "dom-disabled",
+      hostname: "disabled.example.com",
+      status: "disabled",
+      verificationMethod: "dns_txt",
+      verificationName: "_xynes.disabled.example.com",
+    };
+    render(
+      <DomainManagementPanel
+        {...defaultProps({ domains: [disabledDomain] })}
+      />,
+    );
+    const row = screen.getByTestId(`domain-row-${disabledDomain.id}`);
+    // None of the destructive copy variants should render on a
+    // disabled row.
+    expect(within(row).queryByRole("button", { name: /^disable/i })).toBeNull();
+    expect(within(row).queryByRole("button", { name: /^remove/i })).toBeNull();
+    expect(within(row).queryByRole("button", { name: /^cancel/i })).toBeNull();
+  });
+
+  it("does NOT render a Get-new-value button for a disabled domain row", () => {
+    // The Get-new-value CTA is gated on `showRecheck`, which is
+    // already false for disabled rows; this test pins that contract
+    // alongside the destructive CTA suppression test above so they
+    // can't drift apart.
+    const disabledDomain: WorkspaceDomain = {
+      id: "dom-disabled-2",
+      hostname: "disabled2.example.com",
+      status: "disabled",
+      verificationMethod: "dns_txt",
+      verificationName: "_xynes.disabled2.example.com",
+    };
+    render(
+      <DomainManagementPanel
+        {...defaultProps({ domains: [disabledDomain] })}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: /get a new verification value/i }),
+    ).toBeNull();
+  });
+
+  // ── recordsStep `skipped` fallback for failed rows ──────────────────
+  //
+  // When a failed row carries a known failureCode that doesn't itself
+  // pin the records step (e.g. an unforeseen future code that survives
+  // the allowlist) but no trustworthy `dnsRecordsFound`, the strip
+  // must NOT default to a green check. CodeRabbit review (PR #47)
+  // flagged the prior behaviour where the `else` fallback drew "pass".
+
+  it("renders TXT records as 'skipped' on a failed row missing dnsRecordsFound", () => {
+    // Construct a failed row whose failureCode survives the allowlist
+    // but doesn't pin step 2 (e.g. MISMATCH). Drop dnsRecordsFound to
+    // simulate older rows or a transient backend gap.
+    const failedNoCount: WorkspaceDomain = {
+      ...failedDomain,
+      id: "dom-failed-nocount",
+      hostname: "nocount.example.com",
+      failureCode: "MISMATCH",
+      // dnsRecordsFound omitted on purpose
+    };
+    render(
+      <DomainManagementPanel {...defaultProps({ domains: [failedNoCount] })} />,
+    );
+    const strip = screen.getByTestId(
+      `domain-diagnostic-strip-${failedNoCount.id}`,
+    );
+    const items = within(strip).getAllByRole("listitem");
+    // Step 1: DNS lookup passed (MISMATCH implies a successful resolve).
+    expect(items[0]).toHaveAttribute("data-status", "pass");
+    // Step 2: must be 'skipped' — NOT 'pass' — because we have no
+    // trustworthy count to report.
+    expect(items[1]).toHaveAttribute("data-status", "skipped");
+    expect(items[1]).toHaveTextContent(/—/);
+    // Step 3: still flagged 'fail' because the row's status === failed
+    // and the code is MISMATCH.
+    expect(items[2]).toHaveAttribute("data-status", "fail");
+  });
+
+  it("still renders TXT records as 'pass' on a verified row missing dnsRecordsFound (legacy data)", () => {
+    // Verified rows from before Phase B don't carry the count. Trust
+    // the verified status — they were confirmed at some point.
+    const verifiedNoCount: WorkspaceDomain = {
+      ...verifiedDomain,
+      id: "dom-verified-nocount",
+      // dnsRecordsFound omitted on purpose
+    };
+    render(
+      <DomainManagementPanel
+        {...defaultProps({ domains: [verifiedNoCount] })}
+      />,
+    );
+    const strip = screen.getByTestId(
+      `domain-diagnostic-strip-${verifiedNoCount.id}`,
+    );
+    const items = within(strip).getAllByRole("listitem");
+    expect(items[1]).toHaveAttribute("data-status", "pass");
+    expect(items[1]).toHaveTextContent(/found/i);
+  });
 });

@@ -29,6 +29,7 @@ import {
   type WorkspaceApiKeyPresetKey,
   type WorkspaceApiKeyStatus,
   type WorkspaceDomain,
+  type WorkspaceDomainFailureCode,
   type WorkspaceDomainStatus,
 } from "./workspace-integrations-types";
 
@@ -171,6 +172,32 @@ function asDomainStatus(value: unknown): WorkspaceDomainStatus {
   return "pending";
 }
 
+// Closed allowlist for `WorkspaceDomain.failureCode` — must mirror the
+// `WorkspaceDomainFailureCode` union in workspace-integrations-types.ts.
+// Anything outside this set is coerced to `null` so an unknown upstream
+// token cannot bleed into the diagnostic strip and render a misleading
+// status. The codes themselves are sourced from
+// `xynes-accounts-service/src/actions/handlers/integrations/domains.ts`.
+const VALID_DOMAIN_FAILURE_CODES: ReadonlyArray<WorkspaceDomainFailureCode> = [
+  "NXDOMAIN",
+  "TIMEOUT",
+  "DNS_ERROR",
+  "NO_RECORDS",
+  "MISMATCH",
+];
+
+function asDomainFailureCode(
+  value: unknown,
+): WorkspaceDomainFailureCode | null {
+  if (
+    typeof value === "string" &&
+    (VALID_DOMAIN_FAILURE_CODES as ReadonlyArray<string>).includes(value)
+  ) {
+    return value as WorkspaceDomainFailureCode;
+  }
+  return null;
+}
+
 function normalizeDomain(value: unknown): WorkspaceDomain | null {
   const record = asRecord(value);
   if (!record) return null;
@@ -204,7 +231,7 @@ function normalizeDomain(value: unknown): WorkspaceDomain | null {
     verificationName: verificationName ?? "",
     lastCheckedAt: asNullableString(record.lastCheckedAt),
     verifiedAt: asNullableString(record.verifiedAt),
-    failureCode: asNullableString(record.failureCode),
+    failureCode: asDomainFailureCode(record.failureCode),
     failureMessage: asNullableString(record.failureMessage),
     createdAt: asString(record.createdAt),
     updatedAt: asString(record.updatedAt),
