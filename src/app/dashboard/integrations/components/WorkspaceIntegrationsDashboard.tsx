@@ -39,10 +39,12 @@ import {
 import { useAuth, useWorkspace } from "@xynes/auth-sdk";
 import {
   WorkspaceIntegrationsApiError,
+  createWorkspaceApiKey,
   deleteWorkspaceDomain,
   listWorkspaceApiKeys,
   listWorkspaceDomains,
   registerWorkspaceDomain,
+  revokeWorkspaceApiKey,
   verifyWorkspaceDomain,
 } from "@/lib/integrations/workspace-integrations-client";
 import type {
@@ -53,6 +55,11 @@ import {
   DomainManagementPanel,
   type PendingDomainVerificationValue,
 } from "./DomainManagementPanel";
+import {
+  ApiKeyManagementPanel,
+  type ApiKeyManagementPanelCreateInput,
+  type PendingWorkspaceRawApiKey,
+} from "./ApiKeyManagementPanel";
 
 function getIntegrationsLoadErrorMessage(error: unknown): string {
   if (!(error instanceof WorkspaceIntegrationsApiError)) {
@@ -92,6 +99,10 @@ export function WorkspaceIntegrationsDashboard() {
   // once and never persisted beyond this slot.
   const [pendingVerificationValue, setPendingVerificationValue] =
     useState<PendingDomainVerificationValue | null>(null);
+  // One-time raw API key reveal — same contract as the DNS value above.
+  // Held only in container state, surfaced as a prop, cleared on dismiss.
+  const [pendingRawApiKey, setPendingRawApiKey] =
+    useState<PendingWorkspaceRawApiKey | null>(null);
 
   // Cross-workspace leakage guard: if the active workspace changes, drop
   // any DNS TXT verification value left over from the previous workspace.
@@ -99,6 +110,7 @@ export function WorkspaceIntegrationsDashboard() {
   // cleared even when `workspaceId` flips to "" (signed-out / unselected).
   useEffect(() => {
     setPendingVerificationValue(null);
+    setPendingRawApiKey(null);
   }, [workspaceId]);
 
   // Pin `getAccessToken` to a ref so the load effect does not refetch on
@@ -189,6 +201,64 @@ export function WorkspaceIntegrationsDashboard() {
 
   const handleDismissVerificationValue = useCallback(() => {
     setPendingVerificationValue(null);
+  }, []);
+
+  const handleCreateApiKey = useCallback(
+    async (input: ApiKeyManagementPanelCreateInput) => {
+      if (!workspaceId) return;
+      const callerGetAccessToken = () => getAccessTokenRef.current();
+      try {
+        const result = await createWorkspaceApiKey({
+          apiBaseUrl,
+          workspaceId,
+          getAccessToken: callerGetAccessToken,
+          name: input.name,
+          presetKey: input.presetKey,
+        });
+        // Hold the raw key only in container state; the panel renders it
+        // exactly once via the `pendingRawKey` prop. Never write it to
+        // localStorage, sessionStorage, cookies, or logs.
+        setPendingRawApiKey({
+          keyId: result.key.id,
+          rawKey: result.rawKey,
+        });
+        setLoadError(null);
+        setReloadCounter((count) => count + 1);
+      } catch (error: unknown) {
+        setLoadError(getIntegrationsLoadErrorMessage(error));
+        throw error;
+      }
+    },
+    [apiBaseUrl, workspaceId],
+  );
+
+  const handleRevokeApiKey = useCallback(
+    async (keyId: string) => {
+      if (!workspaceId) return;
+      const callerGetAccessToken = () => getAccessTokenRef.current();
+      try {
+        await revokeWorkspaceApiKey({
+          apiBaseUrl,
+          workspaceId,
+          getAccessToken: callerGetAccessToken,
+          keyId,
+        });
+        // If the revoked key matches the current raw-key reveal, clear it.
+        setPendingRawApiKey((previous) =>
+          previous && previous.keyId === keyId ? null : previous,
+        );
+        setLoadError(null);
+        setReloadCounter((count) => count + 1);
+      } catch (error: unknown) {
+        setLoadError(getIntegrationsLoadErrorMessage(error));
+        throw error;
+      }
+    },
+    [apiBaseUrl, workspaceId],
+  );
+
+  const handleDismissRawApiKey = useCallback(() => {
+    setPendingRawApiKey(null);
   }, []);
 
   useEffect(() => {
@@ -360,14 +430,14 @@ export function WorkspaceIntegrationsDashboard() {
             >
               {apiKeys.length}
             </span>
-            {!isLoading && !loadError && apiKeys.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No API keys yet. Create one to grant scoped, revocable access to
-                this workspace.
-              </p>
-            ) : null}
-            {/* Per-row rendering, create flow with one-time reveal, and
-                revoke confirmation land in ApiKeyManagementPanel (Task 4). */}
+            <ApiKeyManagementPanel
+              apiKeys={apiKeys}
+              isLoading={isLoading}
+              onCreateApiKey={handleCreateApiKey}
+              onRevokeApiKey={handleRevokeApiKey}
+              pendingRawKey={pendingRawApiKey}
+              onDismissRawKey={handleDismissRawApiKey}
+            />
           </CardContent>
         </Card>
       </Flex>

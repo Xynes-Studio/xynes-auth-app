@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceIntegrationsDashboard } from "./WorkspaceIntegrationsDashboard";
@@ -16,6 +16,8 @@ const mockListWorkspaceApiKeys = vi.fn();
 const mockRegisterWorkspaceDomain = vi.fn();
 const mockVerifyWorkspaceDomain = vi.fn();
 const mockDeleteWorkspaceDomain = vi.fn();
+const mockCreateWorkspaceApiKey = vi.fn();
+const mockRevokeWorkspaceApiKey = vi.fn();
 
 const workspaceState = vi.hoisted(() => ({
   currentWorkspace: {
@@ -57,8 +59,10 @@ vi.mock("@/lib/integrations/workspace-integrations-client", () => {
       mockVerifyWorkspaceDomain(...args),
     deleteWorkspaceDomain: (...args: unknown[]) =>
       mockDeleteWorkspaceDomain(...args),
-    createWorkspaceApiKey: vi.fn(),
-    revokeWorkspaceApiKey: vi.fn(),
+    createWorkspaceApiKey: (...args: unknown[]) =>
+      mockCreateWorkspaceApiKey(...args),
+    revokeWorkspaceApiKey: (...args: unknown[]) =>
+      mockRevokeWorkspaceApiKey(...args),
   };
 });
 
@@ -143,6 +147,18 @@ vi.mock("@lumia-ui/components", () => ({
     React.InputHTMLAttributes<HTMLInputElement>
   >(function Input(props, ref) {
     return <input ref={ref} {...props} />;
+  }),
+  Select: React.forwardRef<
+    HTMLSelectElement,
+    React.SelectHTMLAttributes<HTMLSelectElement> & {
+      children?: React.ReactNode;
+    }
+  >(function Select({ children, ...rest }, ref) {
+    return (
+      <select ref={ref} {...rest}>
+        {children}
+      </select>
+    );
   }),
   Badge: ({
     children,
@@ -247,6 +263,8 @@ beforeEach(() => {
   mockRegisterWorkspaceDomain.mockReset();
   mockVerifyWorkspaceDomain.mockReset();
   mockDeleteWorkspaceDomain.mockReset();
+  mockCreateWorkspaceApiKey.mockReset();
+  mockRevokeWorkspaceApiKey.mockReset();
   mockListWorkspaceDomains.mockResolvedValue([sampleDomain]);
   mockListWorkspaceApiKeys.mockResolvedValue([sampleApiKey]);
   mockRegisterWorkspaceDomain.mockResolvedValue({
@@ -263,6 +281,19 @@ beforeEach(() => {
     status: "verified",
   });
   mockDeleteWorkspaceDomain.mockResolvedValue(undefined);
+  mockCreateWorkspaceApiKey.mockResolvedValue({
+    key: {
+      ...sampleApiKey,
+      id: "key-created",
+      name: "New key",
+      keyPrefix: "feedface",
+    },
+    rawKey: "xynes_live_newkeysecret",
+  });
+  mockRevokeWorkspaceApiKey.mockResolvedValue({
+    ...sampleApiKey,
+    status: "revoked",
+  });
 });
 
 describe("WorkspaceIntegrationsDashboard", () => {
@@ -497,5 +528,94 @@ describe("WorkspaceIntegrationsDashboard", () => {
         screen.queryByTestId("domain-verification-reveal"),
       ).not.toBeInTheDocument();
     });
+  });
+
+  it("creates an API key through the gateway client and reveals the raw key once", async () => {
+    const user = userEvent.setup();
+    mockListWorkspaceApiKeys.mockResolvedValue([]);
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const nameInput = await screen.findByLabelText(/^name$/i);
+    await user.type(nameInput, "  My new key  ");
+    await user.selectOptions(
+      screen.getByLabelText(/^preset$/i),
+      "cms_publisher",
+    );
+    await user.click(screen.getByRole("button", { name: /create api key/i }));
+
+    await waitFor(() => {
+      expect(mockCreateWorkspaceApiKey).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "ws-1",
+          apiBaseUrl: "https://api.test.com",
+          name: "My new key",
+          presetKey: "cms_publisher",
+        }),
+      );
+    });
+
+    // Raw key reveal surfaces ONCE inside the panel — and the raw value lives
+    // ONLY in the reveal block so dismiss completely removes it from the DOM.
+    const reveal = await screen.findByTestId("api-key-raw-reveal");
+    expect(reveal).toHaveTextContent("xynes_live_newkeysecret");
+  });
+
+  it("revokes an API key through the gateway client", async () => {
+    const user = userEvent.setup();
+    mockListWorkspaceApiKeys.mockResolvedValue([sampleApiKey]);
+
+    render(<WorkspaceIntegrationsDashboard />);
+
+    const revokeButton = await screen.findByRole("button", {
+      name: new RegExp(`revoke api key ${sampleApiKey.name}`, "i"),
+    });
+    await user.click(revokeButton);
+
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: /^revoke$/i }));
+
+    await waitFor(() => {
+      expect(mockRevokeWorkspaceApiKey).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "ws-1",
+          apiBaseUrl: "https://api.test.com",
+          keyId: sampleApiKey.id,
+        }),
+      );
+    });
+  });
+
+  it("clears the one-time raw API key reveal when the active workspace changes", async () => {
+    // Cross-workspace leakage guard mirror of the DNS test above.
+    const user = userEvent.setup();
+    mockListWorkspaceApiKeys.mockResolvedValue([]);
+
+    const { rerender } = render(<WorkspaceIntegrationsDashboard />);
+
+    const nameInput = await screen.findByLabelText(/^name$/i);
+    await user.type(nameInput, "Initial key");
+    await user.click(screen.getByRole("button", { name: /create api key/i }));
+
+    expect(await screen.findByTestId("api-key-raw-reveal")).toHaveTextContent(
+      "xynes_live_newkeysecret",
+    );
+
+    workspaceState.currentWorkspace = {
+      id: "ws-2",
+      name: "Second",
+      slug: "second",
+    };
+    rerender(<WorkspaceIntegrationsDashboard />);
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("api-key-raw-reveal"),
+      ).not.toBeInTheDocument();
+    });
+    // The raw key string itself MUST be gone from the rendered DOM.
+    expect(
+      screen.queryByText(/xynes_live_newkeysecret/),
+    ).not.toBeInTheDocument();
   });
 });
