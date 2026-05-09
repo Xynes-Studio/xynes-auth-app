@@ -82,11 +82,22 @@ export type RegisteredWorkspaceDomain = {
 export type WorkspaceApiKeyStatus = "active" | "revoked" | "expired";
 
 /**
- * MVP preset → action-key scope mapping. Mirrors
- * `WORKSPACE_API_KEY_PRESETS` in `xynes-accounts-service`.
+ * MVP preset key allowlist for workspace API keys.
  *
- * Keep this list in sync with the backend `validatePresetKey` allowlist; the
- * client validates locally to avoid hitting the network with bad input.
+ * **Cross-package contract (PFU-6):** the canonical source of truth is
+ * `@xynes/platform-contracts` (`WORKSPACE_API_KEY_PRESET_KEYS` in
+ * `xynes/xynes-platform-contracts/src/integrations/api-key-presets.ts`).
+ * The accounts-service preset → action-key scope mapping
+ * (`WORKSPACE_API_KEY_PRESETS`) is server-only authz wiring and intentionally
+ * not part of the cross-package contract.
+ *
+ * This local copy exists because the auth-app does not currently import
+ * `@xynes/platform-contracts` directly (the package is in a sibling
+ * monorepo). Parity with the canonical list is enforced by
+ * `workspace-integrations-types.contract.test.ts`.
+ *
+ * The client validates against this list locally to fail closed on unknown
+ * presets *before* the network call.
  */
 export const WORKSPACE_API_KEY_PRESET_KEYS = [
   "cms_readonly",
