@@ -206,7 +206,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
                   {tSignup("passwordStrength.label")}
                 </span>
                 <span className={strengthConfig.color}>
-                  {strengthConfig.label}
+                  {tSignup(`passwordStrength.levels.${passwordStrength}`)}
                 </span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-muted">

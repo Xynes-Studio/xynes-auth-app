@@ -45,17 +45,12 @@ export const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 
 /**
  * Translation keys (under `auth.errors.oauth`) that the auth catalogs are
- * required to provide.
+ * required to provide. Derived from the keys of `OAUTH_ERROR_MESSAGES` so
+ * the type cannot drift from the runtime map; `"fallback"` is the explicit
+ * sentinel for unknown error codes.
  */
 export type OAuthErrorMessageKey =
-  | "access_denied"
-  | "invalid_request"
-  | "unauthorized_client"
-  | "unsupported_response_type"
-  | "invalid_scope"
-  | "server_error"
-  | "temporarily_unavailable"
-  | "auth_callback_error"
+  | keyof typeof OAUTH_ERROR_MESSAGES
   | "fallback";
 
 const KNOWN_OAUTH_ERROR_KEYS: ReadonlySet<string> = new Set(

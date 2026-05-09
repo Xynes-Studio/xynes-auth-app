@@ -20,6 +20,7 @@ export default defineConfig({
         "**/*.test.{ts,tsx}",
         "**/test/**",
         "src/app/**",
+        "scripts/**",
         "*.config.*",
       ],
       thresholds: {

@@ -104,7 +104,7 @@ export function ForgotPasswordForm() {
         <input
           id="email"
           type="email"
-          placeholder="you@example.com"
+          placeholder={tCommon("fields.emailPlaceholder")}
           autoComplete="email"
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-offset-2"
           aria-invalid={!!errors.email}

@@ -17,14 +17,32 @@ const SOURCE_DIR = resolve(REPO_ROOT, "messages/en-US");
 const TARGET_DIR = resolve(REPO_ROOT, "messages/en-XA");
 
 function transform(value) {
+  // String leaves go through the pseudo-localizer.
   if (typeof value === "string") {
     return pseudoLocalizeMessage(value);
   }
-  const out = {};
-  for (const [k, v] of Object.entries(value)) {
-    out[k] = transform(v);
+  // null is a valid JSON leaf — preserve it as-is. It would otherwise crash
+  // `Object.entries(null)`.
+  if (value === null) {
+    return null;
   }
-  return out;
+  // Arrays are valid JSON catalog shapes (e.g. ordered list of bullet
+  // strings). Map over them so each element walks back through `transform`.
+  if (Array.isArray(value)) {
+    return value.map((item) => transform(item));
+  }
+  // Plain objects: recurse into every entry.
+  if (typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = transform(v);
+    }
+    return out;
+  }
+  // Numeric / boolean primitive leaves are returned unchanged. The catalogs
+  // currently only carry strings + nested objects, but defending here keeps
+  // the generator safe against accidental literal additions.
+  return value;
 }
 
 async function main() {

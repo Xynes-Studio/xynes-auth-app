@@ -485,7 +485,7 @@ Pilot covering login, signup, forgot/reset password, invite entry, workspace sel
 - Catalogs live under `messages/<locale>/auth.<surface>.json` with translator metadata sidecars in `messages/<locale>/auth.<surface>.meta.json`. Sidecars are not loaded at runtime.
 - Locale negotiation is centralised in `src/i18n/config.ts` (`AUTH_LOCALE_COOKIE = "xynes_locale"`, `resolveAuthLocale`, `getAuthMessages`). Hostile inputs (path-traversal, `javascript:` URIs, non-strings, unsupported BCP-47) fail closed to `en-US`.
 - The static map in `getAuthMessages` is keyed on `Locale`, so a hostile cookie cannot drive a dynamic import path.
-- `app/layout.tsx` resolves the locale from the cookie + `Accept-Language` header, then passes catalogs into `Providers` which wraps everything in `NextIntlClientProvider`. URL routes are intentionally unchanged — there is no `[locale]` segment, so callbacks (`/callback`, `/logout`, invite tokens, `/dashboard/*`) keep working byte-for-byte.
+- `src/app/layout.tsx` resolves the locale from the cookie + `Accept-Language` header, then passes catalogs into `Providers` which wraps everything in `NextIntlClientProvider`. URL routes are intentionally unchanged — there is no `[locale]` segment, so callbacks (`/callback`, `/logout`, invite tokens, `/dashboard/*`) keep working byte-for-byte.
 
 ### Pilot surfaces
 
