@@ -1,0 +1,20 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.signup. New-account registration form.",
+    "audience": "First-time users.",
+    "tone": "Welcoming, action-oriented.",
+    "owners": ["xynes-front-end/xynes-auth-app"]
+  },
+  "submit": {
+    "_use": "Primary CTA on the signup form."
+  },
+  "passwordStrength": {
+    "label": "Heading above the password-strength meter; pairs with the strength label rendered next to it (e.g. Strong, Weak)."
+  },
+  "alreadyHaveAccount": {
+    "_use": "Sentence rendered before the inline link to /login at the bottom of the form. The link copy is provided separately as `signInLink`."
+  },
+  "signInLink": {
+    "_use": "Inline link that takes users from /signup to /login."
+  }
+}

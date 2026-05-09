@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { Button, Flex, Input } from "@lumia-ui/components";
 import { useFeatureFlags, useOAuthProviders } from "@xynes/auth-sdk";
+import { useTranslations } from "next-intl";
 import {
   loginFormSchema,
   type LoginFormData,
@@ -23,6 +24,9 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
+  const tCommon = useTranslations("auth.common");
+  const tLogin = useTranslations("auth.login");
+  const tErrors = useTranslations("auth.errors.alertTitles");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
   const oauthProviders = useOAuthProviders();
@@ -111,7 +115,7 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
 
   return (
     <div className="w-full max-w-md space-y-6">
-      <AuthErrorAlert error={error} title="Login failed" />
+      <AuthErrorAlert error={error} title={tErrors("loginFailed")} />
 
       <form
         onSubmit={handleSubmit(handleLogin)}
@@ -123,12 +127,12 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
             htmlFor="email"
             className="block text-sm font-medium text-foreground"
           >
-            Email
+            {tCommon("fields.email")}
           </label>
           <Input
             id="email"
             type="email"
-            placeholder="you@example.com…"
+            placeholder={tCommon("fields.emailPlaceholder")}
             autoComplete="email"
             spellCheck={false}
             aria-invalid={!!errors.email}
@@ -146,12 +150,12 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
             htmlFor="password"
             className="block text-sm font-medium text-foreground"
           >
-            Password
+            {tCommon("fields.password")}
           </label>
           <Input
             id="password"
             type="password"
-            placeholder="Enter your password…"
+            placeholder={tCommon("fields.passwordPlaceholderEnter")}
             autoComplete="current-password"
             maxLength={MAX_PASSWORD_INPUT_LENGTH}
             aria-invalid={!!errors.password}
@@ -175,16 +179,16 @@ export function LoginForm({ onSuccess, redirectUrl }: LoginFormProps) {
           <Button
             type="submit"
             isLoading={isLoading}
-            loadingText="Signing in..."
+            loadingText={tLogin("submitLoading")}
           >
-            Continue
+            {tLogin("submit")}
           </Button>
           <div className="flex justify-end">
             <Link
               href="/forgot-password"
               className="text-sm font-medium text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-offset-2"
             >
-              Forgot password?
+              {tLogin("forgotPasswordLink")}
             </Link>
           </div>
         </Flex>

@@ -6,6 +6,7 @@ import {
 } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 import {
   forgotPasswordFormSchema,
   type ForgotPasswordFormData,
@@ -13,10 +14,9 @@ import {
 import { createPasswordResetClient } from "@/lib/supabase/client";
 import { isAccountEnumerationSensitiveResetError } from "@/lib/password-reset/password-reset-utils";
 
-const GENERIC_SUCCESS_MESSAGE =
-  "If an account exists for that email, you’ll receive a password reset link shortly.";
-
 export function ForgotPasswordForm() {
+  const tCommon = useTranslations("auth.common");
+  const tForgot = useTranslations("auth.forgotPassword");
   const [isLoading, setIsLoading] = useState(false);
   const [didSucceed, setDidSucceed] = useState(false);
   const [hasUnexpectedError, setHasUnexpectedError] = useState(false);
@@ -67,8 +67,11 @@ export function ForgotPasswordForm() {
 
   if (didSucceed) {
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-        {GENERIC_SUCCESS_MESSAGE}
+      <div
+        role="status"
+        className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800"
+      >
+        {tForgot("successMessage")}
       </div>
     );
   }
@@ -87,7 +90,7 @@ export function ForgotPasswordForm() {
           role="alert"
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
         >
-          We couldn&apos;t send a reset email right now. Please try again later.
+          {tForgot("errorMessage")}
         </div>
       )}
 
@@ -96,12 +99,12 @@ export function ForgotPasswordForm() {
           htmlFor="email"
           className="block text-sm font-medium text-gray-900"
         >
-          Email
+          {tCommon("fields.email")}
         </label>
         <input
           id="email"
           type="email"
-          placeholder="you@example.com"
+          placeholder={tCommon("fields.emailPlaceholder")}
           autoComplete="email"
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-offset-2"
           aria-invalid={!!errors.email}
@@ -125,7 +128,7 @@ export function ForgotPasswordForm() {
         disabled={isLoading}
         className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isLoading ? "Sending..." : "Send reset link"}
+        {isLoading ? tForgot("submitLoading") : tForgot("submit")}
       </button>
     </form>
   );

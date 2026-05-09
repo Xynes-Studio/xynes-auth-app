@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { createPasswordResetClient } from "@/lib/supabase/client";
 import { ResetPasswordForm } from "@/components/auth/forms/ResetPasswordForm";
 
@@ -52,15 +53,16 @@ function summarizeAuthError(error: unknown): DebugAttempt["error"] | undefined {
 }
 
 function InvalidLink() {
+  const t = useTranslations("auth.resetPassword.invalidLink");
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Invalid or expired link.</p>
+      <p className="text-sm text-muted-foreground">{t("message")}</p>
       <div className="flex justify-center">
         <a
           href="/forgot-password"
           className="text-sm font-medium text-primary-600 hover:underline"
         >
-          Request a new reset link
+          {t("requestNew")}
         </a>
       </div>
     </div>
@@ -84,6 +86,9 @@ function DebugPanel({ info }: { info: ResetPasswordDebugInfo }) {
 }
 
 function ResetPasswordContent() {
+  const tPage = useTranslations("auth.resetPassword.page");
+  const tNeedsEmail = useTranslations("auth.resetPassword.needsEmail");
+  const tCommon = useTranslations("auth.common");
   const searchParams = useSearchParams();
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
@@ -318,16 +323,16 @@ function ResetPasswordContent() {
         <div className="space-y-6">
           <div className="text-center">
             <h1 className="text-2xl font-semibold text-foreground">
-              Reset your password
+              {tPage("heading")}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Choose a new password for your account.
+              {tPage("subheading")}
             </p>
           </div>
 
           {state === "loading" && (
             <p className="text-center text-sm text-muted-foreground">
-              Validating reset link…
+              {tPage("validatingLink")}
             </p>
           )}
           {state === "invalid" && (
@@ -339,7 +344,7 @@ function ResetPasswordContent() {
           {state === "needs_email" && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Enter the email for this reset link to continue.
+                {tNeedsEmail("prompt")}
               </p>
               <form
                 className="space-y-3"
@@ -370,14 +375,14 @@ function ResetPasswordContent() {
                     htmlFor="otp-email"
                     className="block text-sm font-medium text-gray-900"
                   >
-                    Email
+                    {tCommon("fields.email")}
                   </label>
                   <input
                     id="otp-email"
                     type="email"
                     value={emailForOtp}
                     onChange={(event) => setEmailForOtp(event.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={tCommon("fields.emailPlaceholder")}
                     autoComplete="email"
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
@@ -387,7 +392,7 @@ function ResetPasswordContent() {
                     role="alert"
                     className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
                   >
-                    We couldn&apos;t verify that email for this reset link.
+                    {tNeedsEmail("verifyError")}
                   </div>
                 )}
                 <button
@@ -395,7 +400,9 @@ function ResetPasswordContent() {
                   disabled={emailVerifyLoading}
                   className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {emailVerifyLoading ? "Verifying..." : "Verify email"}
+                  {emailVerifyLoading
+                    ? tNeedsEmail("submitLoading")
+                    : tNeedsEmail("submit")}
                 </button>
               </form>
               {debugInfo && <DebugPanel info={debugInfo} />}

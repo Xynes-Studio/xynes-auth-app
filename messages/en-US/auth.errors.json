@@ -1,0 +1,32 @@
+{
+  "alertTitles": {
+    "loginFailed": "Login failed",
+    "signupFailed": "Signup failed",
+    "signInFailed": "Sign-in failed"
+  },
+  "codes": {
+    "invalid_credentials": "Invalid email or password. Please try again.",
+    "email_not_verified": "Please verify your email before signing in.",
+    "user_not_found": "No account found with this email.",
+    "email_already_exists": "An account with this email already exists.",
+    "weak_password": "Password is too weak. Please use a stronger password.",
+    "invalid_email": "Please enter a valid email address.",
+    "network_error": "Unable to connect. Please check your internet connection.",
+    "session_expired": "Your session has expired. Please sign in again.",
+    "rate_limited": "Too many attempts. Please wait a moment and try again.",
+    "invite_not_found": "This invitation is invalid or has expired.",
+    "already_in_workspace": "You are already a member of this workspace.",
+    "unknown_error": "An unexpected error occurred. Please try again."
+  },
+  "oauth": {
+    "access_denied": "You denied the request or the OAuth provider declined access. Please try again.",
+    "invalid_request": "The authentication request was invalid. Please try signing in again.",
+    "unauthorized_client": "This application is not authorized to use this sign-in method.",
+    "unsupported_response_type": "The authentication method is unsupported. Please contact support.",
+    "invalid_scope": "The requested permissions (scope) are invalid. Please contact support.",
+    "server_error": "The authentication server encountered an error. Please try again later.",
+    "temporarily_unavailable": "The authentication service is temporarily unavailable. Please try again later.",
+    "auth_callback_error": "There was an error processing your sign-in. Please try again.",
+    "fallback": "Something went wrong during authentication. Please try again."
+  }
+}

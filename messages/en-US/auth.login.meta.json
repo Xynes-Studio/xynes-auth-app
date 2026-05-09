@@ -1,0 +1,17 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.login. Email + password sign-in form.",
+    "audience": "Returning users.",
+    "tone": "Action-oriented. Translate the submit button as a single short verb where the language allows.",
+    "owners": ["xynes-front-end/xynes-auth-app"]
+  },
+  "submit": {
+    "_use": "Primary CTA on the login form. Keep short — fits inside the Lumia Button width."
+  },
+  "submitLoading": {
+    "_use": "Replaces the submit copy while the login request is in-flight."
+  },
+  "forgotPasswordLink": {
+    "_use": "Underlined inline link beside the submit button that takes users to /forgot-password."
+  }
+}

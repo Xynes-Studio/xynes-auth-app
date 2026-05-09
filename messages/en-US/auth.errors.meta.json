@@ -1,0 +1,23 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.errors. Maps backend / OAuth provider error codes to safe, locale-aware copy.",
+    "audience": "End users who hit an authentication failure.",
+    "tone": "Direct and reassuring. Tell the user what to do next; do not blame the user.",
+    "owners": ["xynes-front-end/xynes-auth-app"],
+    "security": "Provider-supplied error descriptions are never rendered. Translation strings must NOT mention internal mechanisms (database state, hash values, internal IDs)."
+  },
+  "alertTitles": {
+    "_use": "Heading shown on top of an error alert. Keep ≤ 2 words after translation if possible.",
+    "loginFailed": "Top of the alert shown after a sign-in attempt with email + password fails.",
+    "signupFailed": "Top of the alert shown after a sign-up attempt fails.",
+    "signInFailed": "Top of the alert shown after a third-party (OAuth) sign-in fails."
+  },
+  "codes": {
+    "_use": "Mapped from backend error codes. Always end with a recovery action where possible.",
+    "rate_limited": "Sent when the client is being rate-limited; do NOT mention specific retry intervals because they are dynamic."
+  },
+  "oauth": {
+    "_use": "Mapped from OAuth 2.0 RFC 6749 error codes (the URL `?error=` parameter). Provider-supplied descriptions are intentionally ignored.",
+    "fallback": "Used when the OAuth error code is unknown; do not include the raw error code."
+  }
+}

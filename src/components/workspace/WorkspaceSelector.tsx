@@ -2,6 +2,7 @@
 
 import { Button, Spinner } from "@lumia-ui/components";
 import type { Workspace } from "@xynes/auth-sdk";
+import { useTranslations } from "next-intl";
 
 export interface WorkspaceSelectorProps {
   workspaces: Workspace[];
@@ -18,6 +19,7 @@ export function WorkspaceSelector({
   isLoading = false,
   loadingText,
 }: WorkspaceSelectorProps) {
+  const t = useTranslations("auth.workspaces.selector");
   const showOverlay = isLoading && workspaces.length > 0;
 
   if (isLoading && workspaces.length === 0) {
@@ -25,7 +27,7 @@ export function WorkspaceSelector({
       <div className="flex h-64 flex-col items-center justify-center gap-3">
         <Spinner size="lg" />
         <p className="text-sm text-muted-foreground">
-          {loadingText ?? "Loading..."}
+          {loadingText ?? t("loadingDefault")}
         </p>
       </div>
     );
@@ -35,12 +37,12 @@ export function WorkspaceSelector({
     return (
       <div className="text-center py-12">
         <h3 className="text-lg font-medium text-foreground">
-          No workspaces found
+          {t("emptyTitle")}
         </h3>
         <p className="text-muted-foreground mt-2 mb-6">
-          Create your first workspace to get started.
+          {t("emptyDescription")}
         </p>
-        <Button onClick={onCreateNew}>Create New Workspace</Button>
+        <Button onClick={onCreateNew}>{t("emptyAction")}</Button>
       </div>
     );
   }
@@ -68,7 +70,7 @@ export function WorkspaceSelector({
                 </div>
                 {workspace.role === "workspace_owner" && (
                   <span className="text-[10px] font-semibold uppercase tracking-widest bg-primary/10 text-primary px-2.5 py-1 rounded-full">
-                    Owner
+                    {t("ownerBadge")}
                   </span>
                 )}
               </div>
@@ -82,7 +84,9 @@ export function WorkspaceSelector({
               </p>
               <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
                 <span className="inline-flex h-2 w-2 rounded-full bg-primary/60" />
-                <span className="uppercase tracking-[0.2em]">Active</span>
+                <span className="uppercase tracking-[0.2em]">
+                  {t("activeLabel")}
+                </span>
               </div>
             </div>
           </button>
@@ -111,10 +115,10 @@ export function WorkspaceSelector({
             </svg>
           </div>
           <span className="font-semibold text-foreground group-hover:text-primary transition-colors">
-            Create New Workspace
+            {t("createCardTitle")}
           </span>
           <span className="text-xs text-muted-foreground mt-1">
-            Start fresh with a new space
+            {t("createCardSubtitle")}
           </span>
         </button>
       </div>
@@ -127,7 +131,7 @@ export function WorkspaceSelector({
         >
           <Spinner size="lg" />
           <p className="text-sm text-muted-foreground">
-            {loadingText ?? "Selecting workspace..."}
+            {loadingText ?? t("loadingSelecting")}
           </p>
         </div>
       ) : null}

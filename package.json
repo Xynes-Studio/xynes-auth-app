@@ -11,7 +11,8 @@
     "test": "node ../infra/scripts/with-env.mjs vitest run",
     "test:watch": "node ../infra/scripts/with-env.mjs vitest",
     "test:coverage": "node ../infra/scripts/with-env.mjs vitest run --coverage",
-    "link:deps": "pnpm link ../lumia-ds/packages/components ../lumia-ds/packages/forms ../lumia-ds/packages/layout ../xynes-auth-sdk"
+    "generate:pseudo": "node scripts/generate-pseudo-locale.mjs",
+    "link:deps": "pnpm link ../lumia-ds/packages/components ../lumia-ds/packages/forms ../lumia-ds/packages/layout ../xynes-auth-sdk ../xynes-i18n"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -20,9 +21,11 @@
     "@lumia-ui/forms": "link:../lumia-ds/packages/forms",
     "@lumia-ui/layout": "link:../lumia-ds/packages/layout",
     "@xynes/auth-sdk": "link:../xynes-auth-sdk",
+    "@xynes/i18n": "link:../xynes-i18n",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
     "next": "^15.5.15",
+    "next-intl": "^4.11.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.0",

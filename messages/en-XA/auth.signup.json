@@ -1,0 +1,15 @@
+{
+  "submit": "[CCrreeaattee aaccccoouunntt]",
+  "submitLoading": "[CCrreeaattiinngg aaccccoouunntt...]",
+  "passwordStrength": {
+    "label": "[PPaasssswwoorrdd ssttrreennggtthh]",
+    "levels": {
+      "weak": "[WWeeaakk]",
+      "fair": "[FFaaiirr]",
+      "good": "[GGoooodd]",
+      "strong": "[SSttrroonngg]"
+    }
+  },
+  "alreadyHaveAccount": "[AAllrreeaaddyy hhaavvee aann aaccccoouunntt?]",
+  "signInLink": "[SSiiggnn iinn]"
+}

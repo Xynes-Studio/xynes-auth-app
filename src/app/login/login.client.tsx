@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { LoginForm } from "@/components/auth/forms/LoginForm";
 import { AuthSplitLayout } from "@/components/auth/layout/AuthSplitLayout";
 import { AuthRouteSwitch } from "@/components/auth/navigation/AuthRouteSwitch";
 import { AuthPageSkeleton } from "@/components/ui";
 import { useAuth } from "@xynes/auth-sdk";
 import { getAllowedRedirectDomains, getSafeRedirectUrl } from "@/lib/redirect";
-import { getOAuthErrorMessage } from "@/lib/oauth/errors";
+import { getOAuthErrorMessageKey } from "@/lib/oauth/errors";
 import { determinePostLoginDestination } from "@/lib/auth/post-login-destination";
 
 /**
@@ -66,6 +67,9 @@ function clearRedirectLoopState(): void {
 }
 
 function LoginContent() {
+  const tCommon = useTranslations("auth.common");
+  const tErrorTitles = useTranslations("auth.errors.alertTitles");
+  const tOauth = useTranslations("auth.errors.oauth");
   const router = useRouter();
   const searchParams = useSearchParams();
   const {
@@ -92,7 +96,7 @@ function LoginContent() {
   );
 
   const oauthErrorMessage = errorParam
-    ? getOAuthErrorMessage(errorParam)
+    ? tOauth(getOAuthErrorMessageKey(errorParam))
     : null;
   const requiresProfileCompletion = Boolean(
     isAuthenticated && !user?.displayName?.trim(),
@@ -201,7 +205,11 @@ function LoginContent() {
   ) {
     return (
       <AuthPageSkeleton
-        title={isAuthenticated ? "Redirecting" : "Loading login"}
+        title={
+          isAuthenticated
+            ? tCommon("loading.redirecting")
+            : tCommon("loading.loadingLogin")
+        }
         showForm={false}
         showOAuth={false}
       />
@@ -217,7 +225,7 @@ function LoginContent() {
           className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-left"
         >
           <h2 className="text-sm font-semibold text-destructive">
-            Sign-in failed
+            {tErrorTitles("signInFailed")}
           </h2>
           <p className="mt-1 text-sm text-destructive">{oauthErrorMessage}</p>
         </div>

@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@lumia-ui/components";
+import { useTranslations } from "next-intl";
 import {
   resetPasswordFormSchema,
   type ResetPasswordFormData,
@@ -12,6 +13,8 @@ import {
 import { createPasswordResetClient } from "@/lib/supabase/client";
 
 export function ResetPasswordForm() {
+  const tCommon = useTranslations("auth.common");
+  const tReset = useTranslations("auth.resetPassword");
   const [isLoading, setIsLoading] = useState(false);
   const [didSucceed, setDidSucceed] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -54,15 +57,18 @@ export function ResetPasswordForm() {
   if (didSucceed) {
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-          Password updated.
+        <div
+          role="status"
+          className="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800"
+        >
+          {tReset("successMessage")}
         </div>
         <div className="flex justify-center">
           <a
             href="/login"
             className="text-sm font-medium text-primary-600 hover:underline"
           >
-            Back to login
+            {tReset("backToLogin")}
           </a>
         </div>
       </div>
@@ -83,8 +89,7 @@ export function ResetPasswordForm() {
           role="alert"
           className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
         >
-          We couldn&apos;t update your password. Please request a new reset link
-          and try again.
+          {tReset("errorMessage")}
         </div>
       )}
 
@@ -93,12 +98,12 @@ export function ResetPasswordForm() {
           htmlFor="password"
           className="block text-sm font-medium text-gray-900"
         >
-          New password
+          {tReset("fields.newPassword")}
         </label>
         <input
           id="password"
           type="password"
-          placeholder="Enter a new password"
+          placeholder={tCommon("fields.passwordPlaceholderNew")}
           autoComplete="new-password"
           maxLength={MAX_PASSWORD_INPUT_LENGTH}
           aria-invalid={!!errors.password}
@@ -120,12 +125,12 @@ export function ResetPasswordForm() {
           htmlFor="confirmPassword"
           className="block text-sm font-medium text-gray-900"
         >
-          Confirm new password
+          {tReset("fields.confirmPassword")}
         </label>
         <input
           id="confirmPassword"
           type="password"
-          placeholder="Re-enter your new password"
+          placeholder={tCommon("fields.passwordPlaceholderConfirm")}
           autoComplete="new-password"
           maxLength={MAX_PASSWORD_INPUT_LENGTH}
           aria-invalid={!!errors.confirmPassword}
@@ -148,9 +153,9 @@ export function ResetPasswordForm() {
         type="submit"
         fullWidth
         isLoading={isLoading}
-        loadingText="Updating..."
+        loadingText={tReset("submitLoading")}
       >
-        Update password
+        {tReset("submit")}
       </Button>
     </form>
   );

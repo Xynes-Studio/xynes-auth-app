@@ -1,0 +1,32 @@
+{
+  "appName": "Xynes Auth",
+  "actions": {
+    "continue": "Continue",
+    "back": "Back",
+    "cancel": "Cancel",
+    "retry": "Retry"
+  },
+  "fields": {
+    "email": "Email",
+    "emailPlaceholder": "you@example.com…",
+    "password": "Password",
+    "passwordPlaceholderEnter": "Enter your password…",
+    "passwordPlaceholderCreate": "Create a strong password…",
+    "passwordPlaceholderNew": "Enter a new password",
+    "passwordPlaceholderConfirm": "Re-enter your new password"
+  },
+  "loading": {
+    "redirecting": "Redirecting",
+    "loadingLogin": "Loading login",
+    "default": "Loading…"
+  },
+  "routeSwitch": {
+    "ariaLabel": "Auth route switch",
+    "login": "Log In",
+    "signup": "Sign Up",
+    "back": "Back"
+  },
+  "divider": {
+    "orContinueWith": "Or continue with"
+  }
+}
