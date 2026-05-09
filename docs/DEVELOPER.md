@@ -511,6 +511,23 @@ Pilot covering login, signup, forgot/reset password, invite entry, workspace sel
 
 `src/lib/oauth/errors.ts` exposes `getOAuthErrorMessageKey(errorCode)` which returns a closed-set translation key (`access_denied | invalid_request | … | fallback`). Unknown error codes collapse to `fallback` so a hostile OAuth provider cannot inject arbitrary copy through the URL `?error=` parameter. Translated copy lives under `auth.errors.oauth.<key>`. The legacy `getOAuthErrorMessage` / `OAUTH_ERROR_MESSAGES` (en-US source of truth) remain exported for the callback flow which cannot reach the next-intl client.
 
+#### SDK error code localization (TFU-2, 2026-05-09)
+
+`@xynes/auth-sdk` exports a parallel helper for backend-derived auth errors:
+
+```ts
+import { getAuthErrorMessageKey, AUTH_ERROR_MESSAGE_KEYS } from "@xynes/auth-sdk";
+
+const error = normalizeAuthError(supabaseError);
+// `error.code` is a closed-set `AuthErrorCode`; `error.message` is the SDK's en-US fallback.
+const messageKey = getAuthErrorMessageKey(error.code); // -> e.g. "invalid_credentials"
+const localized = t(`auth.errors.codes.${messageKey}`); // resolves through next-intl
+```
+
+The auth-app's `<AuthErrorAlert>` consumes this helper directly: the alert body is resolved via `useTranslations("auth.errors.codes")(getAuthErrorMessageKey(error.code))` and the SDK's en-US `error.message` is **never** rendered in the DOM. Catalog keys live under `auth.errors.codes.*` (`invalid_credentials`, `email_not_verified`, `network_error`, `rate_limited`, …) with pseudo-locale parity in `messages/en-XA/auth.errors.json`. The default alert title falls back to `auth.errors.alertTitles.generic`. Tests: `src/components/ui/AuthErrorAlert.i18n.test.tsx` (real `NextIntlClientProvider`, en-US + en-XA), `src/components/ui/index.test.tsx` (closed-set fallback), `src/lib/errors/errors.test.ts` (re-export contract).
+
+`getAuthErrorMessageKey` is closed-set: it always returns a stable identifier from `AUTH_ERROR_MESSAGE_KEYS` (or `"unknown_error"` for any unrecognized code), so a hostile upstream `error.code` cannot escape the `auth.errors.codes` namespace or leak free-form text into the rendered DOM.
+
 ### Pseudo-locale generation
 
 ```bash
@@ -542,6 +559,6 @@ document.cookie = "xynes_locale=en-XA; path=/";
 
 ### Known follow-ups
 
-- `feat(auth-sdk): localize SDK error messages` — `normalizeAuthError` in `@xynes/auth-sdk` currently returns en-US strings for backend codes. The pilot maps OAuth URL errors to catalog keys but leaves SDK-derived `error.message` in English. A future story should expand the catalog under `auth.errors.codes.*` and refactor the SDK or its consumers to map error codes to keys.
+- ~~`feat(auth-sdk): localize SDK error messages`~~ — **Closed by TFU-2 on 2026-05-09.** `@xynes/auth-sdk` now exports `getAuthErrorMessageKey` + `AUTH_ERROR_MESSAGE_KEYS` (closed-set), and `<AuthErrorAlert>` resolves the body via `auth.errors.codes.<key>` instead of the SDK's en-US `error.message`.
 - `chore(reset-password): localize debug panel` — The dev-only debug panel in `src/app/reset-password/page.tsx` is intentionally left in English (developer surface, not pilot scope).
 - `feat(i18n): locale-switcher UI` — The cookie-based locale negotiation works today, but there is no in-product UI to toggle locales. Add when pilot graduates.

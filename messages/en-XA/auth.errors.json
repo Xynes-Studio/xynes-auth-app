@@ -1,5 +1,6 @@
 {
   "alertTitles": {
+    "generic": "[AAnn eerrrroorr ooccccuurrrreedd]",
     "loginFailed": "[LLooggiinn ffaaiilleedd]",
     "signupFailed": "[SSiiggnnuupp ffaaiilleedd]",
     "signInFailed": "[SSiiggnn-iinn ffaaiilleedd]"

@@ -18,8 +18,10 @@ vi.mock("@xynes/auth-sdk", () => ({
   useOAuthProviders: () => ({ google: true, github: true }),
   useFeatureFlags: () => ({ flags: {}, isLoading: false, error: null }),
   normalizeAuthError: (error: { message?: string } | null) => ({
+    code: "unknown_error",
     message: error?.message ?? "Unknown error",
   }),
+  getAuthErrorMessageKey: () => "unknown_error",
   getPasswordStrength: (password: string) => {
     if (
       password.length >= 12 &&

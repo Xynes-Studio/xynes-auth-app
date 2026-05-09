@@ -1,5 +1,6 @@
 {
   "alertTitles": {
+    "generic": "An error occurred",
     "loginFailed": "Login failed",
     "signupFailed": "Signup failed",
     "signInFailed": "Sign-in failed"

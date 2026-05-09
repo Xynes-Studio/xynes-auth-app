@@ -12,6 +12,8 @@ export {
   normalizeAuthError,
   isRetryableError,
   getErrorMessage,
+  getAuthErrorMessageKey,
+  AUTH_ERROR_MESSAGE_KEYS,
   type AuthError,
   type AuthErrorCode,
 } from "@xynes/auth-sdk";
