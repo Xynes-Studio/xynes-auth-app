@@ -18,7 +18,7 @@ describe("xynesTickerData", () => {
   });
 
   it("reuses cached stories within ttl", async () => {
-    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>();
+    const fetchMock = vi.fn<typeof fetch>();
 
     fetchMock.mockResolvedValueOnce(createJsonResponse([1, 2, 3]));
     fetchMock.mockResolvedValueOnce(
@@ -46,7 +46,7 @@ describe("xynesTickerData", () => {
   });
 
   it("refetches after ttl expires", async () => {
-    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>();
+    const fetchMock = vi.fn<typeof fetch>();
 
     fetchMock.mockResolvedValueOnce(createJsonResponse([1]));
     fetchMock.mockResolvedValueOnce(
@@ -72,7 +72,7 @@ describe("xynesTickerData", () => {
   });
 
   it("deduplicates concurrent calls with one in-flight request", async () => {
-    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>();
+    const fetchMock = vi.fn<typeof fetch>();
 
     fetchMock.mockResolvedValueOnce(createJsonResponse([1, 2]));
     fetchMock.mockResolvedValueOnce(

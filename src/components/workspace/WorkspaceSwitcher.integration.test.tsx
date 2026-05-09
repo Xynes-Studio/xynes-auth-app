@@ -67,20 +67,25 @@ vi.mock("@lumia-ui/components", () => ({
     onClick?: () => void;
     label?: string;
     icon?: string;
-  } & React.ButtonHTMLAttributes<HTMLButtonElement>) => (
-    <button
-      onClick={() => {
-        onSelect?.();
-        onClick?.();
-      }}
-      data-testid={props["data-testid"] ?? `menu-item-${label ?? "default"}`}
-      data-lumia-menu-item="true"
-      {...props}
-    >
-      {icon && <span data-testid={`icon-${icon}`} />}
-      {children ?? label}
-    </button>
-  ),
+  } & React.ButtonHTMLAttributes<HTMLButtonElement>) => {
+    const testId =
+      (props as { "data-testid"?: string })["data-testid"] ??
+      `menu-item-${label ?? "default"}`;
+    return (
+      <button
+        onClick={() => {
+          onSelect?.();
+          onClick?.();
+        }}
+        data-testid={testId}
+        data-lumia-menu-item="true"
+        {...props}
+      >
+        {icon && <span data-testid={`icon-${icon}`} />}
+        {children ?? label}
+      </button>
+    );
+  },
   MenuLabel: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="menu-label">{children}</div>
   ),
