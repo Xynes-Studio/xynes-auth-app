@@ -223,25 +223,53 @@ describe("AuthErrorAlert", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders error message with default title", () => {
+  it("renders the localized code body with the default title", () => {
     const error: AuthError = {
-      code: "unknown_error",
-      message: "Test error message",
+      code: "invalid_credentials",
+      message: "Test error message", // SDK fallback — must NOT render
     };
     render(<AuthErrorAlert error={error} />);
 
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(screen.getByText("An error occurred")).toBeInTheDocument();
-    expect(screen.getByText("Test error message")).toBeInTheDocument();
+    // Body resolves through `auth.errors.codes.invalid_credentials`, NOT
+    // through the SDK's en-US `error.message`.
+    expect(
+      screen.getByText("Invalid email or password. Please try again."),
+    ).toBeInTheDocument();
+    // Defense in depth: the SDK's en-US prose must never reach the DOM.
+    expect(screen.queryByText("Test error message")).toBeNull();
   });
 
-  it("renders error message with custom title", () => {
+  it("renders the localized code body with a caller-supplied title", () => {
     const error: AuthError = {
-      code: "unknown_error",
-      message: "Test error message",
+      code: "network_error",
+      message: "raw upstream string",
     };
     render(<AuthErrorAlert error={error} title="Login failed" />);
 
     expect(screen.getByText("Login failed")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Unable to connect. Please check your internet connection.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("raw upstream string")).toBeNull();
+  });
+
+  it("falls back to the unknown_error code body for an unrecognized code", () => {
+    const error: AuthError = {
+      // Cast through unknown so we can simulate an SDK code that the
+      // alert does not yet have a translation key for. The closed-set
+      // resolver in `getAuthErrorMessageKey` must coerce it to the
+      // `unknown_error` key so a stranger value cannot leak into the DOM.
+      code: "garbage_future_code" as unknown as AuthError["code"],
+      message: "raw upstream string",
+    };
+    render(<AuthErrorAlert error={error} />);
+    expect(
+      screen.getByText("An unexpected error occurred. Please try again."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("raw upstream string")).toBeNull();
   });
 });

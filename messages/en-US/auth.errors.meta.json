@@ -8,6 +8,7 @@
   },
   "alertTitles": {
     "_use": "Heading shown on top of an error alert. Keep ≤ 2 words after translation if possible.",
+    "generic": "Default heading shown by AuthErrorAlert when the calling form does not pass a title prop. Used in unreachable paths (every form passes its own title today).",
     "loginFailed": "Top of the alert shown after a sign-in attempt with email + password fails.",
     "signupFailed": "Top of the alert shown after a sign-up attempt fails.",
     "signInFailed": "Top of the alert shown after a third-party (OAuth) sign-in fails."

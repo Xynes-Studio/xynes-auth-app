@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { normalizeAuthError, isRetryableError, getErrorMessage } from "./index";
+import {
+  normalizeAuthError,
+  isRetryableError,
+  getErrorMessage,
+  getAuthErrorMessageKey,
+  AUTH_ERROR_MESSAGE_KEYS,
+} from "./index";
 
 describe("Error utilities re-exports", () => {
   describe("normalizeAuthError", () => {
@@ -8,7 +14,7 @@ describe("Error utilities re-exports", () => {
       const result = normalizeAuthError(error);
       expect(result.code).toBe("invalid_credentials");
       expect(result.message).toBe(
-        "Invalid email or password. Please try again."
+        "Invalid email or password. Please try again.",
       );
     });
 
@@ -17,7 +23,7 @@ describe("Error utilities re-exports", () => {
       const result = normalizeAuthError("Something went wrong");
       expect(result.code).toBe("unknown_error");
       expect(result.message).toBe(
-        "An unexpected error occurred. Please try again."
+        "An unexpected error occurred. Please try again.",
       );
     });
 
@@ -25,7 +31,7 @@ describe("Error utilities re-exports", () => {
       const result = normalizeAuthError(null);
       expect(result.code).toBe("unknown_error");
       expect(result.message).toBe(
-        "An unexpected error occurred. Please try again."
+        "An unexpected error occurred. Please try again.",
       );
     });
 
@@ -38,7 +44,7 @@ describe("Error utilities re-exports", () => {
       const result = normalizeAuthError(authError);
       expect(result.code).toBe("email_not_verified");
       expect(result.message).toBe(
-        "Please verify your email before signing in."
+        "Please verify your email before signing in.",
       );
     });
 
@@ -84,33 +90,53 @@ describe("Error utilities re-exports", () => {
     // getErrorMessage takes an AuthErrorCode, not an arbitrary error
     it("should return message for invalid_credentials code", () => {
       expect(getErrorMessage("invalid_credentials")).toBe(
-        "Invalid email or password. Please try again."
+        "Invalid email or password. Please try again.",
       );
     });
 
     it("should return message for email_not_verified code", () => {
       expect(getErrorMessage("email_not_verified")).toBe(
-        "Please verify your email before signing in."
+        "Please verify your email before signing in.",
       );
     });
 
     it("should return message for network_error code", () => {
       expect(getErrorMessage("network_error")).toBe(
-        "Unable to connect. Please check your internet connection."
+        "Unable to connect. Please check your internet connection.",
       );
     });
 
     it("should return message for unknown_error code", () => {
       expect(getErrorMessage("unknown_error")).toBe(
-        "An unexpected error occurred. Please try again."
+        "An unexpected error occurred. Please try again.",
       );
     });
 
     it("should return fallback for unrecognized codes", () => {
       // @ts-expect-error - testing invalid code
       expect(getErrorMessage("not_a_real_code")).toBe(
-        "An unexpected error occurred. Please try again."
+        "An unexpected error occurred. Please try again.",
       );
+    });
+  });
+
+  describe("getAuthErrorMessageKey (re-export)", () => {
+    it("returns the closed-set key for a known code", () => {
+      expect(getAuthErrorMessageKey("invalid_credentials")).toBe(
+        "invalid_credentials",
+      );
+      expect(getAuthErrorMessageKey("network_error")).toBe("network_error");
+    });
+
+    it("falls back to unknown_error for an unrecognized code", () => {
+      // @ts-expect-error - testing an invalid code value
+      expect(getAuthErrorMessageKey("not_a_real_code")).toBe("unknown_error");
+    });
+
+    it("AUTH_ERROR_MESSAGE_KEYS is re-exported as an identity map", () => {
+      for (const [code, key] of Object.entries(AUTH_ERROR_MESSAGE_KEYS)) {
+        expect(key).toBe(code);
+      }
     });
   });
 });
