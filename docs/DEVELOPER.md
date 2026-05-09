@@ -384,6 +384,8 @@ Run all of the following before raising a PR or handing off:
 
 If `pnpm typecheck` reveals errors in linked-workspace consumers (`@lumia-ui/components`, `@lumia-ui/forms`, `@xynes/auth-sdk`), coordinate with the owning repo. Do NOT silence the type errors with broad `as any` casts; either fix the downstream export or narrow the consumer with a targeted, commented cast.
 
+> **Forbidden: ambient `declare module` shims for linked-workspace types.** Adding a top-level `declare module "@lumia-ui/components"` (or any other linked workspace) inside `src/types/*.d.ts` masks every prop type in the package, so real prop-shape regressions silently pass `tsc --noEmit`. PFU-5a removed exactly such a shim and surfaced a `MenuItem`-without-`label` regression that had been hidden for weeks. If a built `dist/index.d.ts` is missing a symbol, fix the export upstream (Lumia DS) and rebuild — never paper over it with an ambient declaration.
+
 ## Workspace Admin Integrations (Source-of-Truth Surface)
 
 This app is the **Workspace Admin** for the Xynes platform. The Integrations dashboard at `/dashboard/integrations` owns the lifecycle of:

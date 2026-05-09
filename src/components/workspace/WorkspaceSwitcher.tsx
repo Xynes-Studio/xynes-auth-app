@@ -326,6 +326,7 @@ export function WorkspaceSwitcher({
           <>
             <MenuLabel>Current Workspace</MenuLabel>
             <MenuItem
+              label={currentWorkspace.name}
               aria-current="true"
               disabled
               data-testid="workspace-switcher-current"
