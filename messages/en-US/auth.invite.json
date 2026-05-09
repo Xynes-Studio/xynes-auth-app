@@ -1,0 +1,18 @@
+{
+  "shell": {
+    "heading": "Join a workspace",
+    "subheading": "Paste your invite link or code to continue.",
+    "backToOnboarding": "Back to onboarding"
+  },
+  "form": {
+    "fieldLabel": "Invite link or code",
+    "fieldPlaceholder": "Paste your invite link or code",
+    "hint": "We'll take you to the workspace invite preview.",
+    "submit": "Continue"
+  },
+  "errors": {
+    "empty": "Enter your invite link or code to continue.",
+    "invalid": "That invite code looks incorrect. Check the link and try again.",
+    "length": "Invite code must be between 16 and 128 characters."
+  }
+}

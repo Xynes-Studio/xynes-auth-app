@@ -1,0 +1,9 @@
+{
+  "submit": "Create account",
+  "submitLoading": "Creating account...",
+  "passwordStrength": {
+    "label": "Password strength"
+  },
+  "alreadyHaveAccount": "Already have an account?",
+  "signInLink": "Sign in"
+}

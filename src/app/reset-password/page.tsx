@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { createPasswordResetClient } from "@/lib/supabase/client";
 import { ResetPasswordForm } from "@/components/auth/forms/ResetPasswordForm";
 
@@ -52,15 +53,16 @@ function summarizeAuthError(error: unknown): DebugAttempt["error"] | undefined {
 }
 
 function InvalidLink() {
+  const t = useTranslations("auth.resetPassword.invalidLink");
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">Invalid or expired link.</p>
+      <p className="text-sm text-muted-foreground">{t("message")}</p>
       <div className="flex justify-center">
         <a
           href="/forgot-password"
           className="text-sm font-medium text-primary-600 hover:underline"
         >
-          Request a new reset link
+          {t("requestNew")}
         </a>
       </div>
     </div>

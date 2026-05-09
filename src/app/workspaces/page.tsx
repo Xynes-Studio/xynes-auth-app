@@ -3,10 +3,13 @@
 import { useCallback, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, useWorkspace, AuthGuard } from "@xynes/auth-sdk";
+import { useTranslations } from "next-intl";
 import { WorkspaceSelector } from "@/components/workspace/WorkspaceSelector";
 import { getAllowedRedirectDomains, getSafeRedirectUrl } from "@/lib/redirect";
 
 export default function WorkspaceSelectorPage() {
+  const tPage = useTranslations("auth.workspaces.page");
+  const tSelector = useTranslations("auth.workspaces.selector");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { workspaces, isLoading: isAuthLoading } = useAuth();
@@ -72,10 +75,10 @@ export default function WorkspaceSelectorPage() {
         <div className="w-full max-w-5xl space-y-8">
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold tracking-tight text-foreground text-balance">
-              Select a Workspace
+              {tPage("heading")}
             </h1>
             <p className="text-muted-foreground text-lg text-pretty">
-              Choose a workspace to continue working.
+              {tPage("subheading")}
             </p>
           </div>
 
@@ -85,7 +88,9 @@ export default function WorkspaceSelectorPage() {
             onCreateNew={handleCreateNew}
             isLoading={isAuthLoading || isWorkspaceLoading || isSelecting}
             loadingText={
-              isSelecting ? "Selecting workspace..." : "Loading workspaces..."
+              isSelecting
+                ? tSelector("loadingSelecting")
+                : tSelector("loadingWorkspaces")
             }
           />
         </div>

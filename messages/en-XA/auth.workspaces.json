@@ -1,0 +1,18 @@
+{
+  "page": {
+    "heading": "[SSeelleecctt aa WWoorrkkssppaaccee]",
+    "subheading": "[CChhoooossee aa wwoorrkkssppaaccee ttoo ccoonnttiinnuuee wwoorrkkiinngg.]"
+  },
+  "selector": {
+    "loadingDefault": "[LLooaaddiinngg...]",
+    "loadingWorkspaces": "[LLooaaddiinngg wwoorrkkssppaacceess...]",
+    "loadingSelecting": "[SSeelleeccttiinngg wwoorrkkssppaaccee...]",
+    "emptyTitle": "[NNoo wwoorrkkssppaacceess ffoouunndd]",
+    "emptyDescription": "[CCrreeaattee yyoouurr ffiirrsstt wwoorrkkssppaaccee ttoo ggeett ssttaarrtteedd.]",
+    "emptyAction": "[CCrreeaattee NNeeww WWoorrkkssppaaccee]",
+    "ownerBadge": "[OOwwnneerr]",
+    "activeLabel": "[AAccttiivvee]",
+    "createCardTitle": "[CCrreeaattee NNeeww WWoorrkkssppaaccee]",
+    "createCardSubtitle": "[SSttaarrtt ffrreesshh wwiitthh aa nneeww ssppaaccee]"
+  }
+}

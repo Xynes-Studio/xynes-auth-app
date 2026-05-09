@@ -1,0 +1,9 @@
+{
+  "submit": "[CCrreeaattee aaccccoouunntt]",
+  "submitLoading": "[CCrreeaattiinngg aaccccoouunntt...]",
+  "passwordStrength": {
+    "label": "[PPaasssswwoorrdd ssttrreennggtthh]"
+  },
+  "alreadyHaveAccount": "[AAllrreeaaddyy hhaavvee aann aaccccoouunntt?]",
+  "signInLink": "[SSiiggnn iinn]"
+}

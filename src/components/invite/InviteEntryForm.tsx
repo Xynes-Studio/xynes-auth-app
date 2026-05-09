@@ -3,15 +3,12 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Alert, Button, Input } from "@lumia-ui/components";
+import { useTranslations } from "next-intl";
 import { normalizeInviteToken } from "@/lib/invite/invite-utils";
 
-const ERROR_MESSAGES: Record<"empty" | "invalid" | "length", string> = {
-  empty: "Enter your invite link or code to continue.",
-  invalid: "That invite code looks incorrect. Check the link and try again.",
-  length: "Invite code must be between 16 and 128 characters.",
-};
-
 export function InviteEntryForm() {
+  const tForm = useTranslations("auth.invite.form");
+  const tErrors = useTranslations("auth.invite.errors");
   const router = useRouter();
   const [value, setValue] = useState("");
   const [error, setError] = useState<"empty" | "invalid" | "length" | null>(
@@ -19,8 +16,8 @@ export function InviteEntryForm() {
   );
 
   const errorMessage = useMemo(
-    () => (error ? ERROR_MESSAGES[error] : null),
-    [error],
+    () => (error ? tErrors(error) : null),
+    [error, tErrors],
   );
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -53,12 +50,12 @@ export function InviteEntryForm() {
           htmlFor="invite-token"
           className="block text-sm font-medium text-foreground"
         >
-          Invite link or code
+          {tForm("fieldLabel")}
         </label>
         <Input
           id="invite-token"
           name="invite-token"
-          placeholder="Paste your invite link or code"
+          placeholder={tForm("fieldPlaceholder")}
           autoComplete="off"
           spellCheck={false}
           value={value}
@@ -73,12 +70,12 @@ export function InviteEntryForm() {
           }}
         />
         <p id="invite-hint" className="text-sm text-muted-foreground">
-          We&apos;ll take you to the workspace invite preview.
+          {tForm("hint")}
         </p>
       </div>
 
       <Button type="submit" fullWidth>
-        Continue
+        {tForm("submit")}
       </Button>
     </form>
   );

@@ -1,0 +1,32 @@
+{
+  "alertTitles": {
+    "loginFailed": "[LLooggiinn ffaaiilleedd]",
+    "signupFailed": "[SSiiggnnuupp ffaaiilleedd]",
+    "signInFailed": "[SSiiggnn-iinn ffaaiilleedd]"
+  },
+  "codes": {
+    "invalid_credentials": "[IInnvvaalliidd eemmaaiill oorr ppaasssswwoorrdd. PPlleeaassee ttrryy aaggaaiinn.]",
+    "email_not_verified": "[PPlleeaassee vveerriiffyy yyoouurr eemmaaiill bbeeffoorree ssiiggnniinngg iinn.]",
+    "user_not_found": "[NNoo aaccccoouunntt ffoouunndd wwiitthh tthhiiss eemmaaiill.]",
+    "email_already_exists": "[AAnn aaccccoouunntt wwiitthh tthhiiss eemmaaiill aallrreeaaddyy eexxiissttss.]",
+    "weak_password": "[PPaasssswwoorrdd iiss ttoooo wweeaakk. PPlleeaassee uussee aa ssttrroonnggeerr ppaasssswwoorrdd.]",
+    "invalid_email": "[PPlleeaassee eenntteerr aa vvaalliidd eemmaaiill aaddddrreessss.]",
+    "network_error": "[UUnnaabbllee ttoo ccoonnnneecctt. PPlleeaassee cchheecckk yyoouurr iinntteerrnneett ccoonnnneeccttiioonn.]",
+    "session_expired": "[YYoouurr sseessssiioonn hhaass eexxppiirreedd. PPlleeaassee ssiiggnn iinn aaggaaiinn.]",
+    "rate_limited": "[TToooo mmaannyy aatttteemmppttss. PPlleeaassee wwaaiitt aa mmoommeenntt aanndd ttrryy aaggaaiinn.]",
+    "invite_not_found": "[TThhiiss iinnvviittaattiioonn iiss iinnvvaalliidd oorr hhaass eexxppiirreedd.]",
+    "already_in_workspace": "[YYoouu aarree aallrreeaaddyy aa mmeemmbbeerr ooff tthhiiss wwoorrkkssppaaccee.]",
+    "unknown_error": "[AAnn uunneexxppeecctteedd eerrrroorr ooccccuurrrreedd. PPlleeaassee ttrryy aaggaaiinn.]"
+  },
+  "oauth": {
+    "access_denied": "[YYoouu ddeenniieedd tthhee rreeqquueesstt oorr tthhee OOAAuutthh pprroovviiddeerr ddeecclliinneedd aacccceessss. PPlleeaassee ttrryy aaggaaiinn.]",
+    "invalid_request": "[TThhee aauutthheennttiiccaattiioonn rreeqquueesstt wwaass iinnvvaalliidd. PPlleeaassee ttrryy ssiiggnniinngg iinn aaggaaiinn.]",
+    "unauthorized_client": "[TThhiiss aapppplliiccaattiioonn iiss nnoott aauutthhoorriizzeedd ttoo uussee tthhiiss ssiiggnn-iinn mmeetthhoodd.]",
+    "unsupported_response_type": "[TThhee aauutthheennttiiccaattiioonn mmeetthhoodd iiss uunnssuuppppoorrtteedd. PPlleeaassee ccoonnttaacctt ssuuppppoorrtt.]",
+    "invalid_scope": "[TThhee rreeqquueesstteedd ppeerrmmiissssiioonnss (ssccooppee) aarree iinnvvaalliidd. PPlleeaassee ccoonnttaacctt ssuuppppoorrtt.]",
+    "server_error": "[TThhee aauutthheennttiiccaattiioonn sseerrvveerr eennccoouunntteerreedd aann eerrrroorr. PPlleeaassee ttrryy aaggaaiinn llaatteerr.]",
+    "temporarily_unavailable": "[TThhee aauutthheennttiiccaattiioonn sseerrvviiccee iiss tteemmppoorraarriillyy uunnaavvaaiillaabbllee. PPlleeaassee ttrryy aaggaaiinn llaatteerr.]",
+    "auth_callback_error": "[TThheerree wwaass aann eerrrroorr pprroocceessssiinngg yyoouurr ssiiggnn-iinn. PPlleeaassee ttrryy aaggaaiinn.]",
+    "fallback": "[SSoommeetthhiinngg wweenntt wwrroonngg dduurriinngg aauutthheennttiiccaattiioonn. PPlleeaassee ttrryy aaggaaiinn.]"
+  }
+}

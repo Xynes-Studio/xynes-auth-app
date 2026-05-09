@@ -1,0 +1,18 @@
+{
+  "page": {
+    "heading": "Select a Workspace",
+    "subheading": "Choose a workspace to continue working."
+  },
+  "selector": {
+    "loadingDefault": "Loading...",
+    "loadingWorkspaces": "Loading workspaces...",
+    "loadingSelecting": "Selecting workspace...",
+    "emptyTitle": "No workspaces found",
+    "emptyDescription": "Create your first workspace to get started.",
+    "emptyAction": "Create New Workspace",
+    "ownerBadge": "Owner",
+    "activeLabel": "Active",
+    "createCardTitle": "Create New Workspace",
+    "createCardSubtitle": "Start fresh with a new space"
+  }
+}

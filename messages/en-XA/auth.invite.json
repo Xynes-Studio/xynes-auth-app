@@ -1,0 +1,18 @@
+{
+  "shell": {
+    "heading": "[JJooiinn aa wwoorrkkssppaaccee]",
+    "subheading": "[PPaassttee yyoouurr iinnvviittee lliinnkk oorr ccooddee ttoo ccoonnttiinnuuee.]",
+    "backToOnboarding": "[BBaacckk ttoo oonnbbooaarrddiinngg]"
+  },
+  "form": {
+    "fieldLabel": "[IInnvviittee lliinnkk oorr ccooddee]",
+    "fieldPlaceholder": "[PPaassttee yyoouurr iinnvviittee lliinnkk oorr ccooddee]",
+    "hint": "[WWee'llll ttaakkee yyoouu ttoo tthhee wwoorrkkssppaaccee iinnvviittee pprreevviieeww.]",
+    "submit": "[CCoonnttiinnuuee]"
+  },
+  "errors": {
+    "empty": "[EEnntteerr yyoouurr iinnvviittee lliinnkk oorr ccooddee ttoo ccoonnttiinnuuee.]",
+    "invalid": "[TThhaatt iinnvviittee ccooddee llooookkss iinnccoorrrreecctt. CChheecckk tthhee lliinnkk aanndd ttrryy aaggaaiinn.]",
+    "length": "[IInnvviittee ccooddee mmuusstt bbee bbeettwweeeenn 16 aanndd 128 cchhaarraacctteerrss.]"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "appName": "[XXyynneess AAuutthh]",
+  "actions": {
+    "continue": "[CCoonnttiinnuuee]",
+    "back": "[BBaacckk]",
+    "cancel": "[CCaanncceell]",
+    "retry": "[RReettrryy]"
+  },
+  "fields": {
+    "email": "[EEmmaaiill]",
+    "emailPlaceholder": "[yyoouu@eexxaammppllee.ccoomm…]",
+    "password": "[PPaasssswwoorrdd]",
+    "passwordPlaceholderEnter": "[EEnntteerr yyoouurr ppaasssswwoorrdd…]",
+    "passwordPlaceholderCreate": "[CCrreeaattee aa ssttrroonngg ppaasssswwoorrdd…]",
+    "passwordPlaceholderNew": "[EEnntteerr aa nneeww ppaasssswwoorrdd]",
+    "passwordPlaceholderConfirm": "[RRee-eenntteerr yyoouurr nneeww ppaasssswwoorrdd]"
+  },
+  "loading": {
+    "redirecting": "[RReeddiirreeccttiinngg]",
+    "loadingLogin": "[LLooaaddiinngg llooggiinn]",
+    "default": "[LLooaaddiinngg…]"
+  },
+  "routeSwitch": {
+    "ariaLabel": "[AAuutthh rroouuttee sswwiittcchh]",
+    "login": "[LLoogg IInn]",
+    "signup": "[SSiiggnn UUpp]",
+    "back": "[BBaacckk]"
+  },
+  "divider": {
+    "orContinueWith": "[OOrr ccoonnttiinnuuee wwiitthh]"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.invite. Workspace-invite entry surface.",
+    "audience": "Users who have an invite link or code from a workspace owner.",
+    "tone": "Welcoming.",
+    "owners": ["xynes-front-end/xynes-auth-app"]
+  },
+  "shell": {
+    "heading": "H1 of the invite-entry card.",
+    "subheading": "Subtitle below the H1.",
+    "backToOnboarding": "Inline link back to /onboarding."
+  },
+  "form": {
+    "fieldLabel": "Label for the invite-token Input.",
+    "fieldPlaceholder": "Placeholder shown inside the Input when empty.",
+    "hint": "Helper text rendered under the field, explaining what happens after submit.",
+    "submit": "Primary CTA."
+  },
+  "errors": {
+    "_use": "Client-side validation messages for the invite token field.",
+    "empty": "Shown when the field is submitted empty.",
+    "invalid": "Shown when the value does not match the invite-token shape.",
+    "length": "Shown when the value is outside the allowed length range. The fixed numbers reflect the gateway contract; do not translate them as words."
+  }
+}

@@ -475,3 +475,71 @@ setDomains(Array.isArray(nextDomains) ? nextDomains : []);
 
 - `fix(accounts-service): return safe validation errors for workspace domain create` — Browser revalidation on 2026-05-05 confirmed the frontend calls `POST /workspaces/:workspaceId/domains` through the gateway, but local backend creation of `example.com` failed with Postgres check constraint `workspace_domains_hostname_shape` and surfaced to the browser as `500 Internal Server Error`. The backend should align hostname normalization/validation with the database constraint and return a safe 4xx validation response instead of an internal error.
 - `fix(accounts-service): redact workspace-domain verification hashes from DB error logs` — The same failed create path logged the failed insert query and parameters, including `verification_value_hash`. Domain verification secret material must remain hash-only in storage and must not appear in service logs, error payloads, telemetry snippets, or debugging output.
+
+## Translation Prototype (Story 3, 2026-05-09)
+
+Pilot covering login, signup, forgot/reset password, invite entry, workspace selector, and shared auth error mapping (OAuth code → catalog key). Authoring pattern matches the CMS console pilot (Story 2) so a single locale cookie is honored across the platform.
+
+### Wiring
+
+- Catalogs live under `messages/<locale>/auth.<surface>.json` with translator metadata sidecars in `messages/<locale>/auth.<surface>.meta.json`. Sidecars are not loaded at runtime.
+- Locale negotiation is centralised in `src/i18n/config.ts` (`AUTH_LOCALE_COOKIE = "xynes_locale"`, `resolveAuthLocale`, `getAuthMessages`). Hostile inputs (path-traversal, `javascript:` URIs, non-strings, unsupported BCP-47) fail closed to `en-US`.
+- The static map in `getAuthMessages` is keyed on `Locale`, so a hostile cookie cannot drive a dynamic import path.
+- `app/layout.tsx` resolves the locale from the cookie + `Accept-Language` header, then passes catalogs into `Providers` which wraps everything in `NextIntlClientProvider`. URL routes are intentionally unchanged — there is no `[locale]` segment, so callbacks (`/callback`, `/logout`, invite tokens, `/dashboard/*`) keep working byte-for-byte.
+
+### Pilot surfaces
+
+| File | Catalog namespace |
+| --- | --- |
+| `src/components/auth/forms/LoginForm.tsx` | `auth.login`, `auth.common`, `auth.errors.alertTitles` |
+| `src/components/auth/forms/SignupForm.tsx` | `auth.signup`, `auth.common`, `auth.errors.alertTitles` |
+| `src/components/auth/forms/ForgotPasswordForm.tsx` | `auth.forgotPassword`, `auth.common` |
+| `src/components/auth/forms/ResetPasswordForm.tsx` | `auth.resetPassword`, `auth.common` |
+| `src/components/invite/InviteEntryForm.tsx` | `auth.invite.form`, `auth.invite.errors` |
+| `src/components/invite/InviteEntryShell.tsx` | `auth.invite.shell` |
+| `src/components/workspace/WorkspaceSelector.tsx` | `auth.workspaces.selector` |
+| `src/components/auth/navigation/AuthRouteSwitch.tsx` | `auth.common.routeSwitch` |
+| `src/components/ui/AuthDivider.tsx` | `auth.common.divider` |
+| `src/app/login/login.client.tsx` | `auth.common.loading`, `auth.errors.alertTitles`, `auth.errors.oauth` |
+| `src/app/forgot-password/page.tsx` | `auth.forgotPassword.page` |
+| `src/app/reset-password/page.tsx` (`InvalidLink`) | `auth.resetPassword.invalidLink` |
+| `src/app/workspaces/page.tsx` | `auth.workspaces.page` |
+
+### Common auth error mapping
+
+`src/lib/oauth/errors.ts` exposes `getOAuthErrorMessageKey(errorCode)` which returns a closed-set translation key (`access_denied | invalid_request | … | fallback`). Unknown error codes collapse to `fallback` so a hostile OAuth provider cannot inject arbitrary copy through the URL `?error=` parameter. Translated copy lives under `auth.errors.oauth.<key>`. The legacy `getOAuthErrorMessage` / `OAUTH_ERROR_MESSAGES` (en-US source of truth) remain exported for the callback flow which cannot reach the next-intl client.
+
+### Pseudo-locale generation
+
+```bash
+pnpm generate:pseudo
+```
+
+Walks every `messages/en-US/auth.*.json` (skipping `*.meta.json`) and emits `messages/en-XA/auth.*.json` via `pseudoLocalizeMessage` from `@xynes/i18n`. ICU placeholders are preserved.
+
+Test the pseudo-locale in a browser:
+
+```bash
+# Set the cookie, then load any auth surface.
+document.cookie = "xynes_locale=en-XA; path=/";
+```
+
+### Test harness
+
+- A global `next-intl` mock in `src/test/setup.ts` resolves keys against the real en-US catalogs so existing tests keep their canonical English assertions.
+- For pseudo-locale rendering tests, `vi.unmock("next-intl")` and wrap the component in a real `NextIntlClientProvider` (see `src/components/auth/forms/LoginForm.i18n.test.tsx` and `src/components/workspace/WorkspaceSelector.i18n.test.tsx`).
+- Catalog parity / fail-closed coverage: `src/i18n/config.test.ts`.
+
+### Security invariants
+
+- Locale resolution always passes through `negotiateLocale` from `@xynes/i18n` — no untrusted string ever drives a filesystem or import path.
+- Catalogs MUST NOT contain raw secrets, tokens, hashes, or API key markers. Asserted by `src/i18n/config.test.ts` (`xynes_live_`, `key_hash`, `access[_-]?token`, `api[_-]?key`).
+- `getOAuthErrorMessageKey` returns a closed-set enum; provider-supplied descriptions are never echoed.
+- Translated copy is rendered via `useTranslations` (text node only) — never via `dangerouslySetInnerHTML`.
+- The forgot-password `successMessage` is account-enumeration safe in every locale (sidecar guidance pinned).
+
+### Known follow-ups
+
+- `feat(auth-sdk): localize SDK error messages` — `normalizeAuthError` in `@xynes/auth-sdk` currently returns en-US strings for backend codes. The pilot maps OAuth URL errors to catalog keys but leaves SDK-derived `error.message` in English. A future story should expand the catalog under `auth.errors.codes.*` and refactor the SDK or its consumers to map error codes to keys.
+- `chore(reset-password): localize debug panel` — The dev-only debug panel in `src/app/reset-password/page.tsx` is intentionally left in English (developer surface, not pilot scope).
+- `feat(i18n): locale-switcher UI` — The cookie-based locale negotiation works today, but there is no in-product UI to toggle locales. Add when pilot graduates.

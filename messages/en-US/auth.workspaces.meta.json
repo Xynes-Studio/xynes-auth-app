@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.workspaces. Workspace-selection grid.",
+    "audience": "Authenticated users who belong to one or more workspaces.",
+    "tone": "Concise.",
+    "owners": ["xynes-front-end/xynes-auth-app"]
+  },
+  "page": {
+    "heading": "H1 above the workspace grid.",
+    "subheading": "Subtitle that explains the action."
+  },
+  "selector": {
+    "ownerBadge": "Pill rendered on a workspace card when the current user has the workspace_owner role. Keep ≤ 6 chars after translation.",
+    "activeLabel": "Static caption shown beneath each workspace name; visual cue only.",
+    "loadingDefault": "Generic loading copy used when no specific phase is in progress.",
+    "loadingWorkspaces": "Shown while the workspace list is being fetched.",
+    "loadingSelecting": "Shown while a workspace selection is in flight (overlay)."
+  }
+}

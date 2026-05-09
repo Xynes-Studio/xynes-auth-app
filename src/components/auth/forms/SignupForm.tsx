@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { Button, Input } from "@lumia-ui/components";
 import { useFeatureFlags, useOAuthProviders } from "@xynes/auth-sdk";
+import { useTranslations } from "next-intl";
 import {
   signupFormSchema,
   type SignupFormData,
@@ -28,6 +29,9 @@ interface SignupFormProps {
 }
 
 export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
+  const tCommon = useTranslations("auth.common");
+  const tSignup = useTranslations("auth.signup");
+  const tErrors = useTranslations("auth.errors.alertTitles");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<AuthError | null>(null);
   const [passwordValue, setPasswordValue] = useState("");
@@ -133,7 +137,7 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
 
   return (
     <div className="w-full max-w-md space-y-6">
-      <AuthErrorAlert error={error} title="Signup failed" />
+      <AuthErrorAlert error={error} title={tErrors("signupFailed")} />
 
       <form
         method="post"
@@ -146,12 +150,12 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
             htmlFor="email"
             className="block text-sm font-medium text-foreground"
           >
-            Email
+            {tCommon("fields.email")}
           </label>
           <Input
             id="email"
             type="email"
-            placeholder="you@example.com…"
+            placeholder={tCommon("fields.emailPlaceholder")}
             autoComplete="email"
             spellCheck={false}
             aria-invalid={!!errors.email}
@@ -169,12 +173,12 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
             htmlFor="password"
             className="block text-sm font-medium text-foreground"
           >
-            Password
+            {tCommon("fields.password")}
           </label>
           <Input
             id="password"
             type="password"
-            placeholder="Create a strong password…"
+            placeholder={tCommon("fields.passwordPlaceholderCreate")}
             autoComplete="new-password"
             maxLength={MAX_PASSWORD_INPUT_LENGTH}
             aria-invalid={!!errors.password}
@@ -198,7 +202,9 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
           {passwordValue && (
             <div className="space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="text-foreground/70">Password strength</span>
+                <span className="text-foreground/70">
+                  {tSignup("passwordStrength.label")}
+                </span>
                 <span className={strengthConfig.color}>
                   {strengthConfig.label}
                 </span>
@@ -216,9 +222,9 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
         <Button
           type="submit"
           isLoading={isLoading}
-          loadingText="Creating account..."
+          loadingText={tSignup("submitLoading")}
         >
-          Create account
+          {tSignup("submit")}
         </Button>
       </form>
 
@@ -233,12 +239,12 @@ export function SignupForm({ onSuccess, redirectUrl }: SignupFormProps) {
       />
 
       <p className="text-center text-sm text-foreground/70">
-        Already have an account?{" "}
+        {tSignup("alreadyHaveAccount")}{" "}
         <Link
           href="/login"
           className="font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
         >
-          Sign in
+          {tSignup("signInLink")}
         </Link>
       </p>
     </div>

@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.common. Shared shell strings used across login, signup, forgot password, reset password, invite, and workspace selection pilots.",
+    "audience": "End users completing authentication and workspace selection.",
+    "tone": "Concise, neutral, professional. Avoid casual contractions where they could confuse non-English readers.",
+    "owners": ["xynes-front-end/xynes-auth-app"]
+  },
+  "appName": {
+    "use": "Product wordmark; do not translate."
+  },
+  "actions": {
+    "_use": "Verbs for form/page actions. Translate as imperative verbs."
+  },
+  "fields": {
+    "_use": "Form field labels and placeholders. Keep length close to the English source so inputs do not collapse on narrow viewports.",
+    "emailPlaceholder": "Sample email shown inside the input. The trailing ellipsis indicates the field is editable."
+  },
+  "loading": {
+    "_use": "Status copy shown on transient loading screens.",
+    "redirecting": "Shown while the auth shell is about to redirect an already-authenticated user.",
+    "loadingLogin": "Shown while the login surface is hydrating."
+  },
+  "routeSwitch": {
+    "ariaLabel": "Accessible name for the login/signup tab switcher; not visible.",
+    "login": "Tab label that takes users to /login.",
+    "signup": "Tab label that takes users to /signup.",
+    "back": "Default label for the back button used on auxiliary auth screens (forgot password, reset password)."
+  },
+  "divider": {
+    "_use": "Divider copy that sits between the email/password form and the OAuth provider buttons. Rendered uppercase via CSS — translators do not need to change case. Keep ≤ 24 chars after translation so the divider stays balanced on narrow viewports.",
+    "orContinueWith": "Shown above the OAuth provider buttons (Google, GitHub, etc.) on /login and /signup."
+  }
+}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { isAuthRouteActive } from "@/lib/auth/route-switch";
 
 const baseLinkClasses =
@@ -28,13 +29,15 @@ export function AuthRouteSwitch({
   showBackButton = false,
   showRouteLinks = true,
   backHref = "/login",
-  backLabel = "Back",
+  backLabel,
   backMode = "href",
 }: AuthRouteSwitchProps = {}) {
+  const t = useTranslations("auth.common.routeSwitch");
   const pathname = usePathname() ?? "/login";
   const router = useRouter();
   const isLoginActive = isAuthRouteActive(pathname, "login");
   const isSignupActive = isAuthRouteActive(pathname, "signup");
+  const resolvedBackLabel = backLabel ?? t("back");
 
   const handleBack = () => {
     if (backMode === "history-or-href" && window.history.length > 1) {
@@ -47,7 +50,7 @@ export function AuthRouteSwitch({
 
   return (
     <nav
-      aria-label="Auth route switch"
+      aria-label={t("ariaLabel")}
       className="font-title-serif text-lg text-foreground space-y-2"
     >
       {showBackButton ? (
@@ -57,7 +60,7 @@ export function AuthRouteSwitch({
           className="inline-flex items-center gap-1 text-sm font-medium text-foreground/80 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500/50 focus-visible:ring-offset-2"
         >
           <span aria-hidden="true">←</span>
-          <span>{backLabel}</span>
+          <span>{resolvedBackLabel}</span>
         </button>
       ) : null}
       {showRouteLinks ? (
@@ -67,7 +70,7 @@ export function AuthRouteSwitch({
             aria-current={isLoginActive ? "page" : undefined}
             className={linkClasses(isLoginActive)}
           >
-            Log In
+            {t("login")}
           </Link>
           <span
             aria-hidden="true"
@@ -80,7 +83,7 @@ export function AuthRouteSwitch({
             aria-current={isSignupActive ? "page" : undefined}
             className={linkClasses(isSignupActive)}
           >
-            Sign Up
+            {t("signup")}
           </Link>
         </div>
       ) : null}
