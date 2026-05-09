@@ -68,7 +68,7 @@ describe("AuthPageSkeleton", () => {
 
     expect(screen.getByRole("status")).toHaveAttribute(
       "aria-label",
-      "Checking authentication"
+      "Checking authentication",
     );
     expect(screen.getByText("Checking authentication")).toBeInTheDocument();
   });
@@ -114,7 +114,7 @@ describe("AuthLoadingOverlay", () => {
     render(
       <AuthLoadingOverlay isVisible={false} message="Test">
         <div data-testid="content">Content</div>
-      </AuthLoadingOverlay>
+      </AuthLoadingOverlay>,
     );
 
     expect(screen.getByTestId("content")).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe("AuthLoadingOverlay", () => {
     render(
       <AuthLoadingOverlay isVisible={true} message="Signing out...">
         <div data-testid="content">Content</div>
-      </AuthLoadingOverlay>
+      </AuthLoadingOverlay>,
     );
 
     expect(screen.getByRole("status")).toBeInTheDocument();
@@ -138,7 +138,7 @@ describe("AuthLoadingOverlay", () => {
     render(
       <AuthLoadingOverlay isVisible={true}>
         <div data-testid="content">Content</div>
-      </AuthLoadingOverlay>
+      </AuthLoadingOverlay>,
     );
 
     expect(screen.getByTestId("content")).toBeInTheDocument();
@@ -187,12 +187,12 @@ describe("InlineLoadingIndicator", () => {
       <InlineLoadingIndicator
         isLoading={true}
         message="Checking availability"
-      />
+      />,
     );
 
     expect(screen.getByRole("status")).toHaveAttribute(
       "aria-label",
-      "Checking availability"
+      "Checking availability",
     );
   });
 
@@ -216,7 +216,7 @@ describe("InlineLoadingIndicator", () => {
 
   it("should have screen reader text", () => {
     render(
-      <InlineLoadingIndicator isLoading={true} message="Validating email" />
+      <InlineLoadingIndicator isLoading={true} message="Validating email" />,
     );
 
     expect(screen.getByText("Validating email")).toHaveClass("sr-only");
@@ -239,7 +239,7 @@ describe("LoadingTransition", () => {
         loadingContent={<div data-testid="loading">Loading...</div>}
       >
         <div data-testid="content">Content</div>
-      </LoadingTransition>
+      </LoadingTransition>,
     );
 
     expect(screen.getByTestId("loading")).toBeInTheDocument();
@@ -253,7 +253,7 @@ describe("LoadingTransition", () => {
         loadingContent={<div data-testid="loading">Loading...</div>}
       >
         <div data-testid="content">Content</div>
-      </LoadingTransition>
+      </LoadingTransition>,
     );
 
     expect(screen.queryByTestId("loading")).not.toBeInTheDocument();
@@ -268,7 +268,7 @@ describe("LoadingTransition", () => {
         minLoadingTime={300}
       >
         <div data-testid="content">Content</div>
-      </LoadingTransition>
+      </LoadingTransition>,
     );
 
     // Loading starts
@@ -286,7 +286,7 @@ describe("LoadingTransition", () => {
         minLoadingTime={300}
       >
         <div data-testid="content">Content</div>
-      </LoadingTransition>
+      </LoadingTransition>,
     );
 
     // Should still show loading (min time not reached)
@@ -310,7 +310,7 @@ describe("LoadingTransition", () => {
         minLoadingTime={200}
       >
         <div data-testid="content">Content</div>
-      </LoadingTransition>
+      </LoadingTransition>,
     );
 
     // Simulate loading takes 500ms (more than minLoadingTime)
@@ -325,7 +325,7 @@ describe("LoadingTransition", () => {
         minLoadingTime={200}
       >
         <div data-testid="content">Content</div>
-      </LoadingTransition>
+      </LoadingTransition>,
     );
 
     // Should show content immediately (min time already passed)
@@ -340,7 +340,7 @@ describe("LoadingTransition", () => {
         loadingContent={<div data-testid="loading">Loading...</div>}
       >
         <div data-testid="content">Content</div>
-      </LoadingTransition>
+      </LoadingTransition>,
     );
 
     // Loading finishes immediately
@@ -350,7 +350,7 @@ describe("LoadingTransition", () => {
         loadingContent={<div data-testid="loading">Loading...</div>}
       >
         <div data-testid="content">Content</div>
-      </LoadingTransition>
+      </LoadingTransition>,
     );
 
     // Should still show loading due to default 200ms min time
@@ -372,7 +372,7 @@ describe("AuthCheckingState", () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveAttribute(
       "aria-label",
-      "Checking authentication..."
+      "Checking authentication...",
     );
     // Use getAllByText since text appears in both visible and sr-only elements
     expect(screen.getAllByText("Checking authentication...")).toHaveLength(2);
@@ -383,7 +383,7 @@ describe("AuthCheckingState", () => {
 
     expect(screen.getByRole("status")).toHaveAttribute(
       "aria-label",
-      "Verifying session..."
+      "Verifying session...",
     );
     // Use getAllByText since text appears in both visible and sr-only elements
     expect(screen.getAllByText("Verifying session...")).toHaveLength(2);

@@ -43,16 +43,14 @@ vi.mock("@/lib/redirect", () => ({
 
 const mockReadPersistedOAuthRedirect = vi.fn();
 const mockClearPersistedOAuthRedirect = vi.fn();
-const mockResolveOAuthRedirect = vi.fn(
-  (...args: unknown[]) => {
-    const [redirect, stored, fallback] = args as [
-      string | null,
-      string | null,
-      string,
-    ];
-    return redirect || stored || fallback;
-  },
-);
+const mockResolveOAuthRedirect = vi.fn((...args: unknown[]) => {
+  const [redirect, stored, fallback] = args as [
+    string | null,
+    string | null,
+    string,
+  ];
+  return redirect || stored || fallback;
+});
 
 vi.mock("@/lib/redirect/storage", () => ({
   readPersistedOAuthRedirect: (...args: unknown[]) =>

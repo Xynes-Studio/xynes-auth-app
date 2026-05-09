@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { GET } from './route';
+import { describe, it, expect } from "vitest";
+import { GET } from "./route";
 
-describe('Security Headers API Route', () => {
-  it('should return a successful response', async () => {
+describe("Security Headers API Route", () => {
+  it("should return a successful response", async () => {
     const response = await GET();
 
     expect(response.status).toBe(200);
