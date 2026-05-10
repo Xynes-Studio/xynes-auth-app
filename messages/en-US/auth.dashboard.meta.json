@@ -71,6 +71,8 @@
     "currentWorkspaceSection": "Section header in the menu, above the active workspace.",
     "switchToSection": "Section header above the list of other workspaces.",
     "createAction": "Menu item that opens onboarding.",
-    "switchToAriaPattern": "Aria-label on each switch-target row. ICU placeholder {name}."
+    "switchToAriaPattern": "Aria-label on each switch-target row. ICU placeholder {name}.",
+    "triggerAvatarFallbackAlt": "Avatar `alt` text shown when the active workspace is unknown (currentWorkspace is null). Translator: keep ≤ 12 chars.",
+    "triggerAvatarFallbackInitial": "Single-character fallback shown inside the avatar when no current workspace exists. Translator: keep to 1–2 chars; symbol-only is fine."
   }
 }

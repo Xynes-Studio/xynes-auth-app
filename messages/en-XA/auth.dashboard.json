@@ -58,6 +58,8 @@
     "currentWorkspaceSection": "[CCuurrrreenntt WWoorrkkssppaaccee]",
     "switchToSection": "[SSwwiittcchh ttoo]",
     "createAction": "[CCrreeaattee nneeww wwoorrkkssppaaccee]",
-    "switchToAriaPattern": "[SSwwiittcchh ttoo {name}]"
+    "switchToAriaPattern": "[SSwwiittcchh ttoo {name}]",
+    "triggerAvatarFallbackAlt": "[WWoorrkkssppaaccee]",
+    "triggerAvatarFallbackInitial": "[?]"
   }
 }

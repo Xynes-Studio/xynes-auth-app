@@ -77,6 +77,7 @@ describe("auth i18n config", () => {
         expect(messages).toBeDefined();
         expect(messages.auth).toBeDefined();
         expect(messages.auth.common).toBeDefined();
+        expect(messages.auth.dashboard).toBeDefined();
         expect(messages.auth.errors).toBeDefined();
         expect(messages.auth.login).toBeDefined();
         expect(messages.auth.signup).toBeDefined();

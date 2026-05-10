@@ -58,6 +58,8 @@
     "currentWorkspaceSection": "Current Workspace",
     "switchToSection": "Switch to",
     "createAction": "Create new workspace",
-    "switchToAriaPattern": "Switch to {name}"
+    "switchToAriaPattern": "Switch to {name}",
+    "triggerAvatarFallbackAlt": "Workspace",
+    "triggerAvatarFallbackInitial": "?"
   }
 }

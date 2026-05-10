@@ -253,11 +253,11 @@ export function WorkspaceSwitcher({
               {/* Current workspace avatar/initials */}
               <Avatar
                 size={avatarSize}
-                alt={currentWorkspace?.name ?? "Workspace"}
+                alt={currentWorkspace?.name ?? t("triggerAvatarFallbackAlt")}
                 fallbackInitials={
                   currentWorkspace
                     ? getWorkspaceInitials(currentWorkspace.name)
-                    : "?"
+                    : t("triggerAvatarFallbackInitial")
                 }
               />
 
