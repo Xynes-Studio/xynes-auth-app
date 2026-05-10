@@ -46,7 +46,9 @@ export function AuthDashboardShell({
   const tShellUserMenu = useTranslations("auth.dashboard.shell.userMenu");
   const tShell = useTranslations("auth.dashboard.shell");
 
-  const workspaceById = new Map(workspaces.map((workspace) => [workspace.id, workspace]));
+  const workspaceById = new Map(
+    workspaces.map((workspace) => [workspace.id, workspace]),
+  );
 
   const navItems: LumiaDashboardNavItem[] = useMemo(
     () =>

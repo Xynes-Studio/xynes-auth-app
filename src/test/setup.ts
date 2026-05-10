@@ -16,14 +16,11 @@ process.env.NEXT_PUBLIC_ALLOWED_REDIRECT_DOMAINS =
 process.env.NEXT_PUBLIC_CONSOLE_URL = "";
 process.env.NEXT_PUBLIC_CMS_CONSOLE_URL = "";
 
-vi.mock(
-  "@lumia-ui/icons",
-  () => ({
-    Icon: () => null,
-    getIcon: () => undefined,
-    registerIcon: () => undefined,
-  }),
-);
+vi.mock("@lumia-ui/icons", () => ({
+  Icon: () => null,
+  getIcon: () => undefined,
+  registerIcon: () => undefined,
+}));
 
 vi.mock("next/image", () => ({
   default: (props: ImgHTMLAttributes<HTMLImageElement>) => {
@@ -40,18 +37,27 @@ vi.mock("next/image", () => ({
 // must wrap the component in a real `NextIntlClientProvider` and rely on
 // next-intl's actual behavior.
 vi.mock("next-intl", async () => {
-  const [common, dashboard, errors, login, signup, forgot, reset, invite, workspaces] =
-    await Promise.all([
-      import("../../messages/en-US/auth.common.json"),
-      import("../../messages/en-US/auth.dashboard.json"),
-      import("../../messages/en-US/auth.errors.json"),
-      import("../../messages/en-US/auth.login.json"),
-      import("../../messages/en-US/auth.signup.json"),
-      import("../../messages/en-US/auth.forgot-password.json"),
-      import("../../messages/en-US/auth.reset-password.json"),
-      import("../../messages/en-US/auth.invite.json"),
-      import("../../messages/en-US/auth.workspaces.json"),
-    ]);
+  const [
+    common,
+    dashboard,
+    errors,
+    login,
+    signup,
+    forgot,
+    reset,
+    invite,
+    workspaces,
+  ] = await Promise.all([
+    import("../../messages/en-US/auth.common.json"),
+    import("../../messages/en-US/auth.dashboard.json"),
+    import("../../messages/en-US/auth.errors.json"),
+    import("../../messages/en-US/auth.login.json"),
+    import("../../messages/en-US/auth.signup.json"),
+    import("../../messages/en-US/auth.forgot-password.json"),
+    import("../../messages/en-US/auth.reset-password.json"),
+    import("../../messages/en-US/auth.invite.json"),
+    import("../../messages/en-US/auth.workspaces.json"),
+  ]);
 
   const messages = {
     auth: {
@@ -92,7 +98,9 @@ vi.mock("next-intl", async () => {
 
   function useTranslations(namespace?: string) {
     const root = namespace
-      ? (resolveNode(messages, namespace.split(".")) as CatalogValue | undefined)
+      ? (resolveNode(messages, namespace.split(".")) as
+          | CatalogValue
+          | undefined)
       : (messages as unknown as CatalogValue);
     function t(key: string, values?: Record<string, unknown>) {
       const raw = resolve(root, key);
