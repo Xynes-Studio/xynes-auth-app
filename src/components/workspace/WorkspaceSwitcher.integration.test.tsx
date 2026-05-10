@@ -134,6 +134,26 @@ vi.mock("@lumia-ui/components", () => ({
   ),
 }));
 
+// Mock Lumia icons (UXR-3: WorkspaceSwitcher now uses <Icon name="..." />
+// from `@lumia-ui/icons` instead of inline SVGs).
+vi.mock("@lumia-ui/icons", () => ({
+  Icon: ({
+    name,
+    className,
+    ...props
+  }: {
+    name: string;
+    className?: string;
+  } & React.SVGProps<SVGSVGElement>) => (
+    <svg
+      data-testid={`icon-${name}`}
+      data-icon-name={name}
+      className={className}
+      {...props}
+    />
+  ),
+}));
+
 // Mock auth SDK hooks
 const mockSelectWorkspace = vi.fn();
 const mockClearWorkspace = vi.fn();
@@ -617,6 +637,31 @@ describe("WorkspaceSwitcher", () => {
       // The owner badge in the current workspace section
       const currentSection = screen.getByTestId("workspace-switcher-current");
       expect(currentSection).toHaveTextContent("Owner");
+    });
+  });
+
+  describe("Lumia icon registry (UXR-3 / UXR-5)", () => {
+    it("renders the trigger chevron via Lumia <Icon name='chevron-down' /> instead of an inline SVG", () => {
+      render(<WorkspaceSwitcher />);
+
+      const chevron = screen.getByTestId("workspace-switcher-chevron");
+      expect(chevron).toBeInTheDocument();
+      expect(chevron).toHaveAttribute("data-icon-name", "chevron-down");
+      // Decorative chevron — must NOT be exposed as informative to screen readers.
+      expect(chevron).toHaveAttribute("aria-hidden", "true");
+    });
+
+    it("renders the create-action plus icon via Lumia <Icon name='add' />", () => {
+      render(<WorkspaceSwitcher />);
+
+      const plus = screen.getByTestId("workspace-switcher-create-icon");
+      expect(plus).toBeInTheDocument();
+      expect(plus).toHaveAttribute("data-icon-name", "add");
+      expect(plus).toHaveAttribute("aria-hidden", "true");
+      // The visible "Create new workspace" label is still rendered next to
+      // the icon — the icon itself is decorative, the action's accessible
+      // name comes from the menu item.
+      expect(screen.getByText("Create new workspace")).toBeInTheDocument();
     });
   });
 });

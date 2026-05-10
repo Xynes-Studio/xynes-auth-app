@@ -1,5 +1,6 @@
 import { negotiateLocale, normalizeLocale, type Locale } from "@xynes/i18n";
 import enUsCommon from "../../messages/en-US/auth.common.json";
+import enUsDashboard from "../../messages/en-US/auth.dashboard.json";
 import enUsErrors from "../../messages/en-US/auth.errors.json";
 import enUsForgot from "../../messages/en-US/auth.forgot-password.json";
 import enUsInvite from "../../messages/en-US/auth.invite.json";
@@ -8,6 +9,7 @@ import enUsReset from "../../messages/en-US/auth.reset-password.json";
 import enUsSignup from "../../messages/en-US/auth.signup.json";
 import enUsWorkspaces from "../../messages/en-US/auth.workspaces.json";
 import enXaCommon from "../../messages/en-XA/auth.common.json";
+import enXaDashboard from "../../messages/en-XA/auth.dashboard.json";
 import enXaErrors from "../../messages/en-XA/auth.errors.json";
 import enXaForgot from "../../messages/en-XA/auth.forgot-password.json";
 import enXaInvite from "../../messages/en-XA/auth.invite.json";
@@ -26,6 +28,7 @@ export const AUTH_LOCALE_COOKIE = "xynes_locale";
 export type AuthMessages = {
   auth: {
     common: typeof enUsCommon;
+    dashboard: typeof enUsDashboard;
     errors: typeof enUsErrors;
     login: typeof enUsLogin;
     signup: typeof enUsSignup;
@@ -50,6 +53,7 @@ const AUTH_MESSAGES_BY_LOCALE: Record<Locale, AuthMessages> = {
   "en-US": {
     auth: {
       common: enUsCommon,
+      dashboard: enUsDashboard,
       errors: enUsErrors,
       login: enUsLogin,
       signup: enUsSignup,
@@ -62,6 +66,7 @@ const AUTH_MESSAGES_BY_LOCALE: Record<Locale, AuthMessages> = {
   "en-XA": {
     auth: {
       common: enXaCommon,
+      dashboard: enXaDashboard,
       errors: enXaErrors,
       login: enXaLogin,
       signup: enXaSignup,

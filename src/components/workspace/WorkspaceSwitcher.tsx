@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   Menu,
   MenuTrigger,
@@ -14,6 +15,7 @@ import {
   Spinner,
   Flex,
 } from "@lumia-ui/components";
+import { Icon } from "@lumia-ui/icons";
 import {
   useAuth,
   useWorkspace,
@@ -28,50 +30,6 @@ import {
   buildCmsWorkspaceContentUrl,
   WORKSPACE_ADMIN_FALLBACK_PATH,
 } from "@/lib/workspace";
-
-/**
- * ChevronDown icon component
- */
-function ChevronDownIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-/**
- * Plus icon component
- */
-function PlusIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
 
 /**
  * Props for the WorkspaceSwitcher component
@@ -120,6 +78,12 @@ export interface WorkspaceSwitcherProps {
 /**
  * WorkspaceSwitcher - Dropdown component for switching between workspaces
  *
+ * Note: Production routes use the Lumia DashboardShell-internal workspace
+ * switcher (`DashboardWorkspaceSwitcher`) via `AuthDashboardShell`. This
+ * component is kept for backwards compatibility and standalone consumers.
+ * Visible copy is localized through `auth.dashboard.workspaceSwitcher.*`
+ * and icons are sourced from the Lumia icon registry (UXR-3).
+ *
  * Features:
  * - Shows current workspace with avatar/initials
  * - Dropdown with list of other workspaces
@@ -156,6 +120,7 @@ export function WorkspaceSwitcher({
     isLoading: isWorkspaceLoading,
   } = useWorkspace();
   const [isOpen, setIsOpen] = useState(false);
+  const t = useTranslations("auth.dashboard.workspaceSwitcher");
 
   const isLoading = isAuthLoading || isWorkspaceLoading;
 
@@ -230,7 +195,7 @@ export function WorkspaceSwitcher({
         data-testid="workspace-switcher-loading"
       >
         <Spinner size={size === "sm" ? "sm" : "md"} />
-        <span className="text-sm text-muted-foreground">Loading...</span>
+        <span className="text-sm text-muted-foreground">{t("loading")}</span>
       </div>
     );
   }
@@ -264,7 +229,7 @@ export function WorkspaceSwitcher({
       </div>
       {options?.showOwnerBadge && workspace.role === "workspace_owner" && (
         <span className="text-[10px] font-medium uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded-full shrink-0">
-          Owner
+          {t("ownerBadge")}
         </span>
       )}
     </div>
@@ -288,18 +253,18 @@ export function WorkspaceSwitcher({
               {/* Current workspace avatar/initials */}
               <Avatar
                 size={avatarSize}
-                alt={currentWorkspace?.name ?? "Workspace"}
+                alt={currentWorkspace?.name ?? t("triggerAvatarFallbackAlt")}
                 fallbackInitials={
                   currentWorkspace
                     ? getWorkspaceInitials(currentWorkspace.name)
-                    : "?"
+                    : t("triggerAvatarFallbackInitial")
                 }
               />
 
               {/* Workspace name and optional role */}
               <div className="flex min-w-0 items-center gap-2">
                 <span className={`font-medium ${textSize} truncate`}>
-                  {currentWorkspace?.name ?? "Select workspace"}
+                  {currentWorkspace?.name ?? t("selectWorkspace")}
                 </span>
                 {showRole && currentWorkspace && (
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -307,9 +272,13 @@ export function WorkspaceSwitcher({
                   </span>
                 )}
               </div>
-              {/* Chevron icon */}
-              <ChevronDownIcon
+              {/* Chevron icon — sourced from Lumia icon registry (UXR-3). */}
+              <Icon
+                name="chevron-down"
+                size="sm"
+                aria-hidden="true"
                 className={`shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                data-testid="workspace-switcher-chevron"
               />
             </Flex>
           </Button>
@@ -324,7 +293,7 @@ export function WorkspaceSwitcher({
         {/* Current workspace section */}
         {currentWorkspace && (
           <>
-            <MenuLabel>Current Workspace</MenuLabel>
+            <MenuLabel>{t("currentWorkspaceSection")}</MenuLabel>
             <MenuItem
               label={currentWorkspace.name}
               aria-current="true"
@@ -341,14 +310,14 @@ export function WorkspaceSwitcher({
         {/* Other workspaces section */}
         {otherWorkspaces.length > 0 && (
           <>
-            <MenuLabel>Switch to</MenuLabel>
+            <MenuLabel>{t("switchToSection")}</MenuLabel>
             {otherWorkspaces.map((workspace) => (
               <MenuItem
                 key={workspace.id}
                 label={workspace.name}
                 onSelect={() => handleSelect(workspace)}
                 data-testid={`workspace-switcher-item-${workspace.id}`}
-                aria-label={`Switch to ${workspace.name}`}
+                aria-label={t("switchToAriaPattern", { name: workspace.name })}
                 className="cursor-pointer"
               >
                 {renderWorkspaceItem(workspace)}
@@ -360,15 +329,21 @@ export function WorkspaceSwitcher({
 
         {/* Create new workspace option */}
         <MenuItem
-          label="Create new workspace"
+          label={t("createAction")}
           onSelect={handleCreateNew}
           data-testid="workspace-switcher-create-new"
-          aria-label="Create new workspace"
+          aria-label={t("createAction")}
           className="cursor-pointer"
         >
           <Flex className="items-center gap-2">
-            <PlusIcon className="shrink-0 text-muted-foreground" />
-            <span>Create new workspace</span>
+            <Icon
+              name="add"
+              size="sm"
+              aria-hidden="true"
+              className="shrink-0 text-muted-foreground"
+              data-testid="workspace-switcher-create-icon"
+            />
+            <span>{t("createAction")}</span>
           </Flex>
         </MenuItem>
       </MenuContent>

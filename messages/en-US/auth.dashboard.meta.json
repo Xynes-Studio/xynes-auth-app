@@ -1,0 +1,78 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.dashboard. Labels for the Auth Admin dashboard shell (Lumia DashboardShell) and the legacy in-app workspace switcher.",
+    "audience": "Authenticated workspace administrators using the Auth Admin app.",
+    "tone": "Concise, action-oriented. These strings appear in dense navigation, tooltips, and screen-reader names.",
+    "owners": ["xynes-front-end/xynes-auth-app"],
+    "consumes": [
+      "@lumia-ui/layout — DashboardShell.labels (DashboardShellLabels)",
+      "@lumia-ui/layout — DashboardWorkspaceSwitcher.labels"
+    ]
+  },
+  "navigation": {
+    "_note": "Top-level destination labels for the dashboard sidebar. Must match the Cross-App Navigation Vocabulary (xynes/xynes-infra/docs/research/ux-review/02-cross-app-navigation-vocabulary.md). Keep ≤ 20 chars after translation so labels fit collapsed sidebar tooltips and mobile bottom-bar slots.",
+    "apps": "Auth-app destination: list of installed Xynes apps for the workspace.",
+    "directory": "Auth-app destination: workspace member directory (people).",
+    "accessControl": "Auth-app destination: roles, permissions, RBAC. Shared label with CMS Console — keep wording identical.",
+    "security": "Auth-app destination: 2FA, session management, security events.",
+    "integrations": "Auth-app destination: workspace verified domains + global API keys. Shared label with CMS Console.",
+    "logs": "Auth-app destination: audit/activity logs.",
+    "billing": "Auth-app destination: subscription, invoices, payment.",
+    "settings": "Auth-app destination: workspace settings. Shared label with CMS Console."
+  },
+  "shell": {
+    "_note": "Lumia DashboardShell label bundle. Most strings are screen-reader-only (aria-label, aria-labelledby) — translators should keep them descriptive but short.",
+    "navigation": {
+      "mainContent": "Aria-label on the <main> landmark. Used by screen readers when jumping to main content.",
+      "sidebar": "Aria-label on the <aside> sidebar landmark.",
+      "sidebarScrollArea": "Aria-label on the scrollable container inside the sidebar.",
+      "dashboardNavigation": "Aria-label on the desktop primary <nav>.",
+      "mobileDashboardNavigation": "Aria-label on the mobile bottom-bar <nav>.",
+      "mobileMenu": "Visible label on the mobile menu trigger button. Keep ≤ 8 chars.",
+      "openMobileMenu": "Accessible name (aria-label) for the mobile menu icon-only button."
+    },
+    "workspace": {
+      "trigger": "Aria-label on the workspace switcher trigger button.",
+      "fallbackName": "Visible fallback shown if the active workspace has no name.",
+      "currentSection": "Section header inside the workspace switcher menu, above the active workspace.",
+      "currentBadge": "Pill on the active workspace row. Keep ≤ 10 chars after translation.",
+      "switchToSection": "Section header above the list of other workspaces in the menu.",
+      "createAction": "Menu item that opens onboarding to create a new workspace.",
+      "createUnavailableAction": "Menu item label when workspace creation is disabled (e.g. plan limit). Pair with workspaceCreationDisabledMessage."
+    },
+    "workspaceCreationDisabledMessage": "Tooltip / explanatory text shown when workspace creation is disabled.",
+    "profile": {
+      "trigger": "Aria-label on the avatar/profile menu trigger.",
+      "profileAction": "Menu item that opens the user's profile page.",
+      "logoutAction": "Menu item that signs the user out. Pair with /logout route."
+    },
+    "notifications": {
+      "open": "Aria-label on the notifications drawer trigger (icon-only button).",
+      "tab": "Tab/heading label for the notifications drawer.",
+      "titlePattern": "Pattern for the notifications drawer header. ICU placeholder {unreadCount} is substituted at render time.",
+      "empty": "Empty-state copy when the user has no notifications.",
+      "list": "Aria-label on the notification list region.",
+      "todayGroup": "Section heading for notifications dated today.",
+      "yesterdayGroup": "Section heading for notifications dated yesterday.",
+      "unreadCountPattern": "Pattern for the unread-count screen-reader announcement. ICU placeholder {unreadCount}.",
+      "deletePattern": "Aria-label on each notification's delete button. ICU placeholder {title}."
+    },
+    "userMenu": {
+      "fallbackName": "Displayed in the avatar tooltip + profile menu when the user has no display name and no email.",
+      "fallbackEmail": "Displayed under the user name when the user has no email and the consumer did not pass a profileSubtitle."
+    },
+    "footerNote": "Static informational copy shown at the bottom of the dashboard sidebar."
+  },
+  "workspaceSwitcher": {
+    "_note": "Labels for src/components/workspace/WorkspaceSwitcher.tsx — the LEGACY in-app workspace switcher kept for backwards compatibility. Production routes use the Lumia shell switcher (shell.workspace.* above). Translator: keep wording aligned with shell.workspace.* so the two surfaces don't diverge.",
+    "loading": "Loading state label shown while workspaces are being fetched.",
+    "selectWorkspace": "Trigger label shown when no workspace is currently selected.",
+    "ownerBadge": "Pill rendered on a workspace row when the user has the workspace_owner role. Keep ≤ 6 chars.",
+    "currentWorkspaceSection": "Section header in the menu, above the active workspace.",
+    "switchToSection": "Section header above the list of other workspaces.",
+    "createAction": "Menu item that opens onboarding.",
+    "switchToAriaPattern": "Aria-label on each switch-target row. ICU placeholder {name}.",
+    "triggerAvatarFallbackAlt": "Avatar `alt` text shown when the active workspace is unknown (currentWorkspace is null). Translator: keep ≤ 12 chars.",
+    "triggerAvatarFallbackInitial": "Single-character fallback shown inside the avatar when no current workspace exists. Translator: keep to 1–2 chars; symbol-only is fine."
+  }
+}

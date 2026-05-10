@@ -1,0 +1,65 @@
+{
+  "navigation": {
+    "apps": "[AAppppss]",
+    "directory": "[DDiirreeccttoorryy]",
+    "accessControl": "[AAcccceessss CCoonnttrrooll]",
+    "security": "[SSeeccuurriittyy]",
+    "integrations": "[IInntteeggrraattiioonnss]",
+    "logs": "[LLooggss]",
+    "billing": "[BBiilllliinngg]",
+    "settings": "[SSeettttiinnggss]"
+  },
+  "shell": {
+    "navigation": {
+      "mainContent": "[DDaasshhbbooaarrdd mmaaiinn ccoonntteenntt]",
+      "sidebar": "[DDaasshhbbooaarrdd ssiiddeebbaarr]",
+      "sidebarScrollArea": "[SSiiddeebbaarr nnaavviiggaattiioonn ssccrroollll aarreeaa]",
+      "dashboardNavigation": "[DDaasshhbbooaarrdd nnaavviiggaattiioonn]",
+      "mobileDashboardNavigation": "[MMoobbiillee ddaasshhbbooaarrdd nnaavviiggaattiioonn]",
+      "mobileMenu": "[MMeennuu]",
+      "openMobileMenu": "[OOppeenn mmeennuu]"
+    },
+    "workspace": {
+      "trigger": "[SSwwiittcchh wwoorrkkssppaaccee]",
+      "fallbackName": "[WWoorrkkssppaaccee]",
+      "currentSection": "[CCuurrrreenntt WWoorrkkssppaaccee]",
+      "currentBadge": "[CCuurrrreenntt]",
+      "switchToSection": "[SSwwiittcchh ttoo]",
+      "createAction": "[CCrreeaattee nneeww wwoorrkkssppaaccee]",
+      "createUnavailableAction": "[WWoorrkkssppaaccee ccrreeaattiioonn uunnaavvaaiillaabbllee]"
+    },
+    "workspaceCreationDisabledMessage": "[WWoorrkkssppaaccee ccrreeaattiioonn iiss uunnaavvaaiillaabbllee. CChheecckk sseettttiinnggss oorr ccoonnttaacctt aaddmmiinn.]",
+    "profile": {
+      "trigger": "[OOppeenn pprrooffiillee mmeennuu]",
+      "profileAction": "[PPrrooffiillee]",
+      "logoutAction": "[LLooggoouutt]"
+    },
+    "notifications": {
+      "open": "[OOppeenn nnoottiiffiiccaattiioonnss]",
+      "tab": "[NNoottiiffiiccaattiioonnss]",
+      "titlePattern": "[NNoottiiffiiccaattiioonnss ({unreadCount})]",
+      "empty": "[NNoo nnoottiiffiiccaattiioonnss]",
+      "list": "[NNoottiiffiiccaattiioonn lliisstt]",
+      "todayGroup": "[TTooddaayy]",
+      "yesterdayGroup": "[YYeesstteerrddaayy]",
+      "unreadCountPattern": "[{unreadCount} uunnrreeaadd nnoottiiffiiccaattiioonnss]",
+      "deletePattern": "[DDeelleettee nnoottiiffiiccaattiioonn {title}]"
+    },
+    "userMenu": {
+      "fallbackName": "[UUsseerr]",
+      "fallbackEmail": "[NNoo eemmaaiill]"
+    },
+    "footerNote": "[NNeeeedd aacccceessss? CCoonnttaacctt yyoouurr wwoorrkkssppaaccee oowwnneerr.]"
+  },
+  "workspaceSwitcher": {
+    "loading": "[LLooaaddiinngg...]",
+    "selectWorkspace": "[SSeelleecctt wwoorrkkssppaaccee]",
+    "ownerBadge": "[OOwwnneerr]",
+    "currentWorkspaceSection": "[CCuurrrreenntt WWoorrkkssppaaccee]",
+    "switchToSection": "[SSwwiittcchh ttoo]",
+    "createAction": "[CCrreeaattee nneeww wwoorrkkssppaaccee]",
+    "switchToAriaPattern": "[SSwwiittcchh ttoo {name}]",
+    "triggerAvatarFallbackAlt": "[WWoorrkkssppaaccee]",
+    "triggerAvatarFallbackInitial": "[?]"
+  }
+}
