@@ -40,9 +40,10 @@ vi.mock("next/image", () => ({
 // must wrap the component in a real `NextIntlClientProvider` and rely on
 // next-intl's actual behavior.
 vi.mock("next-intl", async () => {
-  const [common, errors, login, signup, forgot, reset, invite, workspaces] =
+  const [common, dashboard, errors, login, signup, forgot, reset, invite, workspaces] =
     await Promise.all([
       import("../../messages/en-US/auth.common.json"),
+      import("../../messages/en-US/auth.dashboard.json"),
       import("../../messages/en-US/auth.errors.json"),
       import("../../messages/en-US/auth.login.json"),
       import("../../messages/en-US/auth.signup.json"),
@@ -55,6 +56,7 @@ vi.mock("next-intl", async () => {
   const messages = {
     auth: {
       common: common.default,
+      dashboard: dashboard.default,
       errors: errors.default,
       login: login.default,
       signup: signup.default,

@@ -506,6 +506,29 @@ Pilot covering login, signup, forgot/reset password, invite entry, workspace sel
 | `src/app/forgot-password/page.tsx` | `auth.forgotPassword.page` |
 | `src/app/reset-password/page.tsx` (`InvalidLink`) | `auth.resetPassword.invalidLink` |
 | `src/app/workspaces/page.tsx` | `auth.workspaces.page` |
+| `src/components/dashboard/AuthDashboardShell.tsx` (UXR-5) | `auth.dashboard.navigation`, `auth.dashboard.shell.*` |
+| `src/components/workspace/WorkspaceSwitcher.tsx` (UXR-5) | `auth.dashboard.workspaceSwitcher` |
+
+#### Dashboard shell label contract (UXR-5, 2026-05-10)
+
+The Auth Admin dashboard shell now flows every visible string through the `auth.dashboard` catalog so Lumia DS stays product-copy-neutral and pseudo-locale rendering can stress dense nav, sidebar, mobile bottom-bar, and workspace-switcher labels.
+
+- **Catalog.** `messages/en-US/auth.dashboard.json` is the single source of truth for:
+  - `navigation.*` — the eight Auth Admin destination labels (Apps, Directory, Access Control, Security, Integrations, Logs, Billing, Settings). Aligned with the Cross-App Navigation Vocabulary in `xynes/xynes-infra/docs/research/ux-review/02-cross-app-navigation-vocabulary.md`.
+  - `shell.navigation.*` — landmark and screen-reader aria labels (`mainContent`, `sidebar`, `sidebarScrollArea`, `dashboardNavigation`, `mobileDashboardNavigation`, `mobileMenu`, `openMobileMenu`).
+  - `shell.workspace.*` — workspace switcher labels (`trigger`, `currentSection`, `currentBadge`, `switchToSection`, `createAction`, `createUnavailableAction`, `fallbackName`).
+  - `shell.workspaceCreationDisabledMessage` — explanatory tooltip when creation is disabled.
+  - `shell.profile.*` — avatar/profile menu (`trigger`, `profileAction`, `logoutAction`).
+  - `shell.notifications.*` — notification drawer labels including ICU patterns `titlePattern: "Notifications ({unreadCount})"`, `unreadCountPattern: "{unreadCount} unread notifications"`, `deletePattern: "Delete notification {title}"`.
+  - `shell.userMenu.fallbackName` / `shell.userMenu.fallbackEmail` — used when the SDK has no `displayName` / `email` and the consumer didn't pass `profileSubtitle`.
+  - `shell.footerNote` — sidebar bottom note.
+  - `workspaceSwitcher.*` — labels for the legacy `src/components/workspace/WorkspaceSwitcher.tsx`. Production routes use the Lumia shell switcher; this catalog is for the standalone component so its copy can't drift from the shell.
+- **Bundle plumbing.** `AuthDashboardShell` consumes the catalog via `useTranslations("auth.dashboard.*")` and forwards a typed `DashboardShellLabels` bundle to `<DashboardShell labels={...} />` from `@lumia-ui/layout`. Lumia's English defaults still ship for callers that omit `labels`, so this stays additive — design-system contracts are not blocked by app-copy ownership.
+- **Navigation spec.** `src/components/dashboard/navigation.ts` now exports `DASHBOARD_NAV_SPECS` (each entry carries a stable `key`, `messageKey`, `href`, `icon`, and `defaultLabel`). The legacy `DASHBOARD_NAV_ITEMS` is preserved as a derived English-default array for backwards-compatible callers.
+- **Translator metadata.** `messages/en-US/auth.dashboard.meta.json` documents per-key purpose, target audience (workspace administrators), and a `consumes` array pointing at the Lumia layout types (`DashboardShellLabels` and `DashboardWorkspaceSwitcherLabels`) so translators know which strings appear in screen-reader output vs. visible UI.
+- **Icon registry adoption (UXR-3 follow-up).** `src/components/workspace/WorkspaceSwitcher.tsx` no longer ships inline `ChevronDownIcon` / `PlusIcon` SVGs. Both are now resolved through `<Icon name="chevron-down" />` and `<Icon name="add" />` from `@lumia-ui/icons` (Lumia's default registry). The icons remain decorative (`aria-hidden`); the action's accessible name still comes from the surrounding button/menu item.
+- **Workspace switcher posture.** Dashboard-shell workspace switching is owned by Lumia's `DashboardWorkspaceSwitcher` (UXR-2), invoked via `DashboardShell.workspace*` props. The standalone `<WorkspaceSwitcher />` component is no longer mounted by any production route in this app; it is kept as a translated, icon-registry-aligned reference for any future surface that needs an embedded workspace picker outside the shell.
+- **Tests.** `src/components/dashboard/AuthDashboardShell.integration.test.tsx` covers nav-label localization, the full `DashboardShellLabels` bundle (navigation + workspace + profile + notification ICU patterns), `workspaceCreationDisabledMessage`, `sidebarFooterNote`, and translated user-menu fallbacks. `src/components/dashboard/AuthDashboardShell.i18n.test.tsx` runs the real `NextIntlClientProvider` against en-US and en-XA catalogs to assert the en-XA pseudo-locale propagates through nav labels and the shell label bundle, and that no raw catalog-key path leaks to the DOM. `src/components/workspace/WorkspaceSwitcher.integration.test.tsx` adds a UXR-3 / UXR-5 describe block that asserts the chevron and plus icons resolve through the Lumia registry (`data-icon-name="chevron-down"` / `data-icon-name="add"`) and remain `aria-hidden`.
 
 ### Common auth error mapping
 
