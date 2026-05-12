@@ -495,6 +495,8 @@ Workspace identity does NOT travel across app origins. The Auth App and CMS Cons
 - Tracks the last processed slug in a `useRef` so repeated re-renders for unrelated reasons (search-param object identity churn) don't reprocess.
 - Preserves any other query params already on the URL (e.g. `tab`, `preset`) when stripping `workspace`.
 
+**Suspense boundary (Codex review follow-up).** `AuthDashboardShell` mounts `<WorkspaceHandoffSync />` inside a local `<Suspense fallback={null}>`. Next.js 15 requires `useSearchParams()` callers to be inside a Suspense boundary for static prerender; the providers layer already provides an ancestor Suspense, but scoping it locally at the shell makes the contract self-contained — future dashboard routes don't need to know about this constraint, and a future agent moving the providers' Suspense can't accidentally break dashboard builds. The fallback is `null` because the component renders nothing anyway.
+
 **Security invariants.**
 
 - The slug is sanitised by `.trim()` + `.toLowerCase()` and matched against the user's own workspaces only. A URL-encoded malicious slug (`workspace=safarnama%3B%20DROP%20TABLE%20workspaces`) is never dispatched to `selectWorkspace` because it never resolves to a known workspace.
