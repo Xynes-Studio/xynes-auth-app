@@ -111,12 +111,13 @@ vi.mock("@lumia-ui/components", () => ({
     children,
     variant,
     title,
+    ...rest
   }: {
     children?: React.ReactNode;
     variant?: string;
     title?: React.ReactNode;
-  }) => (
-    <div role="alert" data-variant={variant}>
+  } & React.HTMLAttributes<HTMLDivElement>) => (
+    <div role="alert" data-variant={variant} {...rest}>
       {title ? <strong>{title}</strong> : null}
       {children}
     </div>
@@ -803,5 +804,356 @@ describe("WorkspaceIntegrationsDashboard", () => {
 
     const presetSelect = screen.getByLabelText(/^preset$/i);
     expect(presetSelect).toHaveValue("cms_publisher");
+  });
+
+  // ── WSA-FIX-1: action-error vs reload-error split ──────────────────────
+  //
+  // Per the WSA-FIX-1 plan, action handlers (register/verify/regenerate/
+  // delete domain, create/revoke API key) must NOT write to the
+  // "Couldn't load integrations" load-error alert on failure. Each action
+  // surfaces failures through its own action-error alert with action-
+  // specific copy ("Couldn't remove domain", "Couldn't verify domain", …).
+  //
+  // When an action SUCCEEDS but the follow-up list refetch fails, we
+  // must show a soft "Couldn't refresh the list" banner instead of the
+  // destructive load-error alert — the action did succeed, the page is
+  // not broken, the list is just stale until the user retries.
+  describe("WSA-FIX-1: action-error vs reload-error split", () => {
+    // The original user report was specifically about clicking "Cancel
+    // domain" on a pending row, so this describe block exercises the
+    // pending-domain destructive flow. (The other handlers
+    // — register/verify/regenerate/create-key/revoke-key — are tested
+    // below with their own row labels.)
+    const pendingDomain = {
+      ...sampleDomain,
+      id: "dom-pending-cancel",
+      hostname: "pending.example.com",
+      status: "pending" as const,
+      verificationName: "_xynes.pending.example.com",
+      verifiedAt: null,
+    };
+
+    it("does not surface any alert when a Cancel-domain action succeeds and the reload succeeds", async () => {
+      const user = userEvent.setup();
+      mockListWorkspaceDomains.mockResolvedValue([pendingDomain]);
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      await waitFor(() => {
+        expect(mockListWorkspaceDomains).toHaveBeenCalled();
+      });
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+      const cancelButton = await screen.findByRole("button", {
+        name: new RegExp(
+          `cancel domain verification for ${pendingDomain.hostname}`,
+          "i",
+        ),
+      });
+      await user.click(cancelButton);
+
+      const dialog = await screen.findByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: /^cancel verification$/i,
+        }),
+      );
+
+      await waitFor(() => {
+        expect(mockDeleteWorkspaceDomain).toHaveBeenCalledWith(
+          expect.objectContaining({
+            workspaceId: "ws-1",
+            domainId: pendingDomain.id,
+          }),
+        );
+      });
+
+      // No alert of any kind — neither the destructive load alert nor the
+      // soft reload-failed banner nor the action-error alert.
+      await waitFor(() => {
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      });
+    });
+
+    it("surfaces the soft reload-failed banner (not the destructive load alert) when Cancel-domain succeeds but the follow-up refetch fails", async () => {
+      const user = userEvent.setup();
+      // First load succeeds; the post-delete refetch fails on the
+      // domains call — `Promise.all` rejects, refresh-after-action
+      // surfaces the soft banner instead of `loadError`.
+      mockListWorkspaceDomains.mockResolvedValueOnce([pendingDomain]);
+      mockListWorkspaceDomains.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(500, "transient"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const cancelButton = await screen.findByRole("button", {
+        name: new RegExp(
+          `cancel domain verification for ${pendingDomain.hostname}`,
+          "i",
+        ),
+      });
+      await user.click(cancelButton);
+
+      const dialog = await screen.findByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: /^cancel verification$/i,
+        }),
+      );
+
+      // The soft banner must appear.
+      const softBanner = await screen.findByTestId(
+        "workspace-integrations-reload-failed",
+      );
+      expect(softBanner).toBeInTheDocument();
+      expect(softBanner).toHaveTextContent(
+        /Action succeeded, but we couldn’t refresh the list/i,
+      );
+
+      // The destructive "Couldn’t load integrations" alert MUST NOT fire.
+      expect(
+        screen.queryByText(/Couldn’t load integrations/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it("surfaces 'Couldn’t remove domain' (not 'Couldn’t load integrations') when Cancel-domain fails", async () => {
+      const user = userEvent.setup();
+      mockListWorkspaceDomains.mockResolvedValue([pendingDomain]);
+      mockDeleteWorkspaceDomain.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(403, "denied"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const cancelButton = await screen.findByRole("button", {
+        name: new RegExp(
+          `cancel domain verification for ${pendingDomain.hostname}`,
+          "i",
+        ),
+      });
+      await user.click(cancelButton);
+
+      const dialog = await screen.findByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: /^cancel verification$/i,
+        }),
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(/Couldn’t remove domain/i)).toBeInTheDocument();
+      });
+      // Body carries the 403 copy.
+      expect(
+        screen.getByText(
+          /you don.?t have permission to manage workspace integrations/i,
+        ),
+      ).toBeInTheDocument();
+      // The destructive load alert title must NOT appear.
+      expect(
+        screen.queryByText(/Couldn’t load integrations/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it("surfaces 'Couldn’t verify domain' when verify fails", async () => {
+      const user = userEvent.setup();
+      const pending = {
+        ...sampleDomain,
+        id: "dom-pending-verify",
+        hostname: "pending.example.com",
+        status: "pending" as const,
+        verificationName: "_xynes.pending.example.com",
+        verifiedAt: null,
+      };
+      mockListWorkspaceDomains.mockResolvedValue([pending]);
+      mockVerifyWorkspaceDomain.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(500, "boom"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const recheckButton = await screen.findByRole("button", {
+        name: new RegExp(`recheck verification for ${pending.hostname}`, "i"),
+      });
+      await user.click(recheckButton);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Couldn’t verify domain/i)).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/Couldn’t load integrations/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it("surfaces 'Couldn’t regenerate verification value' when regenerate fails", async () => {
+      const user = userEvent.setup();
+      const pending = {
+        ...sampleDomain,
+        id: "dom-pending-regen",
+        hostname: "regen.example.com",
+        status: "pending" as const,
+        verificationName: "_xynes.regen.example.com",
+        verifiedAt: null,
+      };
+      mockListWorkspaceDomains.mockResolvedValue([pending]);
+      mockRegenerateWorkspaceDomainVerification.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(500, "boom"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const regenButton = await screen.findByRole("button", {
+        name: new RegExp(
+          `get a new verification value for ${pending.hostname}`,
+          "i",
+        ),
+      });
+      await user.click(regenButton);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Couldn’t regenerate verification value/i),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/Couldn’t load integrations/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it("surfaces 'Couldn’t add domain' when register fails", async () => {
+      const user = userEvent.setup();
+      mockListWorkspaceDomains.mockResolvedValue([]);
+      mockRegisterWorkspaceDomain.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(422, "invalid"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const input = await screen.findByLabelText(/^domain$/i);
+      await user.type(input, "broken.example.com");
+      await user.click(screen.getByRole("button", { name: /add domain/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Couldn’t add domain/i)).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/Couldn’t load integrations/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it("surfaces 'Couldn’t create API key' when create-key fails", async () => {
+      const user = userEvent.setup();
+      mockListWorkspaceApiKeys.mockResolvedValue([]);
+      mockCreateWorkspaceApiKey.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(403, "denied"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const nameInput = await screen.findByLabelText(/^name$/i);
+      await user.type(nameInput, "My key");
+      await user.click(screen.getByRole("button", { name: /create api key/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Couldn’t create API key/i),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/Couldn’t load integrations/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it("surfaces 'Couldn’t revoke API key' when revoke fails", async () => {
+      const user = userEvent.setup();
+      mockListWorkspaceApiKeys.mockResolvedValue([sampleApiKey]);
+      mockRevokeWorkspaceApiKey.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(500, "boom"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const revokeButton = await screen.findByRole("button", {
+        name: new RegExp(`revoke api key ${sampleApiKey.name}`, "i"),
+      });
+      await user.click(revokeButton);
+
+      const dialog = await screen.findByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("button", { name: /^revoke$/i }),
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Couldn’t revoke API key/i),
+        ).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/Couldn’t load integrations/i),
+      ).not.toBeInTheDocument();
+    });
+
+    it("clears the action-error alert on the Dismiss button", async () => {
+      const user = userEvent.setup();
+      mockListWorkspaceDomains.mockResolvedValue([]);
+      mockRegisterWorkspaceDomain.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(422, "invalid"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const input = await screen.findByLabelText(/^domain$/i);
+      await user.type(input, "broken.example.com");
+      await user.click(screen.getByRole("button", { name: /add domain/i }));
+
+      await screen.findByText(/Couldn’t add domain/i);
+
+      await user.click(
+        screen.getByRole("button", { name: /dismiss action error/i }),
+      );
+      await waitFor(() => {
+        expect(
+          screen.queryByText(/Couldn’t add domain/i),
+        ).not.toBeInTheDocument();
+      });
+    });
+
+    it("clears the action-error alert when the next action succeeds", async () => {
+      const user = userEvent.setup();
+      mockListWorkspaceDomains.mockResolvedValue([]);
+      // First register: 422 → action error.
+      mockRegisterWorkspaceDomain.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(422, "invalid"),
+      );
+      // Second register: success → action error must clear.
+      mockRegisterWorkspaceDomain.mockResolvedValueOnce({
+        domain: {
+          ...sampleDomain,
+          id: "dom-second",
+          hostname: "second.example.com",
+          status: "pending",
+        },
+        verificationValue: "xynes-verify=second",
+      });
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const input = await screen.findByLabelText(/^domain$/i);
+      await user.type(input, "first.example.com");
+      await user.click(screen.getByRole("button", { name: /add domain/i }));
+      await screen.findByText(/Couldn’t add domain/i);
+
+      // Clear and submit again — second call succeeds.
+      await user.clear(input);
+      await user.type(input, "second.example.com");
+      await user.click(screen.getByRole("button", { name: /add domain/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.queryByText(/Couldn’t add domain/i),
+        ).not.toBeInTheDocument();
+      });
+    });
   });
 });

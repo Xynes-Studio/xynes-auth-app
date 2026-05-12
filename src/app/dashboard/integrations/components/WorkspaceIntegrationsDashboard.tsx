@@ -87,6 +87,95 @@ function getIntegrationsLoadErrorMessage(error: unknown): string {
   return "Failed to load workspace integrations.";
 }
 
+// ── WSA-FIX-1: action-error contract ────────────────────────────────────
+//
+// `loadError` surfaces FAILURES OF THE LIST REFETCH (initial mount or the
+// explicit "Retry" action). Action handlers (register / verify / regenerate
+// / delete domain, create / revoke API key) must NOT write to `loadError`,
+// because the alert copy "Couldn’t load integrations" wrongly attributes
+// the failure to the page load when it was really the action the user just
+// took.
+//
+// Each action surfaces failures through a separate `actionError` state with
+// per-action copy ("Couldn’t remove domain", "Couldn’t verify domain", …).
+// Successful actions clear `actionError`. A successful action whose
+// follow-up refetch fails surfaces a soft "Action succeeded, but we
+// couldn’t refresh the list. [Retry]" banner instead of the destructive
+// "Couldn’t load integrations" alert (`reloadFailedAfterAction`).
+type IntegrationsActionKind =
+  | "registerDomain"
+  | "verifyDomain"
+  | "regenerateVerification"
+  | "deleteDomain"
+  | "createApiKey"
+  | "revokeApiKey";
+
+interface IntegrationsActionError {
+  kind: IntegrationsActionKind;
+  message: string;
+}
+
+const INTEGRATIONS_ACTION_ERROR_TITLES: Record<IntegrationsActionKind, string> =
+  {
+    registerDomain: "Couldn’t add domain",
+    verifyDomain: "Couldn’t verify domain",
+    regenerateVerification: "Couldn’t regenerate verification value",
+    deleteDomain: "Couldn’t remove domain",
+    createApiKey: "Couldn’t create API key",
+    revokeApiKey: "Couldn’t revoke API key",
+  };
+
+const INTEGRATIONS_ACTION_DEFAULT_MESSAGES: Record<
+  IntegrationsActionKind,
+  string
+> = {
+  registerDomain: "We couldn’t add this domain. Please try again.",
+  verifyDomain: "We couldn’t verify this domain. Please try again.",
+  regenerateVerification:
+    "We couldn’t regenerate the verification value. Please try again.",
+  deleteDomain: "We couldn’t remove this domain. Please try again.",
+  createApiKey: "We couldn’t create this API key. Please try again.",
+  revokeApiKey: "We couldn’t revoke this API key. Please try again.",
+};
+
+function getIntegrationsActionErrorMessage(
+  kind: IntegrationsActionKind,
+  error: unknown,
+): string {
+  if (!(error instanceof WorkspaceIntegrationsApiError)) {
+    return INTEGRATIONS_ACTION_DEFAULT_MESSAGES[kind];
+  }
+
+  // Status-code → copy mapping mirrors the load path so users see the
+  // same explanation for the same auth / rate-limit failure regardless
+  // of whether the call was a list or an action.
+  if (error.statusCode === 401) {
+    return "Your session has expired. Please sign in again.";
+  }
+
+  if (error.statusCode === 403) {
+    return "You don’t have permission to manage workspace integrations.";
+  }
+
+  if (error.statusCode === 404) {
+    return "We couldn’t find that record. It may have already been removed.";
+  }
+
+  if (error.statusCode === 409) {
+    return "That conflicts with an existing record. Please review and try again.";
+  }
+
+  if (error.statusCode === 422) {
+    return "Some of the values you provided aren’t valid. Please review and try again.";
+  }
+
+  if (error.statusCode === 429) {
+    return "Too many requests. Please try again in a moment.";
+  }
+
+  return INTEGRATIONS_ACTION_DEFAULT_MESSAGES[kind];
+}
+
 export function WorkspaceIntegrationsDashboard() {
   const { currentWorkspace } = useWorkspace();
   const { getAccessToken } = useAuth();
@@ -127,6 +216,21 @@ export function WorkspaceIntegrationsDashboard() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadCounter, setReloadCounter] = useState<number>(0);
+  // WSA-FIX-1: actionError holds the most recent ACTION failure (register /
+  // verify / regenerate / delete / create-key / revoke-key). It is cleared
+  // on the next successful action OR on an explicit dismiss. It is
+  // independent of `loadError` so that an action failure never wears the
+  // "Couldn’t load integrations" copy and a list refetch failure never
+  // wears an action title like "Couldn’t remove domain".
+  const [actionError, setActionError] =
+    useState<IntegrationsActionError | null>(null);
+  // WSA-FIX-1: when an action succeeds but the follow-up list refetch
+  // fails (token expiry mid-flight, transient 5xx, network glitch), we
+  // surface a softer banner that tells the user the action did succeed
+  // but the list is stale. The Retry button reuses `handleRetry` and
+  // clears this banner on the next successful refetch.
+  const [reloadFailedAfterAction, setReloadFailedAfterAction] =
+    useState<boolean>(false);
   // One-time DNS TXT verification value reveal — held in container state
   // and surfaced to the panel as a prop. The raw value is shown exactly
   // once and never persisted beyond this slot.
@@ -155,12 +259,48 @@ export function WorkspaceIntegrationsDashboard() {
   }, [getAccessToken]);
 
   const handleRetry = useCallback(() => {
+    // Both kinds of refetch failure are cleared on an explicit retry;
+    // the reload effect will set `loadError` again if this retry fails.
+    setReloadFailedAfterAction(false);
     setReloadCounter((count) => count + 1);
   }, []);
 
+  // WSA-FIX-1: refetch helper used by action handlers after a successful
+  // mutation. UNLIKE the load effect, this writes to
+  // `reloadFailedAfterAction` (soft banner) on failure — NOT `loadError`
+  // (destructive "Couldn’t load integrations" alert). The action itself
+  // already succeeded, so we don't want to imply the page is broken.
+  const refreshListsAfterAction = useCallback(async () => {
+    if (!workspaceId) return;
+    const callerGetAccessToken = () => getAccessTokenRef.current();
+    try {
+      const [nextDomains, nextApiKeys] = await Promise.all([
+        listWorkspaceDomains({
+          apiBaseUrl,
+          workspaceId,
+          getAccessToken: callerGetAccessToken,
+        }),
+        listWorkspaceApiKeys({
+          apiBaseUrl,
+          workspaceId,
+          getAccessToken: callerGetAccessToken,
+        }),
+      ]);
+      setDomains(Array.isArray(nextDomains) ? nextDomains : []);
+      setApiKeys(Array.isArray(nextApiKeys) ? nextApiKeys : []);
+      setReloadFailedAfterAction(false);
+    } catch {
+      // Action succeeded. Surface a soft banner; never escalate to the
+      // destructive "Couldn’t load integrations" alert. The user retains
+      // the previous list state (no clobber).
+      setReloadFailedAfterAction(true);
+    }
+  }, [apiBaseUrl, workspaceId]);
+
   // Domain mutation handlers — passed to DomainManagementPanel. Each
-  // handler refreshes the domain list on success by bumping the reload
-  // counter; failures bubble up to surface in the load-error alert.
+  // handler refreshes the list on success via `refreshListsAfterAction`
+  // (writes to the soft banner state, NOT `loadError`). Action failures
+  // surface through `actionError` with per-action copy (WSA-FIX-1).
   const handleRegisterDomain = useCallback(
     async (hostname: string) => {
       if (!workspaceId) return;
@@ -176,14 +316,17 @@ export function WorkspaceIntegrationsDashboard() {
           domainId: result.domain.id,
           verificationValue: result.verificationValue,
         });
-        setLoadError(null);
-        setReloadCounter((count) => count + 1);
+        setActionError(null);
+        await refreshListsAfterAction();
       } catch (error: unknown) {
-        setLoadError(getIntegrationsLoadErrorMessage(error));
+        setActionError({
+          kind: "registerDomain",
+          message: getIntegrationsActionErrorMessage("registerDomain", error),
+        });
         throw error;
       }
     },
-    [apiBaseUrl, workspaceId],
+    [apiBaseUrl, workspaceId, refreshListsAfterAction],
   );
 
   const handleVerifyDomain = useCallback(
@@ -197,21 +340,24 @@ export function WorkspaceIntegrationsDashboard() {
           getAccessToken: callerGetAccessToken,
           domainId,
         });
-        setLoadError(null);
-        setReloadCounter((count) => count + 1);
+        setActionError(null);
+        await refreshListsAfterAction();
       } catch (error: unknown) {
-        setLoadError(getIntegrationsLoadErrorMessage(error));
+        setActionError({
+          kind: "verifyDomain",
+          message: getIntegrationsActionErrorMessage("verifyDomain", error),
+        });
         throw error;
       }
     },
-    [apiBaseUrl, workspaceId],
+    [apiBaseUrl, workspaceId, refreshListsAfterAction],
   );
 
   // Regenerate verification token (Phase D recovery path).
   // Behaviour mirrors `handleRegisterDomain`: store the new raw value in
-  // the one-time reveal slot so the panel surfaces it, then bump the
-  // reload counter to refresh the row state. The container is also
-  // responsible for surfacing user-facing API errors via `loadError`.
+  // the one-time reveal slot so the panel surfaces it, then refresh the
+  // row state. Failures surface through `actionError` with per-action
+  // copy (WSA-FIX-1) — NOT the "Couldn’t load integrations" alert.
   const handleRegenerateVerification = useCallback(
     async (domainId: string) => {
       if (!workspaceId) return;
@@ -227,14 +373,20 @@ export function WorkspaceIntegrationsDashboard() {
           domainId: result.domain.id,
           verificationValue: result.verificationValue,
         });
-        setLoadError(null);
-        setReloadCounter((count) => count + 1);
+        setActionError(null);
+        await refreshListsAfterAction();
       } catch (error: unknown) {
-        setLoadError(getIntegrationsLoadErrorMessage(error));
+        setActionError({
+          kind: "regenerateVerification",
+          message: getIntegrationsActionErrorMessage(
+            "regenerateVerification",
+            error,
+          ),
+        });
         throw error;
       }
     },
-    [apiBaseUrl, workspaceId],
+    [apiBaseUrl, workspaceId, refreshListsAfterAction],
   );
 
   const handleDeleteDomain = useCallback(
@@ -252,14 +404,17 @@ export function WorkspaceIntegrationsDashboard() {
         setPendingVerificationValue((previous) =>
           previous && previous.domainId === domainId ? null : previous,
         );
-        setLoadError(null);
-        setReloadCounter((count) => count + 1);
+        setActionError(null);
+        await refreshListsAfterAction();
       } catch (error: unknown) {
-        setLoadError(getIntegrationsLoadErrorMessage(error));
+        setActionError({
+          kind: "deleteDomain",
+          message: getIntegrationsActionErrorMessage("deleteDomain", error),
+        });
         throw error;
       }
     },
-    [apiBaseUrl, workspaceId],
+    [apiBaseUrl, workspaceId, refreshListsAfterAction],
   );
 
   const handleDismissVerificationValue = useCallback(() => {
@@ -285,14 +440,17 @@ export function WorkspaceIntegrationsDashboard() {
           keyId: result.key.id,
           rawKey: result.rawKey,
         });
-        setLoadError(null);
-        setReloadCounter((count) => count + 1);
+        setActionError(null);
+        await refreshListsAfterAction();
       } catch (error: unknown) {
-        setLoadError(getIntegrationsLoadErrorMessage(error));
+        setActionError({
+          kind: "createApiKey",
+          message: getIntegrationsActionErrorMessage("createApiKey", error),
+        });
         throw error;
       }
     },
-    [apiBaseUrl, workspaceId],
+    [apiBaseUrl, workspaceId, refreshListsAfterAction],
   );
 
   const handleRevokeApiKey = useCallback(
@@ -310,18 +468,25 @@ export function WorkspaceIntegrationsDashboard() {
         setPendingRawApiKey((previous) =>
           previous && previous.keyId === keyId ? null : previous,
         );
-        setLoadError(null);
-        setReloadCounter((count) => count + 1);
+        setActionError(null);
+        await refreshListsAfterAction();
       } catch (error: unknown) {
-        setLoadError(getIntegrationsLoadErrorMessage(error));
+        setActionError({
+          kind: "revokeApiKey",
+          message: getIntegrationsActionErrorMessage("revokeApiKey", error),
+        });
         throw error;
       }
     },
-    [apiBaseUrl, workspaceId],
+    [apiBaseUrl, workspaceId, refreshListsAfterAction],
   );
 
   const handleDismissRawApiKey = useCallback(() => {
     setPendingRawApiKey(null);
+  }, []);
+
+  const handleDismissActionError = useCallback(() => {
+    setActionError(null);
   }, []);
 
   // Move keyboard focus to the deep-linked section heading once the
@@ -431,6 +596,50 @@ export function WorkspaceIntegrationsDashboard() {
             <span>{loadError}</span>
             <div>
               <Button type="button" onClick={handleRetry} aria-label="Retry">
+                Retry
+              </Button>
+            </div>
+          </Flex>
+        </Alert>
+      ) : null}
+
+      {actionError ? (
+        <Alert
+          variant="error"
+          title={INTEGRATIONS_ACTION_ERROR_TITLES[actionError.kind]}
+        >
+          <Flex direction="col" gap="sm">
+            <span>{actionError.message}</span>
+            <div>
+              <Button
+                type="button"
+                onClick={handleDismissActionError}
+                aria-label="Dismiss action error"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </Flex>
+        </Alert>
+      ) : null}
+
+      {reloadFailedAfterAction && !loadError ? (
+        <Alert
+          variant="warning"
+          title="Couldn’t refresh the list"
+          data-testid="workspace-integrations-reload-failed"
+        >
+          <Flex direction="col" gap="sm">
+            <span>
+              Action succeeded, but we couldn’t refresh the list. Some rows may
+              be out of date until you retry.
+            </span>
+            <div>
+              <Button
+                type="button"
+                onClick={handleRetry}
+                aria-label="Retry refresh"
+              >
                 Retry
               </Button>
             </div>

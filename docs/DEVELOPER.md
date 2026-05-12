@@ -473,6 +473,26 @@ setDomains(Array.isArray(nextDomains) ? nextDomains : []);
 - The DNS-TXT `verificationValue` is shown exactly once on register and never re-fetched; the server stores only its hash.
 - The container's permission-denied (403) state renders the safe, non-leaky message: "You don't have permission to manage workspace integrations."
 
+### Error handling — action errors vs load errors (WSA-FIX-1, 2026-05-12)
+
+The container distinguishes **two kinds of error** so an action failure never wears the "Couldn't load integrations" copy, and a list refetch failure never wears an action title like "Couldn't remove domain":
+
+- **`loadError`** — surfaces failures of the initial list refetch or an explicit Retry. Renders the destructive Alert titled **"Couldn't load integrations"** with a Retry button.
+- **`actionError`** — surfaces failures of a single mutation (`registerDomain`, `verifyDomain`, `regenerateVerification`, `deleteDomain`, `createApiKey`, `revokeApiKey`). Renders a destructive Alert with an action-specific title (`"Couldn't add domain"`, `"Couldn't verify domain"`, `"Couldn't regenerate verification value"`, `"Couldn't remove domain"`, `"Couldn't create API key"`, `"Couldn't revoke API key"`). Successful action handlers clear `actionError` before they refetch; the alert also exposes a **Dismiss** button (`aria-label="Dismiss action error"`).
+- **`reloadFailedAfterAction`** — when an action succeeds but the follow-up list refetch fails (transient 5xx, token expiry mid-flight, network glitch), the container surfaces a softer **warning** Alert titled "Couldn't refresh the list" (`data-testid="workspace-integrations-reload-failed"`) with copy "Action succeeded, but we couldn't refresh the list. Some rows may be out of date until you retry." and a Retry button. **The destructive "Couldn't load integrations" alert is NEVER shown for a post-action refetch failure** — the action did succeed and the page is not broken.
+
+Status-code → user-facing copy mapping for action errors (`getIntegrationsActionErrorMessage`):
+
+- `401` → "Your session has expired. Please sign in again."
+- `403` → "You don't have permission to manage workspace integrations."
+- `404` → "We couldn't find that record. It may have already been removed."
+- `409` → "That conflicts with an existing record. Please review and try again."
+- `422` → "Some of the values you provided aren't valid. Please review and try again."
+- `429` → "Too many requests. Please try again in a moment."
+- anything else → action-specific generic copy (e.g. "We couldn't remove this domain. Please try again.")
+
+Internal-only fields (`keyHash`, `verificationValueHash`, raw API keys, stack traces, upstream error messages) **must never** leak into either alert.
+
 ### Follow-up stories from browser revalidation
 
 - `fix(accounts-service): return safe validation errors for workspace domain create` — Browser revalidation on 2026-05-05 confirmed the frontend calls `POST /workspaces/:workspaceId/domains` through the gateway, but local backend creation of `example.com` failed with Postgres check constraint `workspace_domains_hostname_shape` and surfaced to the browser as `500 Internal Server Error`. The backend should align hostname normalization/validation with the database constraint and return a safe 4xx validation response instead of an internal error.
