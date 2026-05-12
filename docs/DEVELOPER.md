@@ -493,6 +493,20 @@ Status-code → user-facing copy mapping for action errors (`getIntegrationsActi
 
 Internal-only fields (`keyHash`, `verificationValueHash`, raw API keys, stack traces, upstream error messages) **must never** leak into either alert.
 
+### Onboarding redirect — origin-app-aware post-create destination (WSA-FIX-2, 2026-05-12)
+
+`src/app/onboarding/page.tsx` and `src/components/onboarding/CreateWorkspaceForm.tsx` no longer hard-code the CMS console as the post-create destination. The flow is now origin-app-aware so users land back where they came from after creating a workspace.
+
+- **Page reads `?redirect=<url>`.** `OnboardingPage` is an async RSC that awaits `searchParams` (Next.js 15 contract) and forwards the optional `redirect` query value to `CreateWorkspaceForm` as the `redirectUrl` prop. The page itself does **not** validate the URL — that responsibility stays in the form (single security boundary).
+- **Validation contract is unchanged.** `CreateWorkspaceForm` keeps using `getSafeRedirectUrl(redirectUrl, defaultTarget, getAllowedRedirectDomains())` from `src/lib/redirect/`. Disallowed hosts, `javascript:` / `data:` / `vbscript:` schemes, and protocol-relative (`//evil.example/...`) URLs all fall through to `defaultTarget` exactly as before. `getAllowedRedirectDomains()` was **NOT** widened — open-redirect protection is the same.
+- **`defaultTarget` flipped from CMS to Auth Admin.** Without an explicit `redirectUrl`, the form now resolves to `/dashboard/apps` (the Auth Admin dashboard) instead of `${NEXT_PUBLIC_CONSOLE_URL}/dashboard/<slug>/content`. The CMS console is reached **only** when the caller forwarded `?redirect=https://cms.xynes.com/dashboard` (or its localhost equivalent).
+- **Per-origin routing:**
+  - **Auth Admin → switcher → "Create new workspace"** → `router.push("/onboarding")` (no query) → after create → `/dashboard/apps`.
+  - **CMS Console → switcher → "Create new workspace"** → `window.location.assign("http://localhost:3100/onboarding?redirect=...")` → after create → `window.location.assign("http://localhost:3000/dashboard")` → CMS dashboard resolver picks the user's current/first workspace and routes to `/dashboard/<slug>/content`.
+  - **Tampered `?redirect=https://evil.example/`** → falls back to `/dashboard/apps`.
+- **Out of scope.** No new redirect-allowlist hosts were added. The `redirect=` semantics for `/login`, `/logout`, `/signup`, `/invite`, and `/forgot-password` are not part of this change — they remain owned by `buildAuthRedirectUrl` and the per-route flows. There is **no** "stay on Auth app" toggle UI on the form; the destination is fully driven by the inbound query param.
+- **Companion CMS console change.** `xynes-front-end/xynes-cms-console-web/src/components/dashboard/CmsDashboardShell.tsx` is the only call site that needs to attach `?redirect=`. It builds the redirect target from `NEXT_PUBLIC_APP_URL` (the CMS's own base URL). If `NEXT_PUBLIC_APP_URL` is unset or malformed (`javascript:...`, non-http(s) scheme, invalid URL), the `?redirect=` is omitted entirely and the user gracefully falls back to the Auth-Admin destination.
+
 ### Follow-up stories from browser revalidation
 
 - `fix(accounts-service): return safe validation errors for workspace domain create` — Browser revalidation on 2026-05-05 confirmed the frontend calls `POST /workspaces/:workspaceId/domains` through the gateway, but local backend creation of `example.com` failed with Postgres check constraint `workspace_domains_hostname_shape` and surfaced to the browser as `500 Internal Server Error`. The backend should align hostname normalization/validation with the database constraint and return a safe 4xx validation response instead of an internal error.

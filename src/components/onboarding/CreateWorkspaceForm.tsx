@@ -37,7 +37,6 @@ import {
   getSlugStatusMessage,
   type SlugAvailabilityStatus,
   SLUG_CONSTRAINTS,
-  buildCmsWorkspaceContentUrl,
 } from "@/lib/workspace";
 
 /**
@@ -256,18 +255,15 @@ export function CreateWorkspaceForm({
         // Call success callback if provided
         onSuccess?.(resolvedWorkspace);
 
-        // Calculate default target (CMS console content dashboard)
-        const consoleBaseUrl =
-          process.env.NEXT_PUBLIC_CONSOLE_URL ||
-          process.env.NEXT_PUBLIC_CMS_CONSOLE_URL ||
-          "";
-        const defaultTarget = buildCmsWorkspaceContentUrl({
-          baseUrl: consoleBaseUrl,
-          workspaceSlug: resolvedWorkspace.slug,
-        });
+        // WSA-FIX-2 (2026-05-12): the default post-create destination is the
+        // Auth Admin workspace dashboard, NOT the CMS console. The CMS console
+        // is reached only when the caller explicitly forwards a `redirectUrl`
+        // (e.g. CMS Console links to `/onboarding?redirect=<cms-landing>`).
+        // `getSafeRedirectUrl` continues to validate against
+        // `getAllowedRedirectDomains()` so an attacker-supplied redirect falls
+        // back to the same Auth Admin target.
+        const defaultTarget = "/dashboard/apps";
 
-        // Determine final redirect URL
-        // If a redirectUrl is provided, we must validate it to prevent open redirects
         const targetUrl = redirectUrl
           ? getSafeRedirectUrl(
               redirectUrl,
