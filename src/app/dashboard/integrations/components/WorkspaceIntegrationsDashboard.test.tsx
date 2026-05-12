@@ -1258,7 +1258,9 @@ describe("WorkspaceIntegrationsDashboard", () => {
       // — it must include the status code.
       expect(screen.getByText(/status 411/i)).toBeInTheDocument();
       expect(
-        screen.queryByText(/We couldn.t remove this domain\. Please try again\./i),
+        screen.queryByText(
+          /We couldn.t remove this domain\. Please try again\./i,
+        ),
       ).not.toBeInTheDocument();
     });
 
@@ -1295,9 +1297,7 @@ describe("WorkspaceIntegrationsDashboard", () => {
       );
 
       await screen.findByText(/Couldn’t remove domain/i);
-      expect(
-        screen.getByText(/server hit a problem/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/server hit a problem/i)).toBeInTheDocument();
     });
   });
 });
