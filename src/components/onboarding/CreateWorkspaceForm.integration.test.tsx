@@ -342,6 +342,15 @@ describe("CreateWorkspaceForm", () => {
     });
 
     it("should redirect to external console URL on success when NEXT_PUBLIC_CONSOLE_URL is set", async () => {
+      // WSA-FIX-2 (2026-05-12): obsolete pre-fix behaviour.
+      //
+      // Before WSA-FIX-2 the form would auto-redirect to the CMS console when
+      // `NEXT_PUBLIC_CONSOLE_URL` was set and no `redirectUrl` prop was passed.
+      // The fix flipped this: without an explicit `redirectUrl`, the form
+      // always falls back to the Auth Admin dashboard regardless of
+      // `NEXT_PUBLIC_CONSOLE_URL`. See the
+      // "WSA-FIX-2: post-create redirect honours origin app" block below for
+      // the replacement coverage.
       const previousConsoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL;
       process.env.NEXT_PUBLIC_CONSOLE_URL = "https://console.test.com";
       const assignSpy = vi
@@ -378,12 +387,12 @@ describe("CreateWorkspaceForm", () => {
         });
         await user.click(submitButton);
 
+        // Without a `redirectUrl` prop the form now stays in Auth Admin even
+        // when `NEXT_PUBLIC_CONSOLE_URL` is set.
         await waitFor(() => {
-          expect(assignSpy).toHaveBeenCalledWith(
-            "https://console.test.com/dashboard/my-team/content",
-          );
+          expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
         });
-        expect(mockPush).not.toHaveBeenCalled();
+        expect(assignSpy).not.toHaveBeenCalled();
       } finally {
         process.env.NEXT_PUBLIC_CONSOLE_URL = previousConsoleUrl;
         assignSpy.mockRestore();
@@ -596,6 +605,199 @@ describe("CreateWorkspaceForm", () => {
           slug: "my-team",
         });
       });
+    });
+  });
+
+  describe("WSA-FIX-2: post-create redirect honours origin app", () => {
+    /**
+     * Plan: xynes/xynes-infra/docs/plans/2026-05-10-auth-app-workspace-admin-and-onboarding-fixes.md §4
+     *
+     * Contract:
+     * - No `redirectUrl` prop → fallback is `/dashboard/apps` (Auth Admin),
+     *   regardless of whether `NEXT_PUBLIC_CONSOLE_URL` is set.
+     * - Valid absolute `redirectUrl` (host in `getAllowedRedirectDomains()`)
+     *   → `window.location.assign(redirectUrl)`.
+     * - Disallowed absolute `redirectUrl` → falls back to `/dashboard/apps`
+     *   via `router.push` (the safe-redirect guard prevents the open redirect).
+     * - Relative in-app `redirectUrl` (starts with `/` but not `//`)
+     *   → `router.push(redirectUrl)`.
+     */
+
+    function primeFetchForHappyPath() {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ available: true }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              id: "workspace-123",
+              name: "My Team",
+              slug: "my-team",
+            }),
+        });
+    }
+
+    async function submitForm() {
+      const nameInput = screen.getByLabelText(/workspace name/i);
+      await user.type(nameInput, "My Team");
+
+      await waitFor(() => {
+        expect(screen.getByText(/is available/i)).toBeInTheDocument();
+      });
+
+      const submitButton = screen.getByRole("button", {
+        name: /create workspace/i,
+      });
+      await user.click(submitButton);
+    }
+
+    it("falls back to Auth Admin (/dashboard/apps) when no redirectUrl is provided", async () => {
+      primeFetchForHappyPath();
+      const assignSpy = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => {});
+
+      try {
+        render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
+        await submitForm();
+
+        await waitFor(() => {
+          expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
+        });
+        expect(assignSpy).not.toHaveBeenCalled();
+      } finally {
+        assignSpy.mockRestore();
+      }
+    });
+
+    it("redirects to a valid external Xynes redirectUrl via window.location.assign", async () => {
+      primeFetchForHappyPath();
+      const assignSpy = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => {});
+
+      try {
+        render(
+          <CreateWorkspaceForm
+            apiBaseUrl="https://api.test.com"
+            redirectUrl="https://cms.xynes.com/dashboard"
+          />,
+        );
+        await submitForm();
+
+        await waitFor(() => {
+          expect(assignSpy).toHaveBeenCalledWith(
+            "https://cms.xynes.com/dashboard",
+          );
+        });
+        expect(mockPush).not.toHaveBeenCalled();
+      } finally {
+        assignSpy.mockRestore();
+      }
+    });
+
+    it("falls back to Auth Admin when redirectUrl points at a disallowed host", async () => {
+      primeFetchForHappyPath();
+      const assignSpy = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => {});
+
+      try {
+        render(
+          <CreateWorkspaceForm
+            apiBaseUrl="https://api.test.com"
+            redirectUrl="https://evil.example/"
+          />,
+        );
+        await submitForm();
+
+        // Safe-redirect guard rejects the host → fallback to Auth Admin.
+        await waitFor(() => {
+          expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
+        });
+        expect(assignSpy).not.toHaveBeenCalled();
+      } finally {
+        assignSpy.mockRestore();
+      }
+    });
+
+    it("uses router.push for a relative in-app redirectUrl", async () => {
+      primeFetchForHappyPath();
+      const assignSpy = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => {});
+
+      try {
+        render(
+          <CreateWorkspaceForm
+            apiBaseUrl="https://api.test.com"
+            redirectUrl="/dashboard/integrations"
+          />,
+        );
+        await submitForm();
+
+        await waitFor(() => {
+          expect(mockPush).toHaveBeenCalledWith("/dashboard/integrations");
+        });
+        expect(assignSpy).not.toHaveBeenCalled();
+      } finally {
+        assignSpy.mockRestore();
+      }
+    });
+
+    it("does NOT redirect to the CMS console when NEXT_PUBLIC_CONSOLE_URL is set but no redirectUrl is provided", async () => {
+      // Pre-WSA-FIX-2 regression guard: this used to auto-route to
+      // `${NEXT_PUBLIC_CONSOLE_URL}/dashboard/<slug>/content` even without
+      // an explicit redirectUrl. After the fix it must stay in Auth Admin.
+      const previousConsoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL;
+      process.env.NEXT_PUBLIC_CONSOLE_URL = "https://console.test.com";
+      const assignSpy = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => {});
+
+      try {
+        primeFetchForHappyPath();
+        render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
+        await submitForm();
+
+        await waitFor(() => {
+          expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
+        });
+        expect(assignSpy).not.toHaveBeenCalled();
+      } finally {
+        process.env.NEXT_PUBLIC_CONSOLE_URL = previousConsoleUrl;
+        assignSpy.mockRestore();
+      }
+    });
+
+    it("rejects a protocol-relative redirectUrl (//evil.example/...) and falls back to Auth Admin", async () => {
+      // Defense-in-depth: protocol-relative URLs are a classic open-redirect
+      // vector. `getSafeRedirectUrl` treats them as external and validates
+      // them via `URL` parsing, which rejects them outright.
+      primeFetchForHappyPath();
+      const assignSpy = vi
+        .spyOn(window.location, "assign")
+        .mockImplementation(() => {});
+
+      try {
+        render(
+          <CreateWorkspaceForm
+            apiBaseUrl="https://api.test.com"
+            redirectUrl="//evil.example/dashboard"
+          />,
+        );
+        await submitForm();
+
+        await waitFor(() => {
+          expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
+        });
+        expect(assignSpy).not.toHaveBeenCalled();
+      } finally {
+        assignSpy.mockRestore();
+      }
     });
   });
 });
