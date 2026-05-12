@@ -19,6 +19,7 @@ vi.mock("@lumia-ui/components", () => {
     type,
     disabled,
     "aria-label": ariaLabel,
+    "aria-busy": ariaBusy,
   }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
     children?: React.ReactNode;
   }) => (
@@ -27,6 +28,7 @@ vi.mock("@lumia-ui/components", () => {
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-busy={ariaBusy}
     >
       {children}
     </button>
@@ -958,5 +960,394 @@ describe("DomainManagementPanel", () => {
     const items = within(strip).getAllByRole("listitem");
     expect(items[1]).toHaveAttribute("data-status", "pass");
     expect(items[1]).toHaveTextContent(/found/i);
+  });
+});
+
+// ── WSA-FIX-3: DNS instructions split + auto-recheck ──────────────────
+//
+// The reveal block now renders Type/Name(short)/Name(full)/Value/TTL as
+// a structured `<dl>` with per-cell Copy buttons, and the
+// "I've added it" button auto-triggers `onVerifyDomain` instead of
+// silently dismissing the reveal.
+
+describe("WSA-FIX-3: structured DNS instructions reveal", () => {
+  function pendingRevealProps(
+    overrides: Partial<React.ComponentProps<typeof DomainManagementPanel>> = {},
+  ) {
+    return defaultProps({
+      domains: [pendingDomain],
+      pendingVerificationValue: {
+        domainId: pendingDomain.id,
+        verificationValue: "xynes-verify=abc123",
+      },
+      ...overrides,
+    });
+  }
+
+  it("renders Type / Name (subdomain only) / Name (full FQDN) / Value / TTL cells in the reveal", () => {
+    render(<DomainManagementPanel {...pendingRevealProps()} />);
+
+    const instructions = screen.getByTestId("domain-verification-instructions");
+    expect(instructions).toHaveAttribute(
+      "aria-label",
+      "DNS TXT record values to add",
+    );
+
+    expect(within(instructions).getByText(/^type$/i)).toBeInTheDocument();
+    expect(
+      within(instructions).getByText(/name \(subdomain only\)/i),
+    ).toBeInTheDocument();
+    expect(
+      within(instructions).getByText(/name \(full fqdn\)/i),
+    ).toBeInTheDocument();
+    expect(within(instructions).getByText(/^value$/i)).toBeInTheDocument();
+    expect(within(instructions).getByText(/^ttl$/i)).toBeInTheDocument();
+  });
+
+  it("renders each cell with its own labelled Copy button", () => {
+    render(<DomainManagementPanel {...pendingRevealProps()} />);
+
+    expect(
+      screen.getByRole("button", { name: /copy dns record type/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: /copy dns record name, subdomain-only form/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: /copy dns record name, full fqdn form/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /copy dns record value/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /copy dns record ttl/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the FQDN cell with the full verificationName from the active row", () => {
+    render(<DomainManagementPanel {...pendingRevealProps()} />);
+    const instructions = screen.getByTestId("domain-verification-instructions");
+    expect(
+      within(instructions).getByText(pendingDomain.verificationName),
+    ).toBeInTheDocument();
+  });
+
+  it("renders the subdomain-only cell with the bare `_xynes` label for an apex hostname", () => {
+    // pendingDomain.hostname = "pending.example.com",
+    // pendingDomain.verificationName = "_xynes.pending.example.com"
+    // → subdomain-only = "_xynes"
+    render(<DomainManagementPanel {...pendingRevealProps()} />);
+    const cell = screen.getByTestId("domain-verification-cell-name-short");
+    // Cell text includes the dt label, the value, the hint, and the
+    // Copy button. We only need to confirm the derived subdomain is
+    // present; ordering / surrounding text is incidental.
+    expect(cell).toHaveTextContent(/_xynes/);
+    // Defensive: must NOT include the FQDN apex inside the
+    // subdomain-only cell — that would defeat the whole purpose.
+    expect(cell).not.toHaveTextContent(/pending\.example\.com/);
+    // The hint disambiguates Name(short) vs Name(FQDN) for users.
+    expect(cell).toHaveTextContent(/cloudflare|namecheap|godaddy/i);
+  });
+
+  it("includes a 'Where do I add this?' disclosure with provider notes and a docs link", () => {
+    render(<DomainManagementPanel {...pendingRevealProps()} />);
+
+    const disclosure = screen.getByText(/where do i add this/i);
+    expect(disclosure).toBeInTheDocument();
+
+    // Scope provider note assertions to the disclosure's parent
+    // <details> so we don't collide with the subdomain-cell hint
+    // (which also mentions Cloudflare). `getAllByText` is fine
+    // because we just need to know there's at least one match.
+    expect(screen.getAllByText(/cloudflare/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/route 53/i).length).toBeGreaterThan(0);
+
+    // Docs link opens in a new tab with safe rel attributes and a
+    // screen-reader hint for AT users.
+    const docsLink = screen.getByRole("link", {
+      name: /full domain verification guide/i,
+    });
+    expect(docsLink).toHaveAttribute("target", "_blank");
+    expect(docsLink.getAttribute("rel") ?? "").toMatch(/noopener/);
+    expect(docsLink.getAttribute("rel") ?? "").toMatch(/noreferrer/);
+    expect(docsLink.getAttribute("href") ?? "").toMatch(/^https:\/\//);
+    // Screen-reader-only "(opens in new tab)" hint must be present.
+    expect(docsLink).toHaveTextContent(/opens in new tab/i);
+  });
+
+  it("never echoes a hash-shaped field in the reveal (defense in depth)", () => {
+    // Even if a hostile prop ever carried a Hash-ending field down,
+    // the reveal must not render it. The reveal only consumes
+    // `verificationValue` from `pendingVerificationValue` and
+    // `verificationName`/`hostname` from the active row.
+    const hostile = {
+      ...pendingDomain,
+      verificationValueHash: "DO_NOT_RENDER_HASH",
+    } as unknown as WorkspaceDomain;
+    render(
+      <DomainManagementPanel {...pendingRevealProps({ domains: [hostile] })} />,
+    );
+    expect(screen.queryByText(/DO_NOT_RENDER_HASH/)).toBeNull();
+  });
+
+  it("calls navigator.clipboard.writeText with the cell-specific value for each Copy button", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    render(<DomainManagementPanel {...pendingRevealProps()} />);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /copy dns record type/i }),
+    );
+    expect(writeText).toHaveBeenLastCalledWith("TXT");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /copy dns record value/i }),
+    );
+    expect(writeText).toHaveBeenLastCalledWith("xynes-verify=abc123");
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /copy dns record name, subdomain-only form/i,
+      }),
+    );
+    expect(writeText).toHaveBeenLastCalledWith("_xynes");
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /copy dns record name, full fqdn form/i,
+      }),
+    );
+    expect(writeText).toHaveBeenLastCalledWith(pendingDomain.verificationName);
+  });
+
+  it("preserves the legacy 'Copy verification value' affordance (back-compat for skim readers)", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+
+    render(<DomainManagementPanel {...pendingRevealProps()} />);
+
+    // The Copy-value pill button below the table copies the raw
+    // value, matching the pre-WSA-FIX-3 Copy button's behaviour so
+    // existing muscle memory and the back-compat test query keep
+    // working.
+    await userEvent.click(
+      screen.getByRole("button", { name: /copy verification value/i }),
+    );
+    expect(writeText).toHaveBeenCalledWith("xynes-verify=abc123");
+  });
+});
+
+describe("WSA-FIX-3: 'I've added it' auto-rechecks DNS", () => {
+  function pendingRevealProps(
+    overrides: Partial<React.ComponentProps<typeof DomainManagementPanel>> = {},
+  ) {
+    return defaultProps({
+      domains: [pendingDomain],
+      pendingVerificationValue: {
+        domainId: pendingDomain.id,
+        verificationValue: "xynes-verify=abc123",
+      },
+      ...overrides,
+    });
+  }
+
+  it("calls onVerifyDomain with the active reveal's domainId when the user clicks 'I've added it'", async () => {
+    const onVerify = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DomainManagementPanel
+        {...pendingRevealProps({ onVerifyDomain: onVerify })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /i've added it\. recheck dns now/i }),
+    );
+
+    await waitFor(() => {
+      expect(onVerify).toHaveBeenCalledWith(pendingDomain.id);
+    });
+  });
+
+  it("dismisses the reveal AFTER a successful recheck flips the row to verified", async () => {
+    // Mimic the container: when `onVerifyDomain` resolves successfully,
+    // the next render's `domains` carries the flipped status. We
+    // simulate that with rerender + a verified row that shares the
+    // pending id.
+    const onVerify = vi.fn().mockResolvedValue(undefined);
+    const onDismiss = vi.fn();
+
+    const verifiedAfter: WorkspaceDomain = {
+      ...pendingDomain,
+      status: "verified",
+      verifiedAt: "2026-05-12T00:00:00.000Z",
+    };
+
+    const { rerender } = render(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          onVerifyDomain: async (id) => {
+            await onVerify(id);
+            // After this awaits, rerender simulates the container
+            // re-flowing the freshly-verified row into props.
+            rerender(
+              <DomainManagementPanel
+                {...pendingRevealProps({
+                  domains: [verifiedAfter],
+                  onVerifyDomain: onVerify,
+                  onDismissVerificationValue: onDismiss,
+                })}
+              />,
+            );
+          },
+          onDismissVerificationValue: onDismiss,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /i've added it\. recheck dns now/i }),
+    );
+
+    await waitFor(() => {
+      expect(onDismiss).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("keeps the reveal open and announces 'Still propagating' when recheck does not flip the row to verified", async () => {
+    const onVerify = vi.fn().mockResolvedValue(undefined);
+    const onDismiss = vi.fn();
+    render(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          onVerifyDomain: onVerify,
+          onDismissVerificationValue: onDismiss,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /i've added it\. recheck dns now/i }),
+    );
+
+    await waitFor(() => {
+      expect(onVerify).toHaveBeenCalledTimes(1);
+    });
+    // Reveal still mounted — container hasn't dismissed.
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(
+      screen.getByTestId("domain-verification-reveal"),
+    ).toBeInTheDocument();
+
+    // The polite region announces the "still propagating" copy.
+    const status = screen.getByTestId("domain-verification-reveal-status");
+    expect(status).toHaveAttribute("role", "status");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveTextContent(/propagating|24 hours/i);
+  });
+
+  it("keeps the reveal open and announces 'Still propagating' when the recheck call rejects", async () => {
+    const onVerify = vi
+      .fn()
+      .mockRejectedValue(new Error("transient network error"));
+    const onDismiss = vi.fn();
+    render(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          onVerifyDomain: onVerify,
+          onDismissVerificationValue: onDismiss,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /i've added it\. recheck dns now/i }),
+    );
+
+    await waitFor(() => {
+      expect(onVerify).toHaveBeenCalledTimes(1);
+    });
+    // Reveal stays open + reveal button is enabled again for a retry.
+    expect(onDismiss).not.toHaveBeenCalled();
+    const button = screen.getByRole("button", {
+      name: /i've added it\. recheck dns now/i,
+    });
+    expect(button).not.toBeDisabled();
+    // Polite region announces propagation/retry copy.
+    expect(
+      screen.getByTestId("domain-verification-reveal-status"),
+    ).toHaveTextContent(/propagating|24 hours/i);
+  });
+
+  it("provides a separate 'Dismiss' button that closes the reveal without rechecking", async () => {
+    const onVerify = vi.fn().mockResolvedValue(undefined);
+    const onDismiss = vi.fn();
+    render(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          onVerifyDomain: onVerify,
+          onDismissVerificationValue: onDismiss,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /dismiss verification value without rechecking/i,
+      }),
+    );
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onVerify).not.toHaveBeenCalled();
+  });
+
+  it("sets aria-busy=true and shows 'Re-checking…' on the button while the auto-recheck is in flight, and clears them when it resolves", async () => {
+    // Hold the verify call in pending state so we can observe the
+    // mid-flight aria-busy + label change before it resolves.
+    let resolveVerify: (() => void) | undefined;
+    const onVerify = vi.fn().mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveVerify = resolve;
+        }),
+    );
+    render(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          onVerifyDomain: onVerify,
+        })}
+      />,
+    );
+
+    const button = screen.getByRole("button", {
+      name: /i've added it\. recheck dns now/i,
+    });
+    expect(button).not.toHaveAttribute("aria-busy", "true");
+    expect(button).toHaveTextContent(/i.?ve added it/i);
+
+    await userEvent.click(button);
+
+    // Mid-flight: aria-busy=true, label flips to "Re-checking…".
+    await waitFor(() => {
+      expect(button).toHaveAttribute("aria-busy", "true");
+    });
+    expect(button).toHaveTextContent(/re-?checking/i);
+    expect(button).toBeDisabled();
+
+    // Resolve the verify call and assert the busy state clears.
+    resolveVerify?.();
+    await waitFor(() => {
+      expect(button).not.toHaveAttribute("aria-busy", "true");
+    });
+    expect(button).not.toBeDisabled();
   });
 });

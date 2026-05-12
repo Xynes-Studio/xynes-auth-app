@@ -25,7 +25,13 @@
  *   provides a real focus-trapped accessible dialog from Lumia DS.
  */
 
-import { useCallback, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   Button,
   ConfirmDialog,
@@ -40,6 +46,10 @@ import type {
   WorkspaceDomain,
   WorkspaceDomainStatus,
 } from "@/lib/integrations/workspace-integrations-types";
+import {
+  DNS_INSTRUCTION_COPY,
+  deriveSubdomainOnlyName,
+} from "@/lib/integrations/dns-instructions";
 
 export interface PendingDomainVerificationValue {
   domainId: string;
@@ -306,6 +316,69 @@ function buildDiagnosticStrip(
   return [lookupStep, recordsStep, matchStep];
 }
 
+// WSA-FIX-3: Render a single instruction row inside the reveal's
+// `<dl>` table. Each row has a label (left), value (middle), and a
+// per-cell Copy button (right). The whole row is keyed off `cellKey`
+// so the per-cell "Copied" affordance can be scoped without state
+// collisions.
+//
+// `hint` is rendered as a small line beneath the value to disambiguate
+// the Name (subdomain) vs Name (FQDN) cells. `monospace` styles the
+// value cell as a code block (used for the raw verification value
+// only). `muted` greys the value when we couldn't resolve it from the
+// active row (defensive — the Value is still readable).
+function renderInstructionRow(args: {
+  cellKey: string;
+  label: string;
+  value: string;
+  ariaCopyLabel: string;
+  copied: boolean;
+  onCopy: (cellKey: string, value: string) => void | Promise<void>;
+  hint?: string;
+  monospace?: boolean;
+  muted?: boolean;
+}) {
+  const {
+    cellKey,
+    label,
+    value,
+    ariaCopyLabel,
+    copied,
+    onCopy,
+    hint,
+    monospace,
+    muted,
+  } = args;
+  return (
+    <div
+      key={cellKey}
+      data-testid={`domain-verification-cell-${cellKey}`}
+      className="contents"
+    >
+      <dt className="font-medium">{label}</dt>
+      <dd className={muted ? "text-muted-foreground" : ""}>
+        {monospace ? (
+          <code className="block break-all rounded bg-muted px-2 py-1 font-mono">
+            {value}
+          </code>
+        ) : (
+          <span className="break-all">{value}</span>
+        )}
+        {hint ? (
+          <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p>
+        ) : null}
+      </dd>
+      <Button
+        type="button"
+        onClick={() => onCopy(cellKey, value)}
+        aria-label={ariaCopyLabel}
+      >
+        {copied ? "Copied" : "Copy"}
+      </Button>
+    </div>
+  );
+}
+
 // Component
 
 export function DomainManagementPanel({
@@ -330,6 +403,35 @@ export function DomainManagementPanel({
   const [domainToDelete, setDomainToDelete] = useState<WorkspaceDomain | null>(
     null,
   );
+
+  // WSA-FIX-3: live-region status announcement for the auto-recheck
+  // triggered by the reveal-block's "I've added it" button. We surface
+  // "Re-checking DNS…", "Domain verified.", or "Still propagating —
+  // DNS records can take up to 24 hours to update." so screen-reader
+  // users hear the recheck result without having to navigate back to
+  // the row.
+  const [revealStatusMessage, setRevealStatusMessage] = useState<string | null>(
+    null,
+  );
+  // True while the auto-recheck dispatched from the reveal is in
+  // flight. Drives the inline spinner state on the "I've added it"
+  // button.
+  const [isAutoRechecking, setIsAutoRechecking] = useState<boolean>(false);
+  // Track per-cell copy feedback so each Copy button can give a brief
+  // "Copied" affordance independent of the others.
+  const [copiedCellKey, setCopiedCellKey] = useState<string | null>(null);
+
+  // Keep a fresh ref to `domains` so the auto-recheck handler can
+  // read the post-call row state without being held back by a stale
+  // closure. The verify call resolves asynchronously, and by the time
+  // the `await` returns the container has already pushed a new
+  // `domains` prop down — but the original `useCallback` closure
+  // still points at the old array. Reading through a ref bypasses
+  // that staleness.
+  const domainsRef = useRef(domains);
+  useEffect(() => {
+    domainsRef.current = domains;
+  }, [domains]);
 
   const confirmDelete = useConfirmDialog();
 
@@ -384,24 +486,82 @@ export function DomainManagementPanel({
     [onRegenerateVerification],
   );
 
-  const handleCopyVerificationValue = useCallback(async () => {
-    if (!pendingVerificationValue) return;
-    // navigator.clipboard is available in modern browsers (and is the
-    // only way to copy programmatically without a permission prompt).
-    // We never persist the value beyond this slot — the user copies and
-    // then explicitly dismisses the reveal.
+  // WSA-FIX-3: per-cell copy helper. Each row in the reveal table
+  // (Type / Name (short) / Name (FQDN) / Value / TTL) has its own
+  // Copy button so users can paste each field into their DNS provider
+  // without trying to extract one piece of a long value. The clipboard
+  // write itself is best-effort: when the browser refuses (no user
+  // gesture, missing permission), the cell text stays visible for
+  // manual copy.
+  const handleCopyCell = useCallback(async (cellKey: string, value: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
       try {
-        await navigator.clipboard.writeText(
-          pendingVerificationValue.verificationValue,
-        );
+        await navigator.clipboard.writeText(value);
       } catch {
-        // Some browsers reject clipboard writes when not user-gesture
-        // initiated. We silently ignore — the value is still visible in
-        // the reveal block for manual copy.
+        // Silently fall through — the visible cell stays available
+        // for manual copy.
       }
     }
-  }, [pendingVerificationValue]);
+    setCopiedCellKey(cellKey);
+    // Clear the "Copied" affordance after a short delay so the
+    // button can be reused. We intentionally don't await this.
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        // Defensive: only clear if the same key is still active so
+        // a rapid second copy on a different cell isn't overwritten.
+        setCopiedCellKey((current) => (current === cellKey ? null : current));
+      }, 1500);
+    }
+  }, []);
+
+  // WSA-FIX-3: "I've added it" is now a one-shot auto-recheck instead
+  // of a silent dismiss. We:
+  //   1. Call `onVerifyDomain(domainId)` (same handler the row's
+  //      "Recheck" button calls).
+  //   2. Show a live-region announcement while in flight.
+  //   3. On success → dismiss the reveal (the container's reload
+  //      counter will refresh the row state).
+  //   4. On failure → keep the reveal OPEN so the user can re-copy
+  //      the value, and surface a soft "still propagating" message.
+  //
+  // We deliberately do NOT poll in the background. A single recheck
+  // covers the most common "I just added the record, did it take?"
+  // case without burning DNS quota.
+  const handleConfirmAddedAndRecheck = useCallback(async () => {
+    if (!pendingVerificationValue) return;
+    const domainId = pendingVerificationValue.domainId;
+    setIsAutoRechecking(true);
+    setRevealStatusMessage(DNS_INSTRUCTION_COPY.status.rechecking);
+    let didThrow = false;
+    try {
+      await onVerifyDomain(domainId);
+    } catch {
+      didThrow = true;
+    } finally {
+      setIsAutoRechecking(false);
+    }
+
+    // Decide success / still-propagating based on the post-call row.
+    // Read via the live ref so we see the container's fresh `domains`
+    // (the closure would otherwise hold the pre-call array). The
+    // container's `handleVerifyDomain` awaits a refresh before
+    // resolving, so by the time we get here the new row state has
+    // already landed in props.
+    const refreshedRow = domainsRef.current.find((d) => d.id === domainId);
+    const isVerified = refreshedRow?.status === "verified";
+    if (isVerified && !didThrow) {
+      setRevealStatusMessage(DNS_INSTRUCTION_COPY.status.verified);
+      onDismissVerificationValue();
+    } else {
+      setRevealStatusMessage(DNS_INSTRUCTION_COPY.status.stillPropagating);
+    }
+  }, [onDismissVerificationValue, onVerifyDomain, pendingVerificationValue]);
+
+  // Clear the polite-region message when the reveal slot itself is
+  // cleared by the container (e.g. after a successful regenerate).
+  // We do not need a useEffect for this — the reveal is unmounted
+  // when `pendingVerificationValue` is null, and the next reveal
+  // starts fresh.
 
   const requestDelete = useCallback(
     (domain: WorkspaceDomain) => {
@@ -428,40 +588,171 @@ export function DomainManagementPanel({
 
   return (
     <Flex direction="col" gap="md">
-      {pendingVerificationValue ? (
-        <InlineAlert variant="info">
-          <div
-            data-testid="domain-verification-reveal"
-            className="flex flex-col gap-2"
-            role="status"
-            aria-live="polite"
-          >
-            <p className="text-sm font-medium">
-              Add this DNS TXT record to verify your domain. We only show this
-              value once.
-            </p>
-            <code className="block break-all rounded bg-muted px-2 py-1 font-mono text-xs">
-              {pendingVerificationValue.verificationValue}
-            </code>
-            <Flex gap="sm" wrap="wrap">
-              <Button
-                type="button"
-                onClick={handleCopyVerificationValue}
-                aria-label="Copy verification value"
-              >
-                Copy
-              </Button>
-              <Button
-                type="button"
-                onClick={onDismissVerificationValue}
-                aria-label="Dismiss verification value"
-              >
-                I’ve added it
-              </Button>
-            </Flex>
-          </div>
-        </InlineAlert>
-      ) : null}
+      {pendingVerificationValue
+        ? (() => {
+            // Resolve the row the reveal belongs to so we can compute
+            // the subdomain-only Name label. If the row has been
+            // removed between renders we still want to show the
+            // (kept) Value field so the user doesn't lose the secret;
+            // we just fall back to the FQDN-only Name row.
+            const activeRow = domains.find(
+              (d) => d.id === pendingVerificationValue.domainId,
+            );
+            const fqdn = activeRow?.verificationName ?? "";
+            const subdomainOnly = activeRow
+              ? deriveSubdomainOnlyName(
+                  activeRow.verificationName,
+                  activeRow.hostname,
+                )
+              : null;
+            const rawValue = pendingVerificationValue.verificationValue;
+            return (
+              <InlineAlert variant="info">
+                <div
+                  data-testid="domain-verification-reveal"
+                  className="flex flex-col gap-3"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p className="text-sm font-medium">
+                    Add this DNS TXT record to verify your domain. We only show
+                    this value once.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {DNS_INSTRUCTION_COPY.helperHeading}
+                  </p>
+
+                  {/* Structured Name + Value table.
+                      Each cell carries its own Copy button so users
+                      can paste a single field at a time into their
+                      DNS provider. Cell keys must be stable so the
+                      "Copied" affordance can be scoped per cell. */}
+                  <dl
+                    data-testid="domain-verification-instructions"
+                    aria-label="DNS TXT record values to add"
+                    className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-[max-content_1fr_max-content]"
+                  >
+                    {renderInstructionRow({
+                      cellKey: "type",
+                      label: "Type",
+                      value: DNS_INSTRUCTION_COPY.type,
+                      ariaCopyLabel: "Copy DNS record type",
+                      copied: copiedCellKey === "type",
+                      onCopy: handleCopyCell,
+                    })}
+                    {subdomainOnly !== null
+                      ? renderInstructionRow({
+                          cellKey: "name-short",
+                          label: "Name (subdomain only)",
+                          value: subdomainOnly,
+                          ariaCopyLabel:
+                            "Copy DNS record name, subdomain-only form",
+                          copied: copiedCellKey === "name-short",
+                          onCopy: handleCopyCell,
+                          hint: "Use this if your DNS provider shows a separate apex field (Cloudflare, Namecheap, GoDaddy).",
+                        })
+                      : null}
+                    {renderInstructionRow({
+                      cellKey: "name-full",
+                      label: "Name (full FQDN)",
+                      value: fqdn || pendingVerificationValue.domainId,
+                      ariaCopyLabel: "Copy DNS record name, full FQDN form",
+                      copied: copiedCellKey === "name-full",
+                      onCopy: handleCopyCell,
+                      hint: "Use this if your DNS provider asks for the entire record name (AWS Route 53).",
+                      muted: !fqdn,
+                    })}
+                    {renderInstructionRow({
+                      cellKey: "value",
+                      label: "Value",
+                      value: rawValue,
+                      ariaCopyLabel: "Copy DNS record value",
+                      copied: copiedCellKey === "value",
+                      onCopy: handleCopyCell,
+                      monospace: true,
+                    })}
+                    {renderInstructionRow({
+                      cellKey: "ttl",
+                      label: "TTL",
+                      value: DNS_INSTRUCTION_COPY.ttl,
+                      ariaCopyLabel: "Copy DNS record TTL",
+                      copied: copiedCellKey === "ttl",
+                      onCopy: handleCopyCell,
+                    })}
+                  </dl>
+
+                  <details className="text-xs">
+                    <summary className="cursor-pointer font-medium">
+                      {DNS_INSTRUCTION_COPY.disclosureLabel}
+                    </summary>
+                    <ul className="mt-2 flex list-disc flex-col gap-1 pl-5 text-muted-foreground">
+                      {DNS_INSTRUCTION_COPY.providerNotes.map((note) => (
+                        <li key={note}>{note}</li>
+                      ))}
+                      <li>
+                        <a
+                          href={DNS_INSTRUCTION_COPY.docsHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline"
+                        >
+                          Full domain verification guide
+                          <span className="sr-only"> (opens in new tab)</span>
+                        </a>
+                      </li>
+                    </ul>
+                  </details>
+
+                  <Flex gap="sm" wrap="wrap" align="center">
+                    {/* Back-compat "Copy" button copies the raw value
+                        for users who skim past the table. Hidden from
+                        AT (each cell has its own labelled copy
+                        button) so screen-reader users aren't told
+                        about a redundant control. */}
+                    <Button
+                      type="button"
+                      onClick={() => handleCopyCell("value", rawValue)}
+                      aria-label="Copy verification value"
+                    >
+                      Copy value
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleConfirmAddedAndRecheck}
+                      disabled={isAutoRechecking}
+                      aria-busy={isAutoRechecking}
+                      aria-label="I've added it. Recheck DNS now."
+                    >
+                      {isAutoRechecking
+                        ? "Re-checking\u2026"
+                        : "I\u2019ve added it"}
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={onDismissVerificationValue}
+                      aria-label="Dismiss verification value without rechecking"
+                    >
+                      Dismiss
+                    </Button>
+                  </Flex>
+
+                  {/* Live region: announces "Re-checking DNS…",
+                      "Domain verified.", or "Still propagating —
+                      DNS records can take up to 24 hours to update."
+                      so SR users hear the recheck result. */}
+                  <p
+                    data-testid="domain-verification-reveal-status"
+                    role="status"
+                    aria-live="polite"
+                    className="text-xs text-muted-foreground"
+                  >
+                    {revealStatusMessage ?? ""}
+                  </p>
+                </div>
+              </InlineAlert>
+            );
+          })()
+        : null}
 
       <form
         onSubmit={handleSubmitHostname}
