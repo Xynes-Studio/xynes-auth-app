@@ -16,6 +16,7 @@ import {
   type AuthDashboardNavMessageKey,
 } from "@/components/dashboard/navigation";
 import type { WorkspaceSwitcherProps } from "@/components/workspace/WorkspaceSwitcher";
+import { WorkspaceHandoffSync } from "@/components/dashboard/WorkspaceHandoffSync";
 
 interface AuthDashboardShellProps {
   children: ReactNode;
@@ -176,6 +177,13 @@ export function AuthDashboardShell({
       sidebarFooterNote={tShell("footerNote")}
       labels={shellLabels}
     >
+      {/*
+        FE-XAPP-BUG-001: honor a one-shot `?workspace=<slug>` URL parameter
+        emitted by cross-app deep links (e.g. CMS Console → Workspace Admin
+        integrations). Mounted at the shell level so every dashboard route
+        participates in the handoff contract. Renders nothing.
+      */}
+      <WorkspaceHandoffSync />
       {children as unknown as LumiaDashboardChildren}
     </DashboardShell>
   );

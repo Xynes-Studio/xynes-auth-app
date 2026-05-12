@@ -481,6 +481,35 @@ The status messages live in a sibling `<p role="status" aria-live="polite" data-
 
 **Files:** `src/lib/integrations/dns-instructions.ts` + `dns-instructions.test.ts` (pure helper, 14 tests), `src/app/dashboard/integrations/components/DomainManagementPanel.tsx` + `DomainManagementPanel.test.tsx` (reveal UI + auto-recheck, +13 new tests).
 
+### Cross-app workspace handoff (FE-XAPP-BUG-001, landed 2026-05-12)
+
+Workspace identity does NOT travel across app origins. The Auth App and CMS Console each persist their own `xynes_workspace_id` localStorage entry, scoped to their own origin. Without an explicit handoff, clicking "Manage in Workspace Admin" from CMS Console (while CMS has Workspace A selected) silently lands the user on Workspace B because the Auth App resolves `currentWorkspace` from its own independent localStorage.
+
+**Contract.** Deep links from other Xynes apps may carry an optional `?workspace=<slug>` query parameter. The Auth App resolves the slug against `useAuth().workspaces` (server-authoritative via `/me`) and, on match, calls `selectWorkspace(matchedId)` then strips the param from the URL via `router.replace(..., { scroll: false })`. The slug is NOT a permission grant — a non-member or unknown slug fails closed, leaves the prior selection alone, emits a `console.warn` for dev visibility, and still strips the param so refreshes don't keep warning.
+
+**Component.** `src/components/dashboard/WorkspaceHandoffSync.tsx` is a "render null" client component mounted inside `AuthDashboardShell`. It honors the handoff on every dashboard route (not just `/dashboard/integrations`) so future cross-app deep links automatically participate in the contract. The component:
+
+- Reads `?workspace=<slug>` from `useSearchParams()`.
+- Waits for `useAuth().isLoading` and `useWorkspace().isLoading` to clear so a valid slug is never mis-classified as "unknown" during the initial bootstrap.
+- Matches `workspaces` case-insensitively against the trimmed slug.
+- Tracks the last processed slug in a `useRef` so repeated re-renders for unrelated reasons (search-param object identity churn) don't reprocess.
+- Preserves any other query params already on the URL (e.g. `tab`, `preset`) when stripping `workspace`.
+
+**Security invariants.**
+
+- The slug is sanitised by `.trim()` + `.toLowerCase()` and matched against the user's own workspaces only. A URL-encoded malicious slug (`workspace=safarnama%3B%20DROP%20TABLE%20workspaces`) is never dispatched to `selectWorkspace` because it never resolves to a known workspace.
+- `selectWorkspace` is only ever called with a workspace ID resolved from `useAuth().workspaces`. The raw slug is never used as a dispatcher arg.
+- An attacker cannot use this surface to elevate scope. At worst they can re-arrange which of the user's own workspaces is currently selected — the same thing the user can do from the workspace switcher.
+- The slug never appears in error messages or downstream API calls; it lives in the URL only until `router.replace` strips it.
+
+**Compatibility.** Pre-FE-XAPP-BUG-001 links (no `?workspace=` param) work with zero behaviour change — the recipient falls through to its existing localStorage-based selection. The `WorkspaceProvider`'s auto-select-when-one-workspace behaviour is unchanged.
+
+**Files:** `src/components/dashboard/WorkspaceHandoffSync.tsx` (NEW, ~150 lines), `WorkspaceHandoffSync.test.tsx` (NEW, 12 tests covering known/unknown/whitespace/loading/case-insensitive/raw-slug-leakage/multi-param preservation/no-op-when-already-selected), `src/components/dashboard/AuthDashboardShell.tsx` (mounts `<WorkspaceHandoffSync />` inside the shell — single line of behaviour change).
+
+**Tests touched (mocks extended, no behaviour change):** `AuthDashboardShell.integration.test.tsx`, `AuthDashboardShell.i18n.test.tsx`, `AuthDashboardShell.uxr7-smoke.test.tsx` — the existing `next/navigation` mocks added `useSearchParams: () => new URLSearchParams("")` and a `replace: vi.fn()` on the router so the new child component can render. The `selectWorkspace` mock was already present on `useWorkspace()` from prior UXR-5 work.
+
+**Origin app side.** The CMS Console emits the `?workspace=<slug>` parameter from `xynes-front-end/xynes-cms-console-web/src/features/integrations/workspace-admin-links.ts`. See that repo's `docs/DEVELOPER.md` for the link builder contract.
+
 ### Container patterns to reuse
 
 Pin `getAccessToken` to a `useRef` so the load effect doesn't re-fire on every parent re-render. The auth-sdk's `useAuth()` may return a fresh function reference, and listing it in the effect dependency array causes a refetch storm:

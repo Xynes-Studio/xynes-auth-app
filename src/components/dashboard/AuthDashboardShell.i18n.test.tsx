@@ -29,8 +29,9 @@ const mockPush = vi.fn();
 const mockDashboardShell = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: vi.fn() }),
   usePathname: () => "/dashboard/apps",
+  useSearchParams: () => new URLSearchParams(""),
 }));
 
 vi.mock("@xynes/auth-sdk", () => ({
