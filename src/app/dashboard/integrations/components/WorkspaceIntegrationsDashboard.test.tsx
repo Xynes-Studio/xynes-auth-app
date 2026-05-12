@@ -1213,5 +1213,91 @@ describe("WorkspaceIntegrationsDashboard", () => {
         screen.queryByTestId("workspace-integrations-reload-failed"),
       ).not.toBeInTheDocument();
     });
+
+    it("surfaces a status-code-aware message for an unmapped 4xx (e.g. 411 from gateway body-limit)", async () => {
+      // Regression for the WSA-FIX-1 follow-up: when the gateway returns
+      // 411 (because a bodyless DELETE was sent without Content-Length),
+      // the dashboard previously fell back to the generic per-kind copy
+      // "We couldn't remove this domain. Please try again." That copy
+      // hides the real failure from the operator. The helper now maps
+      // any unmapped 4xx to a status-code-aware message.
+      const user = userEvent.setup();
+      const pending = {
+        ...sampleDomain,
+        id: "dom-pending-411",
+        hostname: "pending.example.com",
+        status: "pending" as const,
+        verificationName: "_xynes.pending.example.com",
+        verifiedAt: null,
+      };
+      mockListWorkspaceDomains.mockResolvedValue([pending]);
+      mockDeleteWorkspaceDomain.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(411, "Length Required"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const cancelButton = await screen.findByRole("button", {
+        name: new RegExp(
+          `cancel domain verification for ${escapeRegex(pending.hostname)}`,
+          "i",
+        ),
+      });
+      await user.click(cancelButton);
+
+      const dialog = await screen.findByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: /^cancel verification$/i,
+        }),
+      );
+
+      // Title is still per-action so the user knows what failed.
+      await screen.findByText(/Couldn’t remove domain/i);
+      // But the body MUST NOT be the generic "Please try again." copy
+      // — it must include the status code.
+      expect(screen.getByText(/status 411/i)).toBeInTheDocument();
+      expect(
+        screen.queryByText(/We couldn.t remove this domain\. Please try again\./i),
+      ).not.toBeInTheDocument();
+    });
+
+    it("surfaces a server-problem message for an unmapped 5xx", async () => {
+      const user = userEvent.setup();
+      const pending = {
+        ...sampleDomain,
+        id: "dom-pending-503",
+        hostname: "pending.example.com",
+        status: "pending" as const,
+        verificationName: "_xynes.pending.example.com",
+        verifiedAt: null,
+      };
+      mockListWorkspaceDomains.mockResolvedValue([pending]);
+      mockDeleteWorkspaceDomain.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(503, "Service Unavailable"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const cancelButton = await screen.findByRole("button", {
+        name: new RegExp(
+          `cancel domain verification for ${escapeRegex(pending.hostname)}`,
+          "i",
+        ),
+      });
+      await user.click(cancelButton);
+
+      const dialog = await screen.findByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: /^cancel verification$/i,
+        }),
+      );
+
+      await screen.findByText(/Couldn’t remove domain/i);
+      expect(
+        screen.getByText(/server hit a problem/i),
+      ).toBeInTheDocument();
+    });
   });
 });

@@ -772,7 +772,7 @@ describe("createWorkspaceApiKey", () => {
           status: "active",
           presetKey: "cms_readonly",
           createdAt: "2026-04-24T00:00:00.000Z",
-          rawKey: "xynes_live_abcdef12...",
+          rawKey: "xynes_live_should_not_leak",
           scopes: ["cms.content.listPublished"],
         },
       }),
@@ -795,7 +795,7 @@ describe("createWorkspaceApiKey", () => {
       }),
     );
 
-    expect(result.rawKey).toBe("xynes_live_abcdef12...");
+    expect(result.rawKey).toBe("xynes_live_should_not_leak");
     expect(result.key).toMatchObject({
       id: "k1",
       keyPrefix: "abcdef12",
@@ -818,7 +818,7 @@ describe("createWorkspaceApiKey", () => {
           presetKey: "cms_readonly",
           createdAt: "2026-04-24T00:00:00.000Z",
           expiresAt: "2026-12-31T00:00:00.000Z",
-          rawKey: "xynes_live_abcdef12...",
+          rawKey: "xynes_live_should_not_leak",
         },
       }),
     );
@@ -995,6 +995,84 @@ describe("WorkspaceIntegrationsApiError", () => {
     expect(err.name).toBe("WorkspaceIntegrationsApiError");
     expect(err.statusCode).toBe(418);
     expect(err.message).toBe("I am a teapot");
+  });
+});
+
+// ── WSA-FIX-1 follow-up (2026-05-12) ────────────────────────────────────
+//
+// Regression for the gateway `411 Length Required` failure path. The
+// gateway body-limit middleware (SEC-BODYLIMIT-1, see
+// `xynes-gateway/src/router/dynamicRouter.ts` `checkBodyLimit`) requires
+// a Content-Length header on every method that may carry a body
+// (POST/PUT/PATCH/DELETE). Browser `fetch` does NOT auto-emit
+// Content-Length for a bodyless request, so all three of these calls
+// previously returned 411 to the browser, which fell through the
+// container's `getIntegrationsActionErrorMessage` mapping to the generic
+// "We couldn't … Please try again." fallback. Sending an empty JSON
+// body (`"{}"`) produces `Content-Length: 2` and satisfies the gateway.
+describe("bodyless mutation methods carry an empty JSON body (gateway 411 regression)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("verifyWorkspaceDomain sends body '{}' to satisfy gateway Content-Length", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        ok: true,
+        data: {
+          id: "d1",
+          workspaceId: "ws-1",
+          hostname: "example.com",
+          status: "verified",
+          verificationMethod: "dns_txt",
+          verificationName: "_xynes.example.com",
+        },
+      }),
+    );
+
+    await verifyWorkspaceDomain({ ...baseClientArgs, domainId: "d1" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ method: "POST", body: "{}" }),
+    );
+  });
+
+  it("deleteWorkspaceDomain sends body '{}' to satisfy gateway Content-Length", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(emptyResponse(204));
+
+    await deleteWorkspaceDomain({ ...baseClientArgs, domainId: "d1" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ method: "DELETE", body: "{}" }),
+    );
+  });
+
+  it("revokeWorkspaceApiKey sends body '{}' to satisfy gateway Content-Length", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        ok: true,
+        data: {
+          id: "k1",
+          workspaceId: "ws-1",
+          name: "k",
+          keyPrefix: "abcdef12",
+          status: "revoked",
+          presetKey: "cms_readonly",
+          createdAt: "2026-04-24T00:00:00.000Z",
+        },
+      }),
+    );
+
+    await revokeWorkspaceApiKey({ ...baseClientArgs, keyId: "k1" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ method: "POST", body: "{}" }),
+    );
   });
 });
 

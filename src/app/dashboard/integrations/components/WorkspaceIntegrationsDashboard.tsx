@@ -173,6 +173,21 @@ function getIntegrationsActionErrorMessage(
     return "Too many requests. Please try again in a moment.";
   }
 
+  // Defense-in-depth: a status-code outside the mapped 4xx set
+  // (e.g. 411 from a gateway middleware misconfiguration, or a future
+  // 4xx the backend introduces) should NOT degrade silently to the
+  // generic per-kind fallback. Use a clearer "we hit a snag" message
+  // and surface the status code so support can triage.
+  if (error.statusCode >= 400 && error.statusCode < 500) {
+    return `Something went wrong (status ${error.statusCode}). Please try again, and contact support if it keeps happening.`;
+  }
+
+  // 5xx → server problem. Same posture: don't claim "your input is
+  // wrong" — make clear it's likely transient.
+  if (error.statusCode >= 500) {
+    return "The server hit a problem. Please try again in a moment.";
+  }
+
   return INTEGRATIONS_ACTION_DEFAULT_MESSAGES[kind];
 }
 
