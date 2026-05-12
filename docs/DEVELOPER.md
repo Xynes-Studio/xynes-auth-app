@@ -446,6 +446,41 @@ A pending row never says "will stop accepting traffic" because it never accepted
 
 **Phase D — recopy via clipboard.** While a fresh reveal is active (`pendingVerificationValue !== null`), the reveal block renders an additional "Copy verification value" button that calls `navigator.clipboard.writeText()` with the raw value. The Copy button is gated on a non-null reveal slot so it can never lie about what the user actually has — once the slot is dismissed (or the workspace changes), the button unmounts.
 
+### Domain verification reveal — structured DNS instructions + auto-recheck (WSA-FIX-3, landed 2026-05-12)
+
+DNS provider UIs (Cloudflare, AWS Route 53, Namecheap, GoDaddy) ask for **two fields** when adding a TXT record — a **Name** (also called "Host" or "Hostname") and a **Value** (also called "TXT data") — but the original reveal block only surfaced the raw value inside a single `<code>` block, with the FQDN buried in a separate sentence below. Users routinely pasted the value into the wrong field, or set the record at the apex instead of at `_xynes.<hostname>`. The "I've added it" button was also a no-op dismiss — there was no way to re-verify without finding the smaller per-row "Recheck" link, which became inaccessible the moment the user clicked "I've added it" and the reveal collapsed.
+
+**Structured reveal table.** The reveal now renders a `<dl>` (`data-testid="domain-verification-instructions"`) with five labelled rows and per-cell Copy buttons:
+
+| Cell                  | Source                                                                 | When it's hidden                                                  |
+|-----------------------|------------------------------------------------------------------------|-------------------------------------------------------------------|
+| Type                  | static `"TXT"` from `DNS_INSTRUCTION_COPY.type`                       | never                                                             |
+| Name (subdomain only) | `deriveSubdomainOnlyName(verificationName, hostname)` (pure helper)   | when the reveal can't resolve the active row from `domains`       |
+| Name (full FQDN)      | `verificationName` from the active row                                 | falls back to the domain id if the active row is gone (defensive) |
+| Value                 | the one-time `verificationValue` from `pendingVerificationValue`       | never (it's the entire point of the reveal)                       |
+| TTL                   | static `"300 (or Auto)"` from `DNS_INSTRUCTION_COPY.ttl`              | never                                                             |
+
+Each row has a Copy button with a labelled aria attribute (e.g. `"Copy DNS record name, subdomain-only form"`) so screen-reader users can copy each field independently. The legacy `"Copy verification value"` pill button below the table is preserved for back-compat — pre-WSA-FIX-3 muscle memory and test queries that target `/copy verification value/i` continue to work.
+
+**Subdomain-only derivation.** `deriveSubdomainOnlyName(verificationName, hostname)` in `src/lib/integrations/dns-instructions.ts` strips `.${hostname}` from the FQDN exactly. The row's `hostname` acts as the **zone boundary**: most DNS providers expose a zone at the user's claimed domain, so for `verificationName = "_xynes.example.com"` + `hostname = "example.com"` the result is `"_xynes"` — Cloudflare's "Name" field accepts that directly. The helper falls back to the full FQDN for pathological inputs (no shared suffix, identical inputs, empty inputs) so the panel never renders an empty string. Pure helper — no DNS resolver, no external library, no network calls, no `eTLD+1` lookup table.
+
+**"Where do I add this?" disclosure.** A `<details>` element below the table lists per-provider notes (Cloudflare, AWS Route 53, Namecheap, GoDaddy) and a `<a target="_blank" rel="noopener noreferrer">` link to the full verification guide at `https://docs.xynes.com/guides/verify-domain`. The link carries an `sr-only` "(opens in new tab)" hint per the repo's external-link convention.
+
+**Auto re-verify on "I've added it".** The button (`aria-label="I've added it. Recheck DNS now."`) now:
+
+1. Sets `aria-busy=true` and shows an inline "Re-checking…" spinner.
+2. Calls `onVerifyDomain(domainId)` (the same handler the row's per-row "Recheck" button calls).
+3. After the call resolves, reads the row's **post-call** status via a fresh `useRef(domains)` (not the stale `useCallback` closure) and decides:
+   - row flipped to `verified` → dismiss the reveal and announce `"Domain verified."` in the polite region.
+   - row stayed `pending`/`failed` OR the call rejected → keep the reveal OPEN and announce `"Still propagating — DNS records can take up to 24 hours to update."` so the user can re-copy the value and retry.
+4. A separate "Dismiss" button (`aria-label="Dismiss verification value without rechecking"`) preserves the explicit-dismiss escape hatch for users who realize they need to revisit their DNS provider.
+
+The status messages live in a sibling `<p role="status" aria-live="polite" data-testid="domain-verification-reveal-status">` so screen-reader users hear the recheck result without navigating back to the row's diagnostic strip.
+
+**Out of scope (explicitly):** no background polling loop. The auto-recheck is a one-shot when the user clicks "I've added it"; further checks go through the row's per-row "Recheck" button. The status copy itself is owned by `DNS_INSTRUCTION_COPY.status` so future i18n work can move it into the message catalogue without changing the panel logic.
+
+**Files:** `src/lib/integrations/dns-instructions.ts` + `dns-instructions.test.ts` (pure helper, 14 tests), `src/app/dashboard/integrations/components/DomainManagementPanel.tsx` + `DomainManagementPanel.test.tsx` (reveal UI + auto-recheck, +13 new tests).
+
 ### Container patterns to reuse
 
 Pin `getAccessToken` to a `useRef` so the load effect doesn't re-fire on every parent re-render. The auth-sdk's `useAuth()` may return a fresh function reference, and listing it in the effect dependency array causes a refetch storm:
