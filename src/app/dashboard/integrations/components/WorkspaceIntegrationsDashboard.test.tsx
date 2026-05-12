@@ -11,6 +11,17 @@ import type {
   WorkspaceDomain,
 } from "@/lib/integrations/workspace-integrations-types";
 
+/**
+ * Escape regex metacharacters in interpolated test fixtures so dynamic
+ * `new RegExp(...)` matchers treat hostnames and key names literally.
+ * Without this, the unescaped `.` in `pending.example.com` would also
+ * match e.g. `pendingxexample.com`, causing false-positive matches and
+ * tripping the CodeQL "incomplete regular expression for hostnames" rule
+ * (PR #54 — alerts #9/#10/#11).
+ */
+const escapeRegex = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const mockListWorkspaceDomains = vi.fn();
 const mockListWorkspaceApiKeys = vi.fn();
 const mockRegisterWorkspaceDomain = vi.fn();
@@ -639,7 +650,7 @@ describe("WorkspaceIntegrationsDashboard", () => {
     render(<WorkspaceIntegrationsDashboard />);
 
     const revokeButton = await screen.findByRole("button", {
-      name: new RegExp(`revoke api key ${sampleApiKey.name}`, "i"),
+      name: new RegExp(`revoke api key ${escapeRegex(sampleApiKey.name)}`, "i"),
     });
     await user.click(revokeButton);
 
@@ -846,7 +857,7 @@ describe("WorkspaceIntegrationsDashboard", () => {
 
       const cancelButton = await screen.findByRole("button", {
         name: new RegExp(
-          `cancel domain verification for ${pendingDomain.hostname}`,
+          `cancel domain verification for ${escapeRegex(pendingDomain.hostname)}`,
           "i",
         ),
       });
@@ -889,7 +900,7 @@ describe("WorkspaceIntegrationsDashboard", () => {
 
       const cancelButton = await screen.findByRole("button", {
         name: new RegExp(
-          `cancel domain verification for ${pendingDomain.hostname}`,
+          `cancel domain verification for ${escapeRegex(pendingDomain.hostname)}`,
           "i",
         ),
       });
@@ -928,7 +939,7 @@ describe("WorkspaceIntegrationsDashboard", () => {
 
       const cancelButton = await screen.findByRole("button", {
         name: new RegExp(
-          `cancel domain verification for ${pendingDomain.hostname}`,
+          `cancel domain verification for ${escapeRegex(pendingDomain.hostname)}`,
           "i",
         ),
       });
@@ -974,7 +985,10 @@ describe("WorkspaceIntegrationsDashboard", () => {
       render(<WorkspaceIntegrationsDashboard />);
 
       const recheckButton = await screen.findByRole("button", {
-        name: new RegExp(`recheck verification for ${pending.hostname}`, "i"),
+        name: new RegExp(
+          `recheck verification for ${escapeRegex(pending.hostname)}`,
+          "i",
+        ),
       });
       await user.click(recheckButton);
 
@@ -1005,7 +1019,7 @@ describe("WorkspaceIntegrationsDashboard", () => {
 
       const regenButton = await screen.findByRole("button", {
         name: new RegExp(
-          `get a new verification value for ${pending.hostname}`,
+          `get a new verification value for ${escapeRegex(pending.hostname)}`,
           "i",
         ),
       });
@@ -1075,7 +1089,10 @@ describe("WorkspaceIntegrationsDashboard", () => {
       render(<WorkspaceIntegrationsDashboard />);
 
       const revokeButton = await screen.findByRole("button", {
-        name: new RegExp(`revoke api key ${sampleApiKey.name}`, "i"),
+        name: new RegExp(
+          `revoke api key ${escapeRegex(sampleApiKey.name)}`,
+          "i",
+        ),
       });
       await user.click(revokeButton);
 
@@ -1154,6 +1171,47 @@ describe("WorkspaceIntegrationsDashboard", () => {
           screen.queryByText(/Couldn’t add domain/i),
         ).not.toBeInTheDocument();
       });
+    });
+
+    it("clears a stale loadError banner after a successful post-action refresh", async () => {
+      // Regression for the CodeRabbit Minor review on PR #54:
+      // If `loadError` was previously set (e.g. the initial load failed
+      // and the user retried unsuccessfully), a later successful action
+      // + post-action refresh must clear the destructive
+      // "Couldn’t load integrations" banner — otherwise the UI shows
+      // both fresh data AND a stale destructive alert.
+      const user = userEvent.setup();
+      mockListWorkspaceDomains.mockReset();
+      mockListWorkspaceApiKeys.mockReset();
+      // 1st load (mount) FAILS → loadError surfaces.
+      mockListWorkspaceDomains.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(500, "transient"),
+      );
+      // 2nd + 3rd load calls (post-action refresh: domains AND keys) succeed.
+      mockListWorkspaceDomains.mockResolvedValue([]);
+      mockListWorkspaceApiKeys.mockResolvedValue([]);
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      // Wait for the destructive load alert to render.
+      await screen.findByText(/Couldn’t load integrations/i);
+
+      // Now perform a successful register — the post-action refresh
+      // should clear the stale load alert.
+      const input = await screen.findByLabelText(/^domain$/i);
+      await user.type(input, "fresh.example.com");
+      await user.click(screen.getByRole("button", { name: /add domain/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.queryByText(/Couldn’t load integrations/i),
+        ).not.toBeInTheDocument();
+      });
+      // And the soft reload-failed banner must NOT be visible either —
+      // the refresh succeeded.
+      expect(
+        screen.queryByTestId("workspace-integrations-reload-failed"),
+      ).not.toBeInTheDocument();
     });
   });
 });

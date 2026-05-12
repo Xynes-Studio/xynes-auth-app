@@ -288,6 +288,13 @@ export function WorkspaceIntegrationsDashboard() {
       ]);
       setDomains(Array.isArray(nextDomains) ? nextDomains : []);
       setApiKeys(Array.isArray(nextApiKeys) ? nextApiKeys : []);
+      // A successful post-action refresh is also a recovery signal for
+      // any prior `loadError` left on screen — clearing it here avoids
+      // contradictory UI ("Couldn’t load integrations" + fresh data
+      // below it). The `loadError` setter is intentionally NOT touched
+      // in the catch path: a transient refresh failure does NOT imply
+      // the initial load was also broken.
+      setLoadError(null);
       setReloadFailedAfterAction(false);
     } catch {
       // Action succeeded. Surface a soft banner; never escalate to the
@@ -533,6 +540,14 @@ export function WorkspaceIntegrationsDashboard() {
         if (controller.signal.aborted) return;
         setDomains(Array.isArray(nextDomains) ? nextDomains : []);
         setApiKeys(Array.isArray(nextApiKeys) ? nextApiKeys : []);
+        // A successful post-action refresh is also a recovery signal for
+        // any prior `loadError` left on screen — clearing it here avoids
+        // contradictory UI ("Couldn’t load integrations" + fresh data
+        // below it). The `loadError` setter is intentionally NOT touched
+        // in the catch path: a transient refresh failure does NOT imply
+        // the initial load was also broken.
+        setLoadError(null);
+        setReloadFailedAfterAction(false);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
