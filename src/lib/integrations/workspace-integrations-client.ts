@@ -386,7 +386,16 @@ export async function verifyWorkspaceDomain(
 
   const response = await fetch(
     `${baseUrl}/workspaces/${encodeURIComponent(workspaceId)}/domains/${encodeURIComponent(domainId)}/verify`,
-    { method: "POST", headers, signal: args.signal },
+    {
+      method: "POST",
+      headers,
+      // Empty JSON body — the route is path-driven, but the gateway's
+      // body-limit middleware requires a Content-Length header on POST,
+      // so we send `{}` to satisfy it without leaking any state.
+      // Same posture as `regenerateWorkspaceDomainVerification` below.
+      body: "{}",
+      signal: args.signal,
+    },
   );
 
   const rawPayload = await parseJson(response);
@@ -479,7 +488,23 @@ export async function deleteWorkspaceDomain(
 
   const response = await fetch(
     `${baseUrl}/workspaces/${encodeURIComponent(workspaceId)}/domains/${encodeURIComponent(domainId)}`,
-    { method: "DELETE", headers, signal: args.signal },
+    {
+      method: "DELETE",
+      headers,
+      // Empty JSON body — the gateway's body-limit middleware
+      // (SEC-BODYLIMIT-1) requires a Content-Length header on every
+      // method that may carry a body (POST/PUT/PATCH/DELETE). The
+      // browser `fetch` API does NOT auto-emit Content-Length for a
+      // bodyless DELETE, so the gateway returns `411 Length Required`
+      // and the user sees the generic action-error fallback. Sending
+      // `{}` produces `Content-Length: 2`, which satisfies the
+      // middleware without changing the wire contract (the accounts-
+      // service handler reads only path params + ctx for delete).
+      // Same posture as `regenerateWorkspaceDomainVerification` /
+      // `verifyWorkspaceDomain` above.
+      body: "{}",
+      signal: args.signal,
+    },
   );
 
   if (response.ok) return;
@@ -595,7 +620,15 @@ export async function revokeWorkspaceApiKey(
 
   const response = await fetch(
     `${baseUrl}/workspaces/${encodeURIComponent(workspaceId)}/api-keys/${encodeURIComponent(keyId)}/revoke`,
-    { method: "POST", headers, signal: args.signal },
+    {
+      method: "POST",
+      headers,
+      // Empty JSON body — gateway body-limit middleware (SEC-BODYLIMIT-1)
+      // requires a Content-Length header on POST. Same posture as
+      // verify/delete/regenerate above.
+      body: "{}",
+      signal: args.signal,
+    },
   );
 
   const rawPayload = await parseJson(response);
