@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -16,6 +16,7 @@ import {
   type AuthDashboardNavMessageKey,
 } from "@/components/dashboard/navigation";
 import type { WorkspaceSwitcherProps } from "@/components/workspace/WorkspaceSwitcher";
+import { WorkspaceHandoffSync } from "@/components/dashboard/WorkspaceHandoffSync";
 
 interface AuthDashboardShellProps {
   children: ReactNode;
@@ -176,6 +177,24 @@ export function AuthDashboardShell({
       sidebarFooterNote={tShell("footerNote")}
       labels={shellLabels}
     >
+      {/*
+        FE-XAPP-BUG-001: honor a one-shot `?workspace=<slug>` URL parameter
+        emitted by cross-app deep links (e.g. CMS Console → Workspace Admin
+        integrations). Mounted at the shell level so every dashboard route
+        participates in the handoff contract. Renders nothing.
+
+        Wrapped in <Suspense> because `WorkspaceHandoffSync` calls
+        `useSearchParams()`, which Next.js 15 requires to be inside a
+        Suspense boundary for static prerender. The Auth App's providers
+        layer already provides an ancestor Suspense, but scoping it locally
+        here makes the shell self-contained: future dashboard routes don't
+        need to know about this constraint, and a future agent who moves
+        the providers' Suspense won't accidentally break dashboard builds.
+        Fallback is `null` because the component renders nothing anyway.
+      */}
+      <Suspense fallback={null}>
+        <WorkspaceHandoffSync />
+      </Suspense>
       {children as unknown as LumiaDashboardChildren}
     </DashboardShell>
   );
