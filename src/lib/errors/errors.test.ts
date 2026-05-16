@@ -129,7 +129,11 @@ describe("Error utilities re-exports", () => {
     });
 
     it("falls back to unknown_error for an unrecognized code", () => {
-      // @ts-expect-error - testing an invalid code value
+      // Note: the SDK signature `getAuthErrorMessageKey(errorCode: string)`
+      // intentionally accepts any string — the function IS the security
+      // boundary that coerces arbitrary upstream codes to a closed-set
+      // key. So `"not_a_real_code"` is a valid call at the type level;
+      // the assertion below verifies the runtime coercion behaviour.
       expect(getAuthErrorMessageKey("not_a_real_code")).toBe("unknown_error");
     });
 
