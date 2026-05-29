@@ -7,6 +7,7 @@ const mockUseAuth = vi.fn();
 const mockUseWorkspace = vi.fn();
 const mockPush = vi.fn();
 const mockDashboardShell = vi.fn();
+const mockSelectWorkspace = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn() }),
@@ -33,6 +34,7 @@ describe("AuthDashboardShell", () => {
   beforeEach(() => {
     mockPush.mockReset();
     mockDashboardShell.mockReset();
+    mockSelectWorkspace.mockReset();
 
     mockUseAuth.mockReturnValue({
       user: {
@@ -60,7 +62,7 @@ describe("AuthDashboardShell", () => {
         name: "Xynes",
         slug: "xynes",
       },
-      selectWorkspace: vi.fn(),
+      selectWorkspace: mockSelectWorkspace,
     });
   });
 
@@ -93,28 +95,29 @@ describe("AuthDashboardShell", () => {
     );
   });
 
-  it("passes workspace callbacks and supports logout navigation", () => {
-    const onWorkspaceSelect = vi.fn();
-    const onCreateNew = vi.fn();
-
+  it("routes workspace selection, creation, and logout through the canonical Lumia switcher contract (BUG-LDS-2)", () => {
     render(
-      <AuthDashboardShell
-        activeNav="settings"
-        workspaceSwitcherProps={{ onWorkspaceSelect, onCreateNew }}
-      >
+      <AuthDashboardShell activeNav="settings">
         <div>Settings content</div>
       </AuthDashboardShell>,
     );
 
     const props = mockDashboardShell.mock.calls[0][0] as DashboardShellProps;
 
+    // Selecting a known workspace delegates to the auth SDK context — no
+    // app-level override path remains (the legacy WorkspaceSwitcher is only
+    // for standalone callers).
     props.onWorkspaceSelect("ws-2");
-    expect(onWorkspaceSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "ws-2", name: "Lumia" }),
-    );
+    expect(mockSelectWorkspace).toHaveBeenCalledWith("ws-2");
 
+    // Unknown ids are a no-op guard.
+    mockSelectWorkspace.mockClear();
+    props.onWorkspaceSelect("ws-unknown");
+    expect(mockSelectWorkspace).not.toHaveBeenCalled();
+
+    // Create routes to the onboarding flow.
     props.onCreateWorkspace?.();
-    expect(onCreateNew).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith("/onboarding");
 
     props.onLogout();
     expect(mockPush).toHaveBeenCalledWith("/logout");

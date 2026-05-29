@@ -4,6 +4,17 @@
 
 The `WorkspaceSwitcher` component provides a dropdown interface for users to switch between their workspaces without navigating to a separate page. It displays the current workspace and allows users to select a different workspace or create a new one.
 
+> **⚠️ Standalone-only (BUG-LDS-2).** Do **not** render `WorkspaceSwitcher`
+> inside a Lumia `DashboardShell` consumer. Dashboard routes (including
+> `AuthDashboardShell`) use the single canonical in-shell switcher,
+> Lumia DS `DashboardWorkspaceSwitcher` (`@lumia-ui/layout`), wired through the
+> shell's `workspace*` props — this guarantees Auth App / CMS Console parity
+> (AGENTS.md §7 rule 9). This component is retained only for standalone
+> (non-shell) callers, e.g. a workspace picker rendered outside the dashboard
+> chrome. `AuthDashboardShell` no longer exposes a `workspaceSwitcherProps`
+> override; workspace selection routes through the auth SDK's `useWorkspace`
+> context.
+
 ## Features
 
 - **Current Workspace Display**: Shows the current workspace name with avatar/initials

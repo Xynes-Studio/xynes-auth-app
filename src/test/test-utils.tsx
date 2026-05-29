@@ -23,6 +23,7 @@ export const mockFeatureFlags: FeatureFlags = {
   xynes_invite_system: true,
   xynes_invite_revocation: true,
   xynes_maintenance_mode: false,
+  cms_editor_storage_uploads: false,
 };
 
 interface TestProviderProps {

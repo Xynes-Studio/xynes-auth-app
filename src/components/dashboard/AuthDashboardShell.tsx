@@ -9,20 +9,18 @@ import {
   type DashboardNavItem as LumiaDashboardNavItem,
   type DashboardShellLabels,
 } from "@lumia-ui/layout";
-import { useAuth, useWorkspace, type Workspace } from "@xynes/auth-sdk";
+import { useAuth, useWorkspace } from "@xynes/auth-sdk";
 import {
   DASHBOARD_NAV_SPECS,
   type AuthDashboardNavKey,
   type AuthDashboardNavMessageKey,
 } from "@/components/dashboard/navigation";
-import type { WorkspaceSwitcherProps } from "@/components/workspace/WorkspaceSwitcher";
 import { WorkspaceHandoffSync } from "@/components/dashboard/WorkspaceHandoffSync";
 
 interface AuthDashboardShellProps {
   children: ReactNode;
   activeNav: AuthDashboardNavKey;
   profileSubtitle?: string;
-  workspaceSwitcherProps?: WorkspaceSwitcherProps;
 }
 
 type LumiaDashboardChildren = ComponentProps<typeof DashboardShell>["children"];
@@ -31,7 +29,6 @@ export function AuthDashboardShell({
   children,
   activeNav,
   profileSubtitle,
-  workspaceSwitcherProps,
 }: AuthDashboardShellProps) {
   const router = useRouter();
   const activePath = usePathname();
@@ -67,14 +64,10 @@ export function AuthDashboardShell({
     "/dashboard/apps";
 
   const handleWorkspaceSelect = (workspaceId: string) => {
-    const selected = workspaceById.get(workspaceId);
-
-    if (!selected) {
-      return;
-    }
-
-    if (workspaceSwitcherProps?.onWorkspaceSelect) {
-      workspaceSwitcherProps.onWorkspaceSelect(selected as Workspace);
+    // Selection always routes through the auth SDK's workspace context — the
+    // single canonical path for the Lumia DashboardShell-internal switcher
+    // (BUG-LDS-2). Guard against ids that aren't in the current list.
+    if (!workspaceById.has(workspaceId)) {
       return;
     }
 
@@ -82,11 +75,6 @@ export function AuthDashboardShell({
   };
 
   const handleCreateWorkspace = () => {
-    if (workspaceSwitcherProps?.onCreateNew) {
-      workspaceSwitcherProps.onCreateNew();
-      return;
-    }
-
     router.push("/onboarding");
   };
 
