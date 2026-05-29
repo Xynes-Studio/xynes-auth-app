@@ -129,7 +129,6 @@ describe("Error utilities re-exports", () => {
     });
 
     it("falls back to unknown_error for an unrecognized code", () => {
-      // @ts-expect-error - testing an invalid code value
       expect(getAuthErrorMessageKey("not_a_real_code")).toBe("unknown_error");
     });
 

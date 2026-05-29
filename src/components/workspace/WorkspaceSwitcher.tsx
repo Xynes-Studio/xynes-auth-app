@@ -78,11 +78,20 @@ export interface WorkspaceSwitcherProps {
 /**
  * WorkspaceSwitcher - Dropdown component for switching between workspaces
  *
- * Note: Production routes use the Lumia DashboardShell-internal workspace
- * switcher (`DashboardWorkspaceSwitcher`) via `AuthDashboardShell`. This
- * component is kept for backwards compatibility and standalone consumers.
- * Visible copy is localized through `auth.dashboard.workspaceSwitcher.*`
- * and icons are sourced from the Lumia icon registry (UXR-3).
+ * ⚠️ DO NOT use this component inside a Lumia `DashboardShell` consumer.
+ * The single canonical in-shell switcher is Lumia DS
+ * `DashboardWorkspaceSwitcher`
+ * (`@lumia-ui/layout` →
+ * `packages/layout/src/dashboard-shell/dashboard-workspace-switcher.tsx`),
+ * rendered automatically by `DashboardShell` and wired through
+ * `AuthDashboardShell`. Adding this switcher inside the shell would
+ * reintroduce the parity drift fixed by BUG-LDS-2 (AGENTS.md §7 rule 9:
+ * layout / workspace-switcher behaviour lives in `lumia-ds`, not app code).
+ *
+ * This component is retained ONLY for standalone (non-shell) callers — e.g.
+ * a workspace picker rendered outside the dashboard chrome. Visible copy is
+ * localized through `auth.dashboard.workspaceSwitcher.*` and icons are
+ * sourced from the Lumia icon registry (UXR-3).
  *
  * Features:
  * - Shows current workspace with avatar/initials
