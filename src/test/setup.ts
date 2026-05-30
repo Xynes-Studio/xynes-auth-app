@@ -47,6 +47,7 @@ vi.mock("next-intl", async () => {
     reset,
     invite,
     onboarding,
+    profile,
     workspaces,
   ] = await Promise.all([
     import("../../messages/en-US/auth.common.json"),
@@ -58,6 +59,7 @@ vi.mock("next-intl", async () => {
     import("../../messages/en-US/auth.reset-password.json"),
     import("../../messages/en-US/auth.invite.json"),
     import("../../messages/en-US/auth.onboarding.json"),
+    import("../../messages/en-US/auth.profile.json"),
     import("../../messages/en-US/auth.workspaces.json"),
   ]);
 
@@ -72,6 +74,7 @@ vi.mock("next-intl", async () => {
       resetPassword: reset.default,
       invite: invite.default,
       onboarding: onboarding.default,
+      profile: profile.default,
       workspaces: workspaces.default,
     },
   } as const;

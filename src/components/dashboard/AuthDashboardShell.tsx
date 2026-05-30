@@ -160,6 +160,7 @@ export function AuthDashboardShell({
           profileSubtitle || user?.email || tShellUserMenu("fallbackEmail"),
         avatarSrc: user?.avatarUrl || undefined,
       }}
+      onProfileOpen={() => router.push("/profile")}
       onLogout={() => router.push("/logout")}
       notifications={[]}
       sidebarFooterNote={tShell("footerNote")}

@@ -84,6 +84,8 @@ describe("auth i18n config", () => {
         expect(messages.auth.forgotPassword).toBeDefined();
         expect(messages.auth.resetPassword).toBeDefined();
         expect(messages.auth.invite).toBeDefined();
+        expect(messages.auth.onboarding).toBeDefined();
+        expect(messages.auth.profile).toBeDefined();
         expect(messages.auth.workspaces).toBeDefined();
       }
     });

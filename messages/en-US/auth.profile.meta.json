@@ -1,0 +1,33 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.profile. The /profile route shown when a user picks 'Profile' from the dashboard avatar menu. Today it is a deliberate 'Coming soon' placeholder (BUG-AUTH-3a); the real profile editor is a future story.",
+    "audience": "Authenticated workspace users who clicked 'Profile' from the avatar menu in the dashboard sidebar.",
+    "tone": "Calm, neutral, transparent. Acknowledge the gap without apologising. No marketing language. No exclamation marks. Short sentences.",
+    "owners": ["xynes-front-end/xynes-auth-app"]
+  },
+  "page": {
+    "title": {
+      "_use": "H1 at the top of /profile. Mirrors the menu item the user clicked so the destination feels intentional. Keep to one or two words."
+    },
+    "subtitle": {
+      "_use": "One supporting sentence under the H1. Names the eventual scope (account / preferences / notifications) so users understand what 'profile' will mean here. Keep to one sentence."
+    }
+  },
+  "comingSoon": {
+    "badge": {
+      "_use": "Lumia DS Badge label inside the placeholder card. Visible status pill. Keep ≤ 14 chars after translation so it fits a single-line badge on mobile."
+    },
+    "heading": {
+      "_use": "Card heading announcing the placeholder state. Conveys 'this destination is real but the editor isn't ready'. Keep at most six words."
+    },
+    "body": {
+      "_use": "Single paragraph explaining what will eventually live here AND how users get changes today (via workspace owners / support). Important: do NOT promise specific dates."
+    },
+    "supportLabel": {
+      "_use": "Visible label on the 'Contact support' link. Points at mailto:support@xynes.com. The 'opens in new tab' affordance is rendered as a separate sr-only string in code — translators should NOT add 'opens in new tab' here."
+    },
+    "backLabel": {
+      "_use": "Visible label on the secondary 'Back to dashboard' link. Returns the user to /dashboard/apps (the default landing destination)."
+    }
+  }
+}

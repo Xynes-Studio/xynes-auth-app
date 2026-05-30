@@ -6,6 +6,7 @@ import enUsForgot from "../../messages/en-US/auth.forgot-password.json";
 import enUsInvite from "../../messages/en-US/auth.invite.json";
 import enUsLogin from "../../messages/en-US/auth.login.json";
 import enUsOnboarding from "../../messages/en-US/auth.onboarding.json";
+import enUsProfile from "../../messages/en-US/auth.profile.json";
 import enUsReset from "../../messages/en-US/auth.reset-password.json";
 import enUsSignup from "../../messages/en-US/auth.signup.json";
 import enUsWorkspaces from "../../messages/en-US/auth.workspaces.json";
@@ -16,6 +17,7 @@ import enXaForgot from "../../messages/en-XA/auth.forgot-password.json";
 import enXaInvite from "../../messages/en-XA/auth.invite.json";
 import enXaLogin from "../../messages/en-XA/auth.login.json";
 import enXaOnboarding from "../../messages/en-XA/auth.onboarding.json";
+import enXaProfile from "../../messages/en-XA/auth.profile.json";
 import enXaReset from "../../messages/en-XA/auth.reset-password.json";
 import enXaSignup from "../../messages/en-XA/auth.signup.json";
 import enXaWorkspaces from "../../messages/en-XA/auth.workspaces.json";
@@ -38,6 +40,7 @@ export type AuthMessages = {
     resetPassword: typeof enUsReset;
     invite: typeof enUsInvite;
     onboarding: typeof enUsOnboarding;
+    profile: typeof enUsProfile;
     workspaces: typeof enUsWorkspaces;
   };
 };
@@ -64,6 +67,7 @@ const AUTH_MESSAGES_BY_LOCALE: Record<Locale, AuthMessages> = {
       resetPassword: enUsReset,
       invite: enUsInvite,
       onboarding: enUsOnboarding,
+      profile: enUsProfile,
       workspaces: enUsWorkspaces,
     },
   },
@@ -78,6 +82,7 @@ const AUTH_MESSAGES_BY_LOCALE: Record<Locale, AuthMessages> = {
       resetPassword: enXaReset,
       invite: enXaInvite,
       onboarding: enXaOnboarding,
+      profile: enXaProfile,
       workspaces: enXaWorkspaces,
     },
   },
