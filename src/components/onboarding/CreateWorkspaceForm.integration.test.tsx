@@ -1071,5 +1071,69 @@ describe("CreateWorkspaceForm", () => {
       expect(mockSelectWorkspace).not.toHaveBeenCalled();
       expect(mockPush).not.toHaveBeenCalled();
     });
+
+    it("still redirects when selectWorkspace throws (Codex PR #63 review feedback)", async () => {
+      // selectWorkspace is currently synchronous in the SDK
+      // (`WorkspaceProvider.tsx`), but one other call site in this app
+      // (`src/app/workspaces/page.tsx`) already awaits it. The form's
+      // `await selectWorkspace(...)` therefore behaves correctly today
+      // (await on a void return microtask-resolves) AND is future-proof
+      // when the SDK gains async persistence (cross-app cookie sync
+      // per FE-XAPP-BUG-001). This regression guard ensures that even
+      // if a future SDK regression leaks a rejection from selectWorkspace,
+      // the user is NOT stranded on /onboarding.
+      mockSelectWorkspace.mockImplementationOnce(() => {
+        throw new Error("transient localStorage write failure");
+      });
+
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      try {
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({ available: true }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                id: "workspace-select-failure",
+                name: "Select Failure",
+                slug: "select-failure",
+              }),
+          });
+
+        render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
+
+        const nameInput = screen.getByLabelText(/workspace name/i);
+        await user.type(nameInput, "Select Failure");
+
+        await waitFor(() => {
+          expect(screen.getByText(/is available/i)).toBeInTheDocument();
+        });
+
+        await user.click(
+          screen.getByRole("button", { name: /create workspace/i }),
+        );
+
+        // Refresh fired, select fired (and threw), redirect still fired.
+        await waitFor(() => {
+          expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
+        });
+        expect(mockRefreshWorkspaces).toHaveBeenCalledTimes(1);
+        expect(mockSelectWorkspace).toHaveBeenCalledWith(
+          "workspace-select-failure",
+        );
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining("BUG-AUTH-2: selectWorkspace"),
+          expect.any(Error),
+        );
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    });
   });
 });

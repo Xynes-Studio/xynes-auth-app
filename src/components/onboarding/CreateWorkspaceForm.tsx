@@ -319,7 +319,25 @@ export function CreateWorkspaceForm({
           );
         }
         if (resolvedWorkspace.id) {
-          selectWorkspace(resolvedWorkspace.id);
+          // BUG-AUTH-2 (Codex review feedback, PR #63): `selectWorkspace`
+          // is currently synchronous (sets React state + writes to
+          // localStorage) but the SDK contract has not pinned its return
+          // type, and one other call site in this app
+          // (`src/app/workspaces/page.tsx`) already awaits it. Await here
+          // so we preserve the refresh → select → navigate ordering even
+          // if the SDK gains async persistence later (e.g. cross-app
+          // cookie sync per FE-XAPP-BUG-001). The try/catch mirrors the
+          // refreshWorkspaces defensive posture: a rejected select must
+          // not strand the user on /onboarding — the redirect still
+          // fires and the dashboard's own data fetches will recover.
+          try {
+            await selectWorkspace(resolvedWorkspace.id);
+          } catch (selectError) {
+            console.error(
+              "BUG-AUTH-2: selectWorkspace threw unexpectedly:",
+              selectError,
+            );
+          }
         }
 
         // next/navigation router.push is intended for in-app navigation.
