@@ -46,6 +46,10 @@ vi.mock("@lumia-ui/layout", () => ({
   },
 }));
 
+vi.mock("@lumia-ui/components", () => ({
+  useToast: () => ({ show: vi.fn(), dismiss: vi.fn() }),
+}));
+
 function withIntl(locale: "en-US" | "en-XA", children: ReactNode) {
   const messages =
     locale === "en-US"
@@ -158,5 +162,46 @@ describe("AuthDashboardShell i18n (UXR-5)", () => {
     for (const value of stringValues) {
       expect(value).not.toMatch(/auth\.dashboard\./);
     }
+  });
+
+  it("exposes the BUG-AUTH-3b logout toast copy keys in both en-US and en-XA catalogs", () => {
+    // Parity guard: the AuthDashboardShell binds these keys via
+    // `useTranslations("auth.dashboard.shell.logout")`. If a future
+    // refactor renames the namespace or drops a key, the shell render in
+    // production would crash with a MISSING_MESSAGE error. Asserting on the
+    // imported catalog objects directly catches the regression at test
+    // time without needing to mount the toast UI.
+    const enUsLogout = (
+      enUsDashboard as unknown as {
+        shell: {
+          logout: {
+            successTitle: string;
+            successDescription: string;
+            errorTitle: string;
+            errorDescription: string;
+          };
+        };
+      }
+    ).shell.logout;
+    expect(enUsLogout.successTitle).toBe("You've been signed out.");
+    expect(enUsLogout.successDescription).toBe(
+      "Redirecting you to the login page…",
+    );
+    expect(enUsLogout.errorTitle).toBe("We couldn't sign you out.");
+    expect(enUsLogout.errorDescription).toBe(
+      "Check your connection and try again.",
+    );
+
+    const enXaLogout = (
+      enXaDashboard as unknown as {
+        shell: { logout: Record<string, string> };
+      }
+    ).shell.logout;
+    // Pseudo-locale wraps + doubles characters; the key set must match en-US.
+    expect(Object.keys(enXaLogout).sort()).toEqual(
+      Object.keys(enUsLogout).sort(),
+    );
+    expect(enXaLogout.successTitle).toMatch(/\[.+\]/);
+    expect(enXaLogout.errorTitle).toMatch(/\[.+\]/);
   });
 });

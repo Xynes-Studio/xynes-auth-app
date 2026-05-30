@@ -7,6 +7,7 @@ import {
   WorkspaceProvider,
 } from "@xynes/auth-sdk";
 import { IconSprite } from "@lumia-ui/icons";
+import { ToastProvider } from "@lumia-ui/components";
 import { NextIntlClientProvider } from "next-intl";
 import type { Locale } from "@xynes/i18n";
 import { getFeatureFlagOverrides } from "@/lib/feature-flags/overrides";
@@ -52,23 +53,34 @@ export function Providers({ children, locale, messages }: ProvidersProps) {
         flagOverrides={flagOverrides}
       >
         <IconSprite />
-        <AuthProvider
-          config={{
-            supabaseUrl,
-            supabaseKey,
-            apiBaseUrl,
-            authAppUrl,
-            allowedRedirectDomains,
-          }}
-        >
-          <Suspense fallback={null}>
-            <ProfileCompletionGate>
-              <WorkspaceProvider>
-                {children as unknown as WorkspaceProviderChildren}
-              </WorkspaceProvider>
-            </ProfileCompletionGate>
-          </Suspense>
-        </AuthProvider>
+        {/*
+          ToastProvider wraps AuthProvider so any client component below can
+          call useToast() to surface transient feedback. Logout uses this for
+          BUG-AUTH-3b (confirmation + redirect feedback); future stories may
+          reuse it for invite copy, workspace switch, etc. Default duration
+          (5s) is fine for the logout case because we navigate within ~500ms;
+          the toast carries through the redirect via the destination route's
+          own ToastProvider (the /login page is wrapped by this same root).
+        */}
+        <ToastProvider>
+          <AuthProvider
+            config={{
+              supabaseUrl,
+              supabaseKey,
+              apiBaseUrl,
+              authAppUrl,
+              allowedRedirectDomains,
+            }}
+          >
+            <Suspense fallback={null}>
+              <ProfileCompletionGate>
+                <WorkspaceProvider>
+                  {children as unknown as WorkspaceProviderChildren}
+                </WorkspaceProvider>
+              </ProfileCompletionGate>
+            </Suspense>
+          </AuthProvider>
+        </ToastProvider>
       </FeatureFlagsProvider>
     </NextIntlClientProvider>
   );

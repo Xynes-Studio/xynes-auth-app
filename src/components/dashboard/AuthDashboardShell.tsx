@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { Suspense, useMemo } from "react";
+import { Suspense, useCallback, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -9,6 +9,7 @@ import {
   type DashboardNavItem as LumiaDashboardNavItem,
   type DashboardShellLabels,
 } from "@lumia-ui/layout";
+import { useToast } from "@lumia-ui/components";
 import { useAuth, useWorkspace } from "@xynes/auth-sdk";
 import {
   DASHBOARD_NAV_SPECS,
@@ -34,10 +35,12 @@ export function AuthDashboardShell({
   const activePath = usePathname();
   const { user, workspaces } = useAuth();
   const { currentWorkspace, selectWorkspace } = useWorkspace();
+  const { show: showToast } = useToast();
   const tNav = useTranslations("auth.dashboard.navigation");
   const tShellNav = useTranslations("auth.dashboard.shell.navigation");
   const tShellWorkspace = useTranslations("auth.dashboard.shell.workspace");
   const tShellProfile = useTranslations("auth.dashboard.shell.profile");
+  const tShellLogout = useTranslations("auth.dashboard.shell.logout");
   const tShellNotifications = useTranslations(
     "auth.dashboard.shell.notifications",
   );
@@ -77,6 +80,33 @@ export function AuthDashboardShell({
   const handleCreateWorkspace = () => {
     router.push("/onboarding");
   };
+
+  /**
+   * BUG-AUTH-3b: Show a confirmation toast immediately on logout click, then
+   * navigate to the server-side /logout route. The /logout route performs
+   * Supabase signOut + cookie clearing + 302 redirect to /login; it is
+   * defensive (always redirects, even on signOut failure) so a failure path
+   * here only fires if router.push itself throws (extremely rare in Next.js
+   * — but we still surface a destructive toast and keep the user on the
+   * dashboard so they know nothing happened).
+   */
+  const handleLogout = useCallback(() => {
+    showToast({
+      variant: "success",
+      title: tShellLogout("successTitle"),
+      description: tShellLogout("successDescription"),
+    });
+    try {
+      router.push("/logout");
+    } catch (error) {
+      console.error("[AuthDashboardShell] logout navigation failed", error);
+      showToast({
+        variant: "error",
+        title: tShellLogout("errorTitle"),
+        description: tShellLogout("errorDescription"),
+      });
+    }
+  }, [router, showToast, tShellLogout]);
 
   // Build the Lumia DashboardShell label bundle from the auth.dashboard
   // catalog. Each branch is a thin map: this is the single seam where Auth
@@ -161,7 +191,7 @@ export function AuthDashboardShell({
         avatarSrc: user?.avatarUrl || undefined,
       }}
       onProfileOpen={() => router.push("/profile")}
-      onLogout={() => router.push("/logout")}
+      onLogout={handleLogout}
       notifications={[]}
       sidebarFooterNote={tShell("footerNote")}
       labels={shellLabels}

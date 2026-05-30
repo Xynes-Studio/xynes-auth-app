@@ -67,6 +67,10 @@ vi.mock("@lumia-ui/layout", () => ({
   },
 }));
 
+vi.mock("@lumia-ui/components", () => ({
+  useToast: () => ({ show: vi.fn(), dismiss: vi.fn() }),
+}));
+
 type SupportedLocale = "en-US" | "en-XA";
 
 function withIntl(locale: SupportedLocale, children: ReactNode) {

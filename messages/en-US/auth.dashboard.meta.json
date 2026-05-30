@@ -46,6 +46,13 @@
       "profileAction": "Menu item that opens the user's profile page.",
       "logoutAction": "Menu item that signs the user out. Pair with /logout route."
     },
+    "logout": {
+      "_note": "Transient toast copy shown when the user clicks Logout from the dashboard profile menu (BUG-AUTH-3b). The success toast appears immediately on click and remains visible through the redirect to /login (~500 ms). The error toast is shown only if the client-side navigation to /logout throws (rare — the /logout route handles signOut failures server-side).",
+      "successTitle": "Confirmation toast title when sign-out is initiated successfully. Keep ≤ 40 chars so it doesn't wrap on narrow viewports.",
+      "successDescription": "Confirmation toast description; explains the imminent redirect.",
+      "errorTitle": "Destructive toast title when client-side logout navigation fails. Keep ≤ 40 chars.",
+      "errorDescription": "Destructive toast description; actionable, no jargon."
+    },
     "notifications": {
       "open": "Aria-label on the notifications drawer trigger (icon-only button).",
       "tab": "Tab/heading label for the notifications drawer.",

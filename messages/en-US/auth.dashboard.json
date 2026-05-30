@@ -34,6 +34,12 @@
       "profileAction": "Profile",
       "logoutAction": "Logout"
     },
+    "logout": {
+      "successTitle": "You've been signed out.",
+      "successDescription": "Redirecting you to the login page…",
+      "errorTitle": "We couldn't sign you out.",
+      "errorDescription": "Check your connection and try again."
+    },
     "notifications": {
       "open": "Open notifications",
       "tab": "Notifications",
