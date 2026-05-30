@@ -57,10 +57,20 @@ export function Providers({ children, locale, messages }: ProvidersProps) {
           ToastProvider wraps AuthProvider so any client component below can
           call useToast() to surface transient feedback. Logout uses this for
           BUG-AUTH-3b (confirmation + redirect feedback); future stories may
-          reuse it for invite copy, workspace switch, etc. Default duration
-          (5s) is fine for the logout case because we navigate within ~500ms;
-          the toast carries through the redirect via the destination route's
-          own ToastProvider (the /login page is wrapped by this same root).
+          reuse it for invite copy, workspace switch, etc.
+
+          Lifecycle note: the toast is anchored to the Radix portal owned by
+          this ToastProvider instance. When the user clicks Logout we fire a
+          success toast and then router.push("/logout"); the success toast is
+          visible for the brief window between fire and the start of the
+          full-page navigation to /logout → /login (typically a few hundred
+          ms — enough to communicate "logout fired"). The toast does NOT
+          persist into /login because the dashboard ToastProvider unmounts
+          along with the rest of the tree on a full reload. /login mounts its
+          own (sibling) ToastProvider via the same root layout, but that
+          instance starts empty. If product wants persistent post-logout
+          feedback, see Task 3 in the PR #65 review for a follow-up banner
+          story (deferred per sprint plan §7).
         */}
         <ToastProvider>
           <AuthProvider
