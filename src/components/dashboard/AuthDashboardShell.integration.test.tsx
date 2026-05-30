@@ -121,6 +121,14 @@ describe("AuthDashboardShell", () => {
 
     props.onLogout();
     expect(mockPush).toHaveBeenCalledWith("/logout");
+
+    // BUG-AUTH-3a: the avatar-menu Profile action routes to the new /profile
+    // placeholder route. Verified here because the assertion is structurally
+    // identical to onLogout — both are router pushes mounted on the same
+    // Lumia DS user-menu surface.
+    mockPush.mockClear();
+    props.onProfileOpen?.();
+    expect(mockPush).toHaveBeenCalledWith("/profile");
   });
 
   it("forwards a complete DashboardShellLabels bundle from auth.dashboard catalog (UXR-5)", () => {

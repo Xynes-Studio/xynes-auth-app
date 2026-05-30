@@ -1,0 +1,13 @@
+{
+  "page": {
+    "title": "Profile",
+    "subtitle": "Manage your account, preferences, and notification settings."
+  },
+  "comingSoon": {
+    "badge": "Coming soon",
+    "heading": "Your profile is on its way",
+    "body": "We're building a single place to manage your name, avatar, password, two-factor authentication, and notification preferences. Until then, account changes happen through workspace owners and support.",
+    "supportLabel": "Contact support",
+    "backLabel": "Back to dashboard"
+  }
+}
