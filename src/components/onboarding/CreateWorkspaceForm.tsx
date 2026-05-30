@@ -373,12 +373,15 @@ export function CreateWorkspaceForm({
     <div className="mx-auto w-full max-w-lg">
       <Card className="w-full border border-border/70 bg-card/95 shadow-xl">
         <CardContent className="px-6 pb-6 pt-6 sm:px-8">
-          <div className="mb-6 sr-only">
+          <div className="sr-only">
             {/*
               BUG-AUTH-1: The page H1 in <OnboardingScreen> already announces
               the screen. We keep a visually-hidden H2 here so screen readers
               still receive the form-section heading without the sighted UI
-              duplicating "Create your workspace" twice.
+              duplicating "Create your workspace" twice. The wrapper carries
+              no margin because the sr-only descendant is removed from the
+              visual flow — a `mb-*` here would create a phantom gap at the
+              top of the card.
             */}
             <h2>{t("heading")}</h2>
           </div>

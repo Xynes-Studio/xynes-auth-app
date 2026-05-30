@@ -22,7 +22,7 @@
     "submitLoading": "Creating…",
     "disabledHint": {
       "checking": "Checking workspace URL availability…",
-      "unavailable": "That workspace URL isn't available.",
+      "unavailable": "That workspace URL isn’t available.",
       "fix": "Fix the highlighted fields above to enable workspace creation."
     },
     "inviteFooter": {
