@@ -1,0 +1,45 @@
+{
+  "page": {
+    "title": "[CCrreeaattee yyoouurr wwoorrkkssppaaccee]",
+    "subtitle": "[YYoouurr tteeaamm'ss hhoommee ffoorr eevveerryytthhiinngg XXyynneess.]"
+  },
+  "form": {
+    "heading": "[CCrreeaattee yyoouurr wwoorrkkssppaaccee]",
+    "fields": {
+      "name": {
+        "label": "[WWoorrkkssppaaccee NNaammee]",
+        "placeholder": "[ee.gg., AAccmmee CCoorrppoorraattiioonn…]",
+        "errorRequired": "[WWoorrkkssppaaccee nnaammee iiss rreeqquuiirreedd]"
+      },
+      "slug": {
+        "label": "[WWoorrkkssppaaccee UURRLL]",
+        "prefix": "[xxyynneess.ccoomm/]",
+        "placeholder": "[yyoouurr-wwoorrkkssppaaccee]",
+        "rules": "[3-50 cchhaarraacctteerrss. LLoowweerrccaassee lleetttteerrss, nnuummbbeerrss, aanndd hhyypphheennss oonnllyy. MMuusstt ssttaarrtt wwiitthh aa lleetttteerr.]"
+      }
+    },
+    "submit": "[CCrreeaattee WWoorrkkssppaaccee]",
+    "submitLoading": "[CCrreeaattiinngg…]",
+    "disabledHint": {
+      "checking": "[CChheecckkiinngg wwoorrkkssppaaccee UURRLL aavvaaiillaabbiilliittyy…]",
+      "unavailable": "[TThhaatt wwoorrkkssppaaccee UURRLL iissnn’tt aavvaaiillaabbllee.]",
+      "fix": "[FFiixx tthhee hhiigghhlliigghhtteedd ffiieellddss aabboovvee ttoo eennaabbllee wwoorrkkssppaaccee ccrreeaattiioonn.]"
+    },
+    "inviteFooter": {
+      "prompt": "[AAllrreeaaddyy hhaavvee aann iinnvviittee?]",
+      "link": "[JJooiinn wwiitthh aann iinnvviittee]"
+    },
+    "errors": {
+      "conflict": "[AA wwoorrkkssppaaccee wwiitthh tthhiiss UURRLL aallrreeaaddyy eexxiissttss]",
+      "generic": "[FFaaiilleedd ttoo ccrreeaattee wwoorrkkssppaaccee. PPlleeaassee ttrryy aaggaaiinn.]",
+      "unexpected": "[AAnn uunneexxppeecctteedd eerrrroorr ooccccuurrrreedd. PPlleeaassee ttrryy aaggaaiinn.]",
+      "alertTitle": "[EErrrroorr]"
+    }
+  },
+  "footer": {
+    "prompt": "[NNeeeedd hheellpp?]",
+    "docsLabel": "[DDooccuummeennttaattiioonn]",
+    "supportLabel": "[CCoonnttaacctt ssuuppppoorrtt]",
+    "separator": "[·]"
+  }
+}

@@ -7,6 +7,13 @@
  * Features auto-generation of slug from name, real-time slug validation,
  * and availability checking.
  *
+ * BUG-AUTH-1 (2026-05-30): The redundant icon + subtitle block that lived
+ * at the top of the card was removed — `<OnboardingScreen>` now owns the
+ * page heading. All visible English strings have moved into the
+ * `auth.onboarding.form.*` namespace (the slug-availability status strings
+ * are still owned by `lib/workspace/validation.ts` and remain English-only
+ * until a follow-up story migrates them).
+ *
  * @module onboarding/CreateWorkspaceForm
  */
 
@@ -26,6 +33,7 @@ import {
   InputGroupPrefix,
   Spinner,
 } from "@lumia-ui/components";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { getSafeRedirectUrl, getAllowedRedirectDomains } from "@/lib/redirect";
 import {
@@ -74,6 +82,7 @@ export function CreateWorkspaceForm({
   redirectUrl,
 }: CreateWorkspaceFormProps) {
   const router = useRouter();
+  const t = useTranslations("auth.onboarding.form");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [slugStatus, setSlugStatus] = useState<SlugAvailabilityStatus>("idle");
@@ -222,13 +231,13 @@ export function CreateWorkspaceForm({
 
         if (!response.ok) {
           if (response.status === 409) {
-            setSubmitError("A workspace with this URL already exists");
+            setSubmitError(t("errors.conflict"));
             setSlugStatus("unavailable");
             return;
           }
 
           // Generic error message to prevent information leakage
-          setSubmitError("Failed to create workspace. Please try again.");
+          setSubmitError(t("errors.generic"));
           return;
         }
 
@@ -242,7 +251,7 @@ export function CreateWorkspaceForm({
         // Defensive: gateway responses may be wrapped; always ensure we have a slug for redirects.
         const workspaceSlug = workspace.slug ?? data.slug;
         if (!workspaceSlug) {
-          setSubmitError("Failed to create workspace. Please try again.");
+          setSubmitError(t("errors.generic"));
           return;
         }
 
@@ -280,14 +289,14 @@ export function CreateWorkspaceForm({
           router.push(targetUrl);
         }
       } catch (error) {
-        setSubmitError("An unexpected error occurred. Please try again.");
+        setSubmitError(t("errors.unexpected"));
         // Log the actual error to console for debugging, but don't show to user
         console.error("Failed to create workspace:", error);
       } finally {
         setIsSubmitting(false);
       }
     },
-    [apiBaseUrl, getAccessToken, onSuccess, redirectUrl, router],
+    [apiBaseUrl, getAccessToken, onSuccess, redirectUrl, router, t],
   );
 
   /**
@@ -364,36 +373,23 @@ export function CreateWorkspaceForm({
     <div className="mx-auto w-full max-w-lg">
       <Card className="w-full border border-border/70 bg-card/95 shadow-xl">
         <CardContent className="px-6 pb-6 pt-6 sm:px-8">
-          <div className="mb-8 text-center">
-            <div className="mb-4 mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-              <svg
-                className="h-7 w-7 text-primary"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                />
-              </svg>
-            </div>
-            <h2 className="text-balance text-2xl font-semibold text-foreground">
-              Create Your Workspace
-            </h2>
-            <p className="mt-2 text-pretty text-sm text-foreground/70">
-              Set up your team&apos;s workspace to get started. You can invite
-              team members later.
-            </p>
+          <div className="sr-only">
+            {/*
+              BUG-AUTH-1: The page H1 in <OnboardingScreen> already announces
+              the screen. We keep a visually-hidden H2 here so screen readers
+              still receive the form-section heading without the sighted UI
+              duplicating "Create your workspace" twice. The wrapper carries
+              no margin because the sr-only descendant is removed from the
+              visual flow — a `mb-*` here would create a phantom gap at the
+              top of the card.
+            */}
+            <h2>{t("heading")}</h2>
           </div>
 
           {submitError && (
             <Alert
               variant="error"
-              title="Error"
+              title={t("errors.alertTitle")}
               description={submitError}
               className="mb-6"
               closable
@@ -408,12 +404,12 @@ export function CreateWorkspaceForm({
                 htmlFor="workspace-name"
                 className="block text-sm font-medium text-foreground"
               >
-                Workspace Name
+                {t("fields.name.label")}
               </label>
               <Input
                 id="workspace-name"
                 type="text"
-                placeholder="e.g., Acme Corporation…"
+                placeholder={t("fields.name.placeholder")}
                 autoComplete="off"
                 className="autofill:shadow-[inset_0_0_0px_1000px_hsl(var(--background))] autofill:text-foreground"
                 aria-invalid={errors.name ? "true" : "false"}
@@ -438,16 +434,16 @@ export function CreateWorkspaceForm({
                 htmlFor="workspace-slug"
                 className="block text-sm font-medium text-foreground"
               >
-                Workspace URL
+                {t("fields.slug.label")}
               </label>
               <InputGroup invalid={Boolean(errors.slug)}>
                 <InputGroupPrefix className="bg-transparent text-muted-foreground">
-                  xynes.com/
+                  {t("fields.slug.prefix")}
                 </InputGroupPrefix>
                 <InputGroupInput
                   id="workspace-slug"
                   type="text"
-                  placeholder="your-workspace"
+                  placeholder={t("fields.slug.placeholder")}
                   autoComplete="off"
                   spellCheck={false}
                   className="bg-transparent autofill:shadow-[inset_0_0_0px_1000px_hsl(var(--background))] autofill:text-foreground"
@@ -465,8 +461,7 @@ export function CreateWorkspaceForm({
 
               {/* Slug format rules */}
               <p id="slug-rules" className="text-sm text-foreground/70">
-                3-50 characters. Lowercase letters, numbers, and hyphens only.
-                Must start with a letter.
+                {t("fields.slug.rules")}
               </p>
 
               {/* Slug validation error */}
@@ -491,9 +486,9 @@ export function CreateWorkspaceForm({
               size="md"
               disabled={isSubmitDisabled}
               isLoading={isSubmitting}
-              loadingText="Creating…"
+              loadingText={t("submitLoading")}
             >
-              Create Workspace
+              {t("submit")}
             </Button>
 
             {/* Disabled-state hint */}
@@ -510,10 +505,10 @@ export function CreateWorkspaceForm({
                 aria-live="polite"
               >
                 {slugStatus === "checking"
-                  ? "Checking workspace URL availability…"
+                  ? t("disabledHint.checking")
                   : slugStatus === "unavailable"
-                    ? "That workspace URL isn’t available."
-                    : "Fix the highlighted fields above to enable workspace creation."}
+                    ? t("disabledHint.unavailable")
+                    : t("disabledHint.fix")}
               </div>
             )}
           </form>
@@ -521,12 +516,12 @@ export function CreateWorkspaceForm({
           {/* Have an invite link */}
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              Already have an invite?{" "}
+              {t("inviteFooter.prompt")}{" "}
               <Link
                 href="/invite"
                 className="font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
               >
-                Join with an invite
+                {t("inviteFooter.link")}
               </Link>
             </p>
           </div>

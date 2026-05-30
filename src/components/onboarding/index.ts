@@ -8,3 +8,5 @@
 
 export { CreateWorkspaceForm } from "./CreateWorkspaceForm";
 export type { CreateWorkspaceFormProps } from "./CreateWorkspaceForm";
+export { OnboardingScreen } from "./OnboardingScreen";
+export type { OnboardingScreenProps } from "./OnboardingScreen";

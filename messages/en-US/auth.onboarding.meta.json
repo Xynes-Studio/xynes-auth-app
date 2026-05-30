@@ -1,0 +1,101 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.onboarding. The first-workspace creation screen at /onboarding, shown after signup or to users with no workspaces. Refactored 2026-05-30 (BUG-AUTH-1) to drop marketing-style copy and reuse Lumia DS form primitives. Keep wording tight; this is a transactional, action-oriented step.",
+    "audience": "Brand-new authenticated users who do not yet belong to any workspace.",
+    "tone": "Direct, action-oriented, calm. No marketing copy. No exclamation marks. Avoid 'collaborate', 'team up', 'unlock', 'experience' — those belong to the marketing site.",
+    "owners": ["xynes-front-end/xynes-auth-app"]
+  },
+  "page": {
+    "title": {
+      "_use": "H1 at the top of /onboarding. Matches the form heading so screen-reader users and sighted users get the same context. Keep at most four words."
+    },
+    "subtitle": {
+      "_use": "Single supporting sentence under the H1. Explains what the workspace is for in one breath. Do NOT mention features or roadmap. Keep at most ten words."
+    }
+  },
+  "form": {
+    "heading": {
+      "_use": "Card heading inside the form. Intentionally identical to page.title so the heading hierarchy reads as: page H1 → card subhead (visually de-emphasised). DO NOT diverge from page.title without a designer's sign-off."
+    },
+    "fields": {
+      "name": {
+        "label": {
+          "_use": "Visible label for the workspace-name input. The integration test asserts `screen.getByLabelText(/workspace name/i)`, so the localized label MUST contain a case-insensitive match for the English phrase 'workspace name' in en-US."
+        },
+        "placeholder": {
+          "_use": "Placeholder hint inside the workspace-name input. Trailing ellipsis is the existing convention for placeholder copy in this app."
+        },
+        "errorRequired": {
+          "_use": "Inline error shown when the user submits the form with an empty workspace-name field. Integration test asserts the regex /workspace name is required/i in en-US."
+        }
+      },
+      "slug": {
+        "label": {
+          "_use": "Visible label for the slug input ('workspace URL'). Integration test asserts `screen.getByLabelText(/workspace url/i)`, so the localized label MUST contain a case-insensitive match for 'workspace URL' in en-US."
+        },
+        "prefix": {
+          "_use": "Read-only prefix rendered inside the input group (e.g. 'xynes.com/'). Do NOT translate the domain itself. If a locale wants to render the prefix differently for localisation reasons, keep the literal 'xynes.com/' substring."
+        },
+        "placeholder": {
+          "_use": "Placeholder shown when the slug input is empty. Keep short and lowercase to match the slug format rules."
+        },
+        "rules": {
+          "_use": "Help text rendered below the slug input. Describes the slug format constraints. Integration test asserts /3-50 characters/i, so the en-US copy MUST keep the literal substring '3-50 characters'."
+        }
+      }
+    },
+    "submit": {
+      "_use": "Primary submit button label. Integration test asserts `screen.getByRole('button', { name: /create workspace/i })`, so en-US MUST contain 'Create Workspace'."
+    },
+    "submitLoading": {
+      "_use": "Button label while the create-workspace request is in flight. Lumia DS `Button` reads this from `loadingText`."
+    },
+    "disabledHint": {
+      "checking": {
+        "_use": "Helper text shown below the submit button while the slug-availability request is in flight."
+      },
+      "unavailable": {
+        "_use": "Helper text shown below the submit button when the slug is already taken (in addition to the inline slug status)."
+      },
+      "fix": {
+        "_use": "Helper text shown below the submit button when at least one form field is invalid."
+      }
+    },
+    "inviteFooter": {
+      "prompt": {
+        "_use": "Sentence prefix preceding the invite link at the bottom of the form. Pairs with `inviteFooter.link` rendered as an inline next/link."
+      },
+      "link": {
+        "_use": "Inline link that sends the user to /invite. Renders as the active text of an anchor."
+      }
+    },
+    "errors": {
+      "conflict": {
+        "_use": "Alert body shown when the API rejects the create-workspace request with HTTP 409 (slug already taken at submit time). Integration test asserts /already exists/i."
+      },
+      "generic": {
+        "_use": "Alert body shown when the API rejects the create-workspace request with any other non-2xx status."
+      },
+      "unexpected": {
+        "_use": "Alert body shown when the create-workspace request throws (network failure, etc.). Do NOT include the raw error message — that is logged via console.error only."
+      },
+      "alertTitle": {
+        "_use": "Title for the Lumia DS Alert that surfaces form-submission errors."
+      }
+    }
+  },
+  "footer": {
+    "prompt": {
+      "_use": "Sentence prefix preceding the docs + support links at the bottom of the page. Integration test asserts /need help\\?/i in en-US."
+    },
+    "docsLabel": {
+      "_use": "Link text for the documentation link. Opens https://docs.xynes.com in a new tab (target=_blank rel=noopener noreferrer)."
+    },
+    "supportLabel": {
+      "_use": "Link text for the support email link. Opens a mailto:support@xynes.com link."
+    },
+    "separator": {
+      "_use": "Single-character separator rendered between the docs link and the support link. Keep neutral (a middle-dot, comma, or pipe). Do NOT translate as a word."
+    }
+  }
+}

@@ -573,6 +573,18 @@ Internal-only fields (`keyHash`, `verificationValueHash`, raw API keys, stack tr
 - **Out of scope.** No new redirect-allowlist hosts were added. The `redirect=` semantics for `/login`, `/logout`, `/signup`, `/invite`, and `/forgot-password` are not part of this change — they remain owned by `buildAuthRedirectUrl` and the per-route flows. There is **no** "stay on Auth app" toggle UI on the form; the destination is fully driven by the inbound query param.
 - **Companion CMS console change.** `xynes-front-end/xynes-cms-console-web/src/components/dashboard/CmsDashboardShell.tsx` is the only call site that needs to attach `?redirect=`. It builds the redirect target from `NEXT_PUBLIC_APP_URL` (the CMS's own base URL). If `NEXT_PUBLIC_APP_URL` is unset or malformed (`javascript:...`, non-http(s) scheme, invalid URL), the `?redirect=` is omitted entirely and the user gracefully falls back to the Auth-Admin destination.
 
+### Onboarding copy + visual streamline (BUG-AUTH-1, 2026-05-30)
+
+`/onboarding` is the first transactional surface a fresh user sees after sign-up, so it must feel like the same family as `/login` + `/signup` rather than a marketing page. BUG-AUTH-1 tightens the copy and migrates every visible string into the `auth.onboarding` namespace.
+
+- **Architecture.** `src/app/onboarding/page.tsx` stays an async RSC and owns only the WSA-FIX-2 `?redirect=<url>` parse + forward. The visible markup moved to a new client component, `src/components/onboarding/OnboardingScreen.tsx`, so it can resolve catalog strings through `useTranslations("auth.onboarding")` and reuse Lumia DS `Flex`.
+- **Visual streamline.** The marketing hero block (gradient `from-background to-muted/30` backdrop, oversized X icon, "Welcome to Xynes" headline + collaboration-themed subtitle) was retired. The screen now reads as: tight page header → single Lumia DS `Card` with the form → help footer with docs + support links. The form's own redundant icon-in-circle + subtitle block was deleted; only a single visually-hidden `<h2>` remains for accessible-name parity with the integration test (`getByRole("heading", { name: /create your workspace/i })`).
+- **Copy budget.** ~41 words of marketing/instructional copy collapsed to ~17 (~41% of the original), well under the acceptance ceiling of ≤ 60%.
+- **Catalogs.** `messages/en-US/auth.onboarding.json` is the source of truth. `messages/en-US/auth.onboarding.meta.json` is the translator-context sidecar. `messages/en-XA/auth.onboarding.json` is regenerated via `pnpm generate:pseudo`.
+- **External-link a11y.** The docs link in the page footer carries the canonical `target="_blank" rel="noopener noreferrer"` pair plus a screen-reader-only `(opens in new tab)` hint — same pattern as `DomainManagementPanel.tsx`.
+- **Out of scope, deliberately deferred.** Zod validation error messages in `src/lib/workspace/validation.ts` and the slug-availability strings returned by `getSlugStatusMessage` are still English-only. They have their own dedicated unit test suite (`validation.test.ts`) and migrating them is a follow-up i18n story; this avoids expanding BUG-AUTH-1 into a cross-module refactor.
+- **WSA-FIX-2 contract preserved byte-for-byte.** The seven `?redirect=` test cases in `page.test.tsx` (forward / undefined / whitespace / empty / multi-value / hostile host / open redirect) continue to pass against the mocked `<OnboardingScreen>`.
+
 ### Follow-up stories from browser revalidation
 
 - `fix(accounts-service): return safe validation errors for workspace domain create` — Browser revalidation on 2026-05-05 confirmed the frontend calls `POST /workspaces/:workspaceId/domains` through the gateway, but local backend creation of `example.com` failed with Postgres check constraint `workspace_domains_hostname_shape` and surfaced to the browser as `500 Internal Server Error`. The backend should align hostname normalization/validation with the database constraint and return a safe 4xx validation response instead of an internal error.
@@ -608,6 +620,8 @@ Pilot covering login, signup, forgot/reset password, invite entry, workspace sel
 | `src/app/workspaces/page.tsx` | `auth.workspaces.page` |
 | `src/components/dashboard/AuthDashboardShell.tsx` (UXR-5) | `auth.dashboard.navigation`, `auth.dashboard.shell.*` |
 | `src/components/workspace/WorkspaceSwitcher.tsx` (UXR-5) | `auth.dashboard.workspaceSwitcher` |
+| `src/components/onboarding/OnboardingScreen.tsx` (BUG-AUTH-1) | `auth.onboarding.page`, `auth.onboarding.footer` |
+| `src/components/onboarding/CreateWorkspaceForm.tsx` (BUG-AUTH-1) | `auth.onboarding.form` |
 
 #### Dashboard shell label contract (UXR-5, 2026-05-10)
 
