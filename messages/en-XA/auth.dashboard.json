@@ -34,6 +34,12 @@
       "profileAction": "[PPrrooffiillee]",
       "logoutAction": "[LLooggoouutt]"
     },
+    "logout": {
+      "successTitle": "[YYoouu'vvee bbeeeenn ssiiggnneedd oouutt.]",
+      "successDescription": "[RReeddiirreeccttiinngg yyoouu ttoo tthhee llooggiinn ppaaggee…]",
+      "errorTitle": "[WWee ccoouullddnn'tt ssiiggnn yyoouu oouutt.]",
+      "errorDescription": "[CChheecckk yyoouurr ccoonnnneeccttiioonn aanndd ttrryy aaggaaiinn.]"
+    },
     "notifications": {
       "open": "[OOppeenn nnoottiiffiiccaattiioonnss]",
       "tab": "[NNoottiiffiiccaattiioonnss]",

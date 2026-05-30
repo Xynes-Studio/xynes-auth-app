@@ -8,6 +8,7 @@ const mockUseWorkspace = vi.fn();
 const mockPush = vi.fn();
 const mockDashboardShell = vi.fn();
 const mockSelectWorkspace = vi.fn();
+const mockShowToast = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn() }),
@@ -20,21 +21,23 @@ vi.mock("@xynes/auth-sdk", () => ({
   useWorkspace: () => mockUseWorkspace(),
 }));
 
-vi.mock(
-  "@lumia-ui/layout",
-  () => ({
+vi.mock("@lumia-ui/layout", () => ({
   DashboardShell: (props: DashboardShellProps) => {
     mockDashboardShell(props);
     return <div data-testid="lumia-dashboard-shell">{props.children}</div>;
   },
-}),
-);
+}));
+
+vi.mock("@lumia-ui/components", () => ({
+  useToast: () => ({ show: mockShowToast, dismiss: vi.fn() }),
+}));
 
 describe("AuthDashboardShell", () => {
   beforeEach(() => {
     mockPush.mockReset();
     mockDashboardShell.mockReset();
     mockSelectWorkspace.mockReset();
+    mockShowToast.mockReset();
 
     mockUseAuth.mockReturnValue({
       user: {
@@ -122,6 +125,19 @@ describe("AuthDashboardShell", () => {
     props.onLogout();
     expect(mockPush).toHaveBeenCalledWith("/logout");
 
+    // BUG-AUTH-3b: invoking onLogout also surfaces a success toast so the
+    // user gets immediate feedback that the sign-out flow has started; the
+    // /logout server route does the actual Supabase signOut + cookie clear
+    // + redirect to /login. Asserted in the same test as the navigation
+    // because the two are structurally a single user-visible side effect.
+    expect(mockShowToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variant: "success",
+        title: "You've been signed out.",
+        description: "Redirecting you to the login page…",
+      }),
+    );
+
     // BUG-AUTH-3a: the avatar-menu Profile action routes to the new /profile
     // placeholder route. Verified here because the assertion is structurally
     // identical to onLogout — both are router pushes mounted on the same
@@ -144,7 +160,9 @@ describe("AuthDashboardShell", () => {
     // Navigation a11y labels
     expect(labels?.navigation?.mainContent).toBe("Dashboard main content");
     expect(labels?.navigation?.sidebar).toBe("Dashboard sidebar");
-    expect(labels?.navigation?.dashboardNavigation).toBe("Dashboard navigation");
+    expect(labels?.navigation?.dashboardNavigation).toBe(
+      "Dashboard navigation",
+    );
     expect(labels?.navigation?.openMobileMenu).toBe("Open menu");
     // Workspace switcher labels
     expect(labels?.workspace?.trigger).toBe("Switch workspace");
@@ -159,7 +177,9 @@ describe("AuthDashboardShell", () => {
     expect(labels?.notifications?.tab).toBe("Notifications");
     expect(labels?.notifications?.empty).toBe("No notifications");
     expect(labels?.notifications?.title?.(3)).toBe("Notifications (3)");
-    expect(labels?.notifications?.unreadCount?.(5)).toBe("5 unread notifications");
+    expect(labels?.notifications?.unreadCount?.(5)).toBe(
+      "5 unread notifications",
+    );
     expect(
       labels?.notifications?.delete?.({
         id: "n1",
@@ -235,5 +255,96 @@ describe("AuthDashboardShell", () => {
     expect(props.userMenu).toEqual(
       expect.objectContaining({ name: "User", email: "No email" }),
     );
+  });
+
+  describe("BUG-AUTH-3b — logout toast feedback", () => {
+    it("surfaces a success toast BEFORE navigating to /logout (ordering)", () => {
+      render(
+        <AuthDashboardShell activeNav="settings">
+          <div>Body</div>
+        </AuthDashboardShell>,
+      );
+      const props = mockDashboardShell.mock.calls[0][0] as DashboardShellProps;
+
+      props.onLogout();
+
+      // Toast and navigation are both invoked exactly once.
+      expect(mockShowToast).toHaveBeenCalledTimes(1);
+      expect(mockPush).toHaveBeenCalledTimes(1);
+      expect(mockPush).toHaveBeenCalledWith("/logout");
+
+      // Ordering: toast fires before navigation. We compare invocation
+      // order via mock.invocationCallOrder so the user sees feedback even
+      // if the router push is synchronous (route change happens in a
+      // microtask). Smaller order number = earlier call.
+      expect(mockShowToast.mock.invocationCallOrder[0]).toBeLessThan(
+        mockPush.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("success toast carries the success variant + i18n-resolved copy + role=status semantics", () => {
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div>Body</div>
+        </AuthDashboardShell>,
+      );
+      const props = mockDashboardShell.mock.calls[0][0] as DashboardShellProps;
+      props.onLogout();
+
+      // variant="success" maps to role="status" inside Lumia's ToastProvider
+      // (the design-system contract). We assert variant here because that's
+      // what the consumer controls; the role assertion lives in the lumia-ds
+      // toast unit tests.
+      expect(mockShowToast).toHaveBeenCalledWith({
+        variant: "success",
+        title: "You've been signed out.",
+        description: "Redirecting you to the login page…",
+      });
+    });
+
+    it("falls back to an error toast and keeps the user on the dashboard if router.push throws", () => {
+      // Defensive failure path: the /logout server route is hardened (it
+      // always 302s to /login even if Supabase signOut fails server-side),
+      // so this branch only fires if the client-side navigation itself
+      // throws (extremely rare). We still verify the destructive toast so
+      // the user never gets stuck in a silent failure.
+      mockPush.mockImplementationOnce(() => {
+        throw new Error("Simulated navigation failure");
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div>Body</div>
+        </AuthDashboardShell>,
+      );
+      const props = mockDashboardShell.mock.calls[0][0] as DashboardShellProps;
+      props.onLogout();
+
+      // Two toasts: success (fired before the throw) AND error (caught and
+      // re-surfaced). The user is not stuck — the dashboard stays mounted
+      // and the destructive toast tells them to retry.
+      expect(mockShowToast).toHaveBeenCalledTimes(2);
+      expect(mockShowToast).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ variant: "success" }),
+      );
+      expect(mockShowToast).toHaveBeenNthCalledWith(2, {
+        variant: "error",
+        title: "We couldn't sign you out.",
+        description: "Check your connection and try again.",
+      });
+
+      // Error logged for ops visibility — but never the raw error.message
+      // is rendered to the user (closed-set toast copy only).
+      expect(consoleError).toHaveBeenCalledWith(
+        "[AuthDashboardShell] logout navigation failed",
+        expect.any(Error),
+      );
+
+      consoleError.mockRestore();
+    });
   });
 });

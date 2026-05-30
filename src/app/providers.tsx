@@ -7,6 +7,7 @@ import {
   WorkspaceProvider,
 } from "@xynes/auth-sdk";
 import { IconSprite } from "@lumia-ui/icons";
+import { ToastProvider } from "@lumia-ui/components";
 import { NextIntlClientProvider } from "next-intl";
 import type { Locale } from "@xynes/i18n";
 import { getFeatureFlagOverrides } from "@/lib/feature-flags/overrides";
@@ -52,23 +53,44 @@ export function Providers({ children, locale, messages }: ProvidersProps) {
         flagOverrides={flagOverrides}
       >
         <IconSprite />
-        <AuthProvider
-          config={{
-            supabaseUrl,
-            supabaseKey,
-            apiBaseUrl,
-            authAppUrl,
-            allowedRedirectDomains,
-          }}
-        >
-          <Suspense fallback={null}>
-            <ProfileCompletionGate>
-              <WorkspaceProvider>
-                {children as unknown as WorkspaceProviderChildren}
-              </WorkspaceProvider>
-            </ProfileCompletionGate>
-          </Suspense>
-        </AuthProvider>
+        {/*
+          ToastProvider wraps AuthProvider so any client component below can
+          call useToast() to surface transient feedback. Logout uses this for
+          BUG-AUTH-3b (confirmation + redirect feedback); future stories may
+          reuse it for invite copy, workspace switch, etc.
+
+          Lifecycle note: the toast is anchored to the Radix portal owned by
+          this ToastProvider instance. When the user clicks Logout we fire a
+          success toast and then router.push("/logout"); the success toast is
+          visible for the brief window between fire and the start of the
+          full-page navigation to /logout → /login (typically a few hundred
+          ms — enough to communicate "logout fired"). The toast does NOT
+          persist into /login because the dashboard ToastProvider unmounts
+          along with the rest of the tree on a full reload. /login mounts its
+          own (sibling) ToastProvider via the same root layout, but that
+          instance starts empty. If product wants persistent post-logout
+          feedback, see Task 3 in the PR #65 review for a follow-up banner
+          story (deferred per sprint plan §7).
+        */}
+        <ToastProvider>
+          <AuthProvider
+            config={{
+              supabaseUrl,
+              supabaseKey,
+              apiBaseUrl,
+              authAppUrl,
+              allowedRedirectDomains,
+            }}
+          >
+            <Suspense fallback={null}>
+              <ProfileCompletionGate>
+                <WorkspaceProvider>
+                  {children as unknown as WorkspaceProviderChildren}
+                </WorkspaceProvider>
+              </ProfileCompletionGate>
+            </Suspense>
+          </AuthProvider>
+        </ToastProvider>
       </FeatureFlagsProvider>
     </NextIntlClientProvider>
   );
