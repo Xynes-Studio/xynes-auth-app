@@ -32,6 +32,22 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+// BUG-AUTH-2 (2026-05-30): The form now consumes useAuth().refreshWorkspaces +
+// useWorkspace().selectWorkspace from @xynes/auth-sdk so the dashboard
+// renders with the newly-created workspace selected without a reload.
+// Tests mock both hooks so the form does not need a full <AuthProvider> /
+// <WorkspaceProvider> tree in this unit-scope harness.
+const mockRefreshWorkspaces = vi.fn();
+const mockSelectWorkspace = vi.fn();
+vi.mock("@xynes/auth-sdk", () => ({
+  useAuth: () => ({
+    refreshWorkspaces: mockRefreshWorkspaces,
+  }),
+  useWorkspace: () => ({
+    selectWorkspace: mockSelectWorkspace,
+  }),
+}));
+
 // Mock fetch for API calls
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
@@ -46,6 +62,10 @@ describe("CreateWorkspaceForm", () => {
         session: { access_token: "test-token" },
       },
     });
+    // BUG-AUTH-2: default refreshWorkspaces to a resolved promise so the
+    // form's `await refreshWorkspaces()` does not hang in tests that don't
+    // care about the SDK-cache wiring.
+    mockRefreshWorkspaces.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -798,6 +818,258 @@ describe("CreateWorkspaceForm", () => {
       } finally {
         assignSpy.mockRestore();
       }
+    });
+  });
+
+  // ────────────────────────────────────────────────────────────────
+  // BUG-AUTH-2 (2026-05-30)
+  //
+  // After a successful POST /workspaces, the form MUST:
+  //   1. Re-fetch /me via the auth SDK so `useAuth().workspaces` includes
+  //      the new workspace.
+  //   2. Flip `useWorkspace()` to the new workspace ID so the dashboard
+  //      renders with it selected on the first post-redirect render.
+  //   3. Do BOTH of the above BEFORE navigating, so the dashboard does
+  //      NOT render with stale workspace context.
+  // ────────────────────────────────────────────────────────────────
+  describe("BUG-AUTH-2: surface newly-created workspace without reload", () => {
+    it("calls refreshWorkspaces and selectWorkspace before redirecting", async () => {
+      // Resolve refreshWorkspaces lazily so we can interleave assertions
+      // around the redirect to prove ordering.
+      const refreshOrderLog: string[] = [];
+      mockRefreshWorkspaces.mockImplementation(async () => {
+        refreshOrderLog.push("refresh");
+      });
+      mockSelectWorkspace.mockImplementation((id: string) => {
+        refreshOrderLog.push(`select:${id}`);
+      });
+      mockPush.mockImplementation((url: string) => {
+        refreshOrderLog.push(`push:${url}`);
+      });
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ available: true }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              id: "workspace-bug-auth-2",
+              name: "Vintage Violet",
+              slug: "vintage-violet",
+            }),
+        });
+
+      render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
+
+      const nameInput = screen.getByLabelText(/workspace name/i);
+      await user.type(nameInput, "Vintage Violet");
+
+      await waitFor(() => {
+        expect(screen.getByText(/is available/i)).toBeInTheDocument();
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: /create workspace/i }),
+      );
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
+      });
+
+      // Exact ordering: refresh first, then select, then push.
+      expect(refreshOrderLog).toEqual([
+        "refresh",
+        "select:workspace-bug-auth-2",
+        "push:/dashboard/apps",
+      ]);
+      expect(mockRefreshWorkspaces).toHaveBeenCalledTimes(1);
+      expect(mockSelectWorkspace).toHaveBeenCalledTimes(1);
+      expect(mockSelectWorkspace).toHaveBeenCalledWith("workspace-bug-auth-2");
+    });
+
+    it("passes the workspace ID — NOT the workspace object — to selectWorkspace", async () => {
+      // Regression guard: an earlier iteration of this story called
+      // selectWorkspace(resolvedWorkspace) which silently typechecks because
+      // the test mock accepts anything. The SDK contract is ID-only.
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ available: true }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              id: "workspace-id-only",
+              name: "Slug Only",
+              slug: "slug-only",
+            }),
+        });
+
+      render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
+
+      const nameInput = screen.getByLabelText(/workspace name/i);
+      await user.type(nameInput, "Slug Only");
+
+      await waitFor(() => {
+        expect(screen.getByText(/is available/i)).toBeInTheDocument();
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: /create workspace/i }),
+      );
+
+      await waitFor(() => {
+        expect(mockSelectWorkspace).toHaveBeenCalled();
+      });
+
+      // selectWorkspace receives ONLY a string (the workspace id).
+      const callArgs = mockSelectWorkspace.mock.calls[0];
+      expect(callArgs).toHaveLength(1);
+      expect(typeof callArgs[0]).toBe("string");
+      expect(callArgs[0]).toBe("workspace-id-only");
+    });
+
+    it("unwraps a gateway double-envelope response before selecting the workspace", async () => {
+      // Mirrors the existing `data.data` envelope handling test above —
+      // the workspace id must still be extracted correctly when the
+      // gateway wraps the payload.
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ available: true }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              ok: true,
+              data: {
+                id: "workspace-from-envelope",
+                name: "Wrapped",
+                slug: "wrapped",
+              },
+            }),
+        });
+
+      render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
+
+      const nameInput = screen.getByLabelText(/workspace name/i);
+      await user.type(nameInput, "Wrapped");
+
+      await waitFor(() => {
+        expect(screen.getByText(/is available/i)).toBeInTheDocument();
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: /create workspace/i }),
+      );
+
+      await waitFor(() => {
+        expect(mockSelectWorkspace).toHaveBeenCalledWith(
+          "workspace-from-envelope",
+        );
+      });
+    });
+
+    it("still redirects when refreshWorkspaces throws (transient failure does not block the user)", async () => {
+      // refreshWorkspaces is documented as never-throws; this regression
+      // guard ensures that even if a future SDK regression leaks a throw,
+      // the user is NOT stranded on /onboarding — the redirect still fires.
+      mockRefreshWorkspaces.mockRejectedValueOnce(
+        new Error("transient /me failure"),
+      );
+
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      try {
+        mockFetch
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({ available: true }),
+          })
+          .mockResolvedValueOnce({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                id: "workspace-still-redirects",
+                name: "Redirect",
+                slug: "redirect",
+              }),
+          });
+
+        render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
+
+        const nameInput = screen.getByLabelText(/workspace name/i);
+        await user.type(nameInput, "Redirect");
+
+        await waitFor(() => {
+          expect(screen.getByText(/is available/i)).toBeInTheDocument();
+        });
+
+        await user.click(
+          screen.getByRole("button", { name: /create workspace/i }),
+        );
+
+        // The redirect still happens AND the workspace is still selected,
+        // so the dashboard at least has the right active workspace even
+        // though the broader /me cache could not be refreshed in this turn.
+        await waitFor(() => {
+          expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
+        });
+        expect(mockSelectWorkspace).toHaveBeenCalledWith(
+          "workspace-still-redirects",
+        );
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining("BUG-AUTH-2"),
+          expect.any(Error),
+        );
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    });
+
+    it("does NOT call refreshWorkspaces or selectWorkspace on a failed create (409 duplicate slug)", async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ available: true }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 409,
+          json: () =>
+            Promise.resolve({
+              message: "Workspace with this slug already exists",
+            }),
+        });
+
+      render(<CreateWorkspaceForm apiBaseUrl="https://api.test.com" />);
+
+      const nameInput = screen.getByLabelText(/workspace name/i);
+      await user.type(nameInput, "Already Taken");
+
+      await waitFor(() => {
+        expect(screen.getByText(/is available/i)).toBeInTheDocument();
+      });
+
+      await user.click(
+        screen.getByRole("button", { name: /create workspace/i }),
+      );
+
+      // The error alert appears; redirect path was never reached.
+      await waitFor(() => {
+        expect(screen.getByText(/already exists/i)).toBeInTheDocument();
+      });
+
+      expect(mockRefreshWorkspaces).not.toHaveBeenCalled();
+      expect(mockSelectWorkspace).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
     });
   });
 });

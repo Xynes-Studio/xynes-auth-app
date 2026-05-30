@@ -34,6 +34,7 @@ import {
   Spinner,
 } from "@lumia-ui/components";
 import { useTranslations } from "next-intl";
+import { useAuth, useWorkspace } from "@xynes/auth-sdk";
 import { createClient } from "@/lib/supabase/client";
 import { getSafeRedirectUrl, getAllowedRedirectDomains } from "@/lib/redirect";
 import {
@@ -83,6 +84,13 @@ export function CreateWorkspaceForm({
 }: CreateWorkspaceFormProps) {
   const router = useRouter();
   const t = useTranslations("auth.onboarding.form");
+  // BUG-AUTH-2 (2026-05-30): After a successful POST /workspaces, we need
+  // the new workspace to appear in the auth-sdk `useAuth().workspaces`
+  // cache AND become the active selection in `useWorkspace()`, so the
+  // dashboard renders with the new workspace selected on the very first
+  // post-redirect render — no reload required.
+  const { refreshWorkspaces } = useAuth();
+  const { selectWorkspace } = useWorkspace();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [slugStatus, setSlugStatus] = useState<SlugAvailabilityStatus>("idle");
@@ -281,6 +289,39 @@ export function CreateWorkspaceForm({
             )
           : defaultTarget;
 
+        // BUG-AUTH-2 (2026-05-30): Surface the freshly-created workspace in
+        // the SDK BEFORE navigating to the dashboard, so the dashboard
+        // renders with the new workspace already selected — no reload
+        // required.
+        //
+        // Order matters:
+        //   1. `refreshWorkspaces()` re-fetches `/me`, replacing the in-memory
+        //      `useAuth().workspaces` array with one that includes the new
+        //      row (the gateway is the source of truth).
+        //   2. `selectWorkspace(id)` flips the `WorkspaceProvider` active
+        //      workspace + persists the id to localStorage.
+        //
+        // We deliberately swallow a `refreshWorkspaces` failure — the SDK
+        // already swallows transient `/me` errors and leaves the previous
+        // workspace list in place. The redirect proceeds either way; in
+        // the worst case the dashboard auto-recovers on the next /me round
+        // trip (`WorkspaceProvider`'s effects + the dashboard's own data
+        // fetches), and the workspace IS in the server-side list so a
+        // refresh always recovers.
+        try {
+          await refreshWorkspaces();
+        } catch (refreshError) {
+          // Defensive: refreshWorkspaces is documented as never-throws, but
+          // guard against a future regression.
+          console.error(
+            "BUG-AUTH-2: refreshWorkspaces threw unexpectedly:",
+            refreshError,
+          );
+        }
+        if (resolvedWorkspace.id) {
+          selectWorkspace(resolvedWorkspace.id);
+        }
+
         // next/navigation router.push is intended for in-app navigation.
         // Use a hard navigation for absolute URLs (e.g., redirecting to the console app).
         if (/^https?:\/\//i.test(targetUrl) || targetUrl.startsWith("//")) {
@@ -296,7 +337,16 @@ export function CreateWorkspaceForm({
         setIsSubmitting(false);
       }
     },
-    [apiBaseUrl, getAccessToken, onSuccess, redirectUrl, router, t],
+    [
+      apiBaseUrl,
+      getAccessToken,
+      onSuccess,
+      redirectUrl,
+      refreshWorkspaces,
+      router,
+      selectWorkspace,
+      t,
+    ],
   );
 
   /**
