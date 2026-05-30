@@ -1,0 +1,45 @@
+{
+  "page": {
+    "title": "Create your workspace",
+    "subtitle": "Your team's home for everything Xynes."
+  },
+  "form": {
+    "heading": "Create your workspace",
+    "fields": {
+      "name": {
+        "label": "Workspace Name",
+        "placeholder": "e.g., Acme Corporation…",
+        "errorRequired": "Workspace name is required"
+      },
+      "slug": {
+        "label": "Workspace URL",
+        "prefix": "xynes.com/",
+        "placeholder": "your-workspace",
+        "rules": "3-50 characters. Lowercase letters, numbers, and hyphens only. Must start with a letter."
+      }
+    },
+    "submit": "Create Workspace",
+    "submitLoading": "Creating…",
+    "disabledHint": {
+      "checking": "Checking workspace URL availability…",
+      "unavailable": "That workspace URL isn't available.",
+      "fix": "Fix the highlighted fields above to enable workspace creation."
+    },
+    "inviteFooter": {
+      "prompt": "Already have an invite?",
+      "link": "Join with an invite"
+    },
+    "errors": {
+      "conflict": "A workspace with this URL already exists",
+      "generic": "Failed to create workspace. Please try again.",
+      "unexpected": "An unexpected error occurred. Please try again.",
+      "alertTitle": "Error"
+    }
+  },
+  "footer": {
+    "prompt": "Need help?",
+    "docsLabel": "Documentation",
+    "supportLabel": "Contact support",
+    "separator": "·"
+  }
+}

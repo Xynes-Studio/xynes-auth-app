@@ -608,6 +608,8 @@ Pilot covering login, signup, forgot/reset password, invite entry, workspace sel
 | `src/app/workspaces/page.tsx` | `auth.workspaces.page` |
 | `src/components/dashboard/AuthDashboardShell.tsx` (UXR-5) | `auth.dashboard.navigation`, `auth.dashboard.shell.*` |
 | `src/components/workspace/WorkspaceSwitcher.tsx` (UXR-5) | `auth.dashboard.workspaceSwitcher` |
+| `src/components/onboarding/OnboardingScreen.tsx` (BUG-AUTH-1) | `auth.onboarding.page`, `auth.onboarding.footer` |
+| `src/components/onboarding/CreateWorkspaceForm.tsx` (BUG-AUTH-1) | `auth.onboarding.form` |
 
 #### Dashboard shell label contract (UXR-5, 2026-05-10)
 

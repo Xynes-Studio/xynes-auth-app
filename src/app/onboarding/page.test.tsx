@@ -1,19 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { createWorkspaceFormMock } = vi.hoisted(() => ({
-  createWorkspaceFormMock: vi.fn(
-    ({ redirectUrl }: { redirectUrl?: string }) => (
-      <div
-        data-testid="create-workspace-form"
-        data-redirect-url={redirectUrl ?? ""}
-      />
-    ),
-  ),
+const { onboardingScreenMock } = vi.hoisted(() => ({
+  onboardingScreenMock: vi.fn(({ redirectUrl }: { redirectUrl?: string }) => (
+    <div
+      data-testid="onboarding-screen"
+      data-redirect-url={redirectUrl ?? ""}
+    />
+  )),
 }));
 
 vi.mock("@/components/onboarding", () => ({
-  CreateWorkspaceForm: createWorkspaceFormMock,
+  OnboardingScreen: onboardingScreenMock,
 }));
 
 import OnboardingPage from "./page";
@@ -28,33 +26,35 @@ async function renderPage(
   render(ui);
 }
 
+/**
+ * The page is now a thin RSC that delegates visible markup to
+ * `<OnboardingScreen>` (client). The only behavior left on the server side is
+ * `?redirect=<url>` parsing + forwarding — WSA-FIX-2 (2026-05-12). Visual
+ * copy assertions moved to the client component's own i18n test suite
+ * (`OnboardingScreen.i18n.test.tsx`) per BUG-AUTH-1 (2026-05-30).
+ */
 describe("OnboardingPage", () => {
   beforeEach(() => {
-    createWorkspaceFormMock.mockClear();
+    onboardingScreenMock.mockClear();
   });
 
-  it("uses higher-contrast text for intro and footer", async () => {
+  it("renders OnboardingScreen when no search params are supplied", async () => {
     await renderPage();
-
-    const intro = screen.getByText(/create your first workspace/i);
-    const footer = screen.getByText(/need help\?/i);
-
-    expect(intro).toHaveClass("text-foreground/70");
-    expect(footer).toHaveClass("text-foreground/70");
+    expect(screen.getByTestId("onboarding-screen")).toBeInTheDocument();
   });
 
   describe("WSA-FIX-2: ?redirect= forwarding", () => {
-    it("forwards a string redirect query param to CreateWorkspaceForm", async () => {
+    it("forwards a string redirect query param to OnboardingScreen", async () => {
       await renderPage({
         redirect: "https://cms.xynes.com/dashboard",
       });
 
-      const form = screen.getByTestId("create-workspace-form");
-      expect(form).toHaveAttribute(
+      const screenNode = screen.getByTestId("onboarding-screen");
+      expect(screenNode).toHaveAttribute(
         "data-redirect-url",
         "https://cms.xynes.com/dashboard",
       );
-      expect(createWorkspaceFormMock).toHaveBeenCalledWith(
+      expect(onboardingScreenMock).toHaveBeenCalledWith(
         expect.objectContaining({
           redirectUrl: "https://cms.xynes.com/dashboard",
         }),
@@ -62,24 +62,24 @@ describe("OnboardingPage", () => {
       );
     });
 
-    it("renders the form with redirectUrl undefined when no query param is present", async () => {
+    it("renders OnboardingScreen with redirectUrl undefined when no query param is present", async () => {
       await renderPage();
 
-      const form = screen.getByTestId("create-workspace-form");
+      const screenNode = screen.getByTestId("onboarding-screen");
       // The attribute is rendered as the empty string when undefined.
-      expect(form).toHaveAttribute("data-redirect-url", "");
-      expect(createWorkspaceFormMock).toHaveBeenCalledWith(
+      expect(screenNode).toHaveAttribute("data-redirect-url", "");
+      expect(onboardingScreenMock).toHaveBeenCalledWith(
         expect.objectContaining({ redirectUrl: undefined }),
         undefined,
       );
     });
 
-    it("renders the form with redirectUrl undefined when searchParams is missing entirely", async () => {
+    it("renders OnboardingScreen with redirectUrl undefined when searchParams is missing entirely", async () => {
       // Simulate a request with no searchParams Promise at all.
       const ui = await OnboardingPage({});
       render(ui);
 
-      expect(createWorkspaceFormMock).toHaveBeenCalledWith(
+      expect(onboardingScreenMock).toHaveBeenCalledWith(
         expect.objectContaining({ redirectUrl: undefined }),
         undefined,
       );
@@ -90,7 +90,7 @@ describe("OnboardingPage", () => {
         redirect: "   https://cms.xynes.com/dashboard   ",
       });
 
-      expect(createWorkspaceFormMock).toHaveBeenCalledWith(
+      expect(onboardingScreenMock).toHaveBeenCalledWith(
         expect.objectContaining({
           redirectUrl: "https://cms.xynes.com/dashboard",
         }),
@@ -101,7 +101,7 @@ describe("OnboardingPage", () => {
     it("treats an empty redirect string as undefined", async () => {
       await renderPage({ redirect: "" });
 
-      expect(createWorkspaceFormMock).toHaveBeenCalledWith(
+      expect(onboardingScreenMock).toHaveBeenCalledWith(
         expect.objectContaining({ redirectUrl: undefined }),
         undefined,
       );
@@ -117,7 +117,7 @@ describe("OnboardingPage", () => {
         ],
       });
 
-      expect(createWorkspaceFormMock).toHaveBeenCalledWith(
+      expect(onboardingScreenMock).toHaveBeenCalledWith(
         expect.objectContaining({
           redirectUrl: "https://cms.xynes.com/dashboard",
         }),
@@ -130,7 +130,7 @@ describe("OnboardingPage", () => {
       // getSafeRedirectUrl + getAllowedRedirectDomains() to reject untrusted hosts.
       await renderPage({ redirect: "https://evil.example/" });
 
-      expect(createWorkspaceFormMock).toHaveBeenCalledWith(
+      expect(onboardingScreenMock).toHaveBeenCalledWith(
         expect.objectContaining({ redirectUrl: "https://evil.example/" }),
         undefined,
       );
