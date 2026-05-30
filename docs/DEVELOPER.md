@@ -241,6 +241,15 @@ const url = buildCmsWorkspaceContentUrl({
 - Use `encodeURIComponent` for tokens to prevent path injection.
 - Provide accessible error messaging with `role="alert"` and `aria-describedby`.
 
+### Invite Acceptance via OAuth Callback (BUG-AUTH-4, 2026-05-30)
+
+- A logged-out invitee clicking the invite link → "Sign In to Continue" → "Login with Google" → returning to `/invite/<token>?autoAccept=true` triggers `InvitePreview`'s auto-accept effect (`isAuthenticated && invite && autoAccept`).
+- The accept flow goes through `useInvite().acceptInvite()` (in `@xynes/auth-sdk`). On a fresh OAuth callback, Supabase's internal session-refresh logic can occasionally throw `Invalid Refresh Token: Refresh Token Not Found` DURING the accept POST, even though the backend join actually succeeds.
+- The SDK now silently recovers from that case by re-listing workspaces and matching against `invite.workspaceId`. If the workspace is present, `acceptInvite()` returns it and `error` stays `null` — `InvitePreview` proceeds to the success redirect path (cross-app `consoleUrl/{slug}` or `/dashboard/apps`) instead of showing the generic "An unexpected error occurred" Alert.
+- If the recovery check confirms the join did NOT happen, the SDK surfaces a `session_expired` error (NOT `unknown_error`) so the user sees actionable copy.
+- Defense in depth: the SDK's `getAccessToken()` swallows Supabase `Invalid Refresh Token` failures and returns `null` rather than letting them bubble into every caller's try/catch. Downstream HTTP requests will fail with a clean 401 if auth is truly missing.
+- Regression coverage: `src/app/invite/[token]/page.test.tsx` BUG-AUTH-4 block.
+
 ## Dashboard UX Standards
 
 - Dashboard routes live under `src/app/dashboard/*` and should compose `AuthDashboardShell` for layout consistency.

@@ -429,4 +429,84 @@ describe('InvitePreview', () => {
       expect(mockAcceptInvite).toHaveBeenCalled();
     });
   });
+
+  describe('BUG-AUTH-4 — auto-accept recovery surface', () => {
+    it('does NOT render the generic "unexpected error" state when acceptInvite resolves with a workspace (SDK recovery path)', async () => {
+      mockSearchParamsGet.mockReturnValue('true');
+
+      // BUG-AUTH-4: the SDK's acceptInvite now silently recovers when a
+      // refresh-token side-effect fires DURING the accept POST but the
+      // join actually succeeded on the backend. From the InvitePreview
+      // perspective this is indistinguishable from a normal success:
+      // `acceptInvite` resolves with the workspace, `error` is null.
+      const recoveredWorkspace = {
+        id: 'workspace-123',
+        name: 'Test Workspace',
+        slug: 'test-workspace',
+        planType: 'free' as const,
+        role: 'workspace_member' as const,
+      };
+      const mockAcceptInvite = vi.fn().mockResolvedValue(recoveredWorkspace);
+
+      const useInviteMock = vi.fn().mockReturnValue({
+        invite: mockInvite,
+        isLoading: false,
+        error: null, // <-- key: no error surfaced even though Supabase complained internally
+        acceptInvite: mockAcceptInvite,
+        isAccepting: false,
+      });
+
+      const useAuthMock = vi.fn().mockReturnValue({
+        isAuthenticated: true,
+        redirectToLogin: vi.fn(),
+      });
+
+      vi.mocked(useInvite).mockImplementation(useInviteMock);
+      vi.mocked(useAuth).mockImplementation(useAuthMock);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      await waitFor(() => {
+        expect(mockAcceptInvite).toHaveBeenCalled();
+      });
+
+      // BUG-AUTH-4 invariant: the user must NOT see the generic
+      // "unexpected error" Alert that the bug reporter saw.
+      expect(screen.queryByText(/An unexpected error occurred/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('error-state')).not.toBeInTheDocument();
+    });
+
+    it('surfaces a session_expired error (NOT unknown_error) when the SDK confirms the join failed', () => {
+      mockSearchParamsGet.mockReturnValue('true');
+
+      // The SDK's acceptInvite ran its recovery check and confirmed the
+      // join did NOT happen, so it sets `error.code = 'session_expired'`.
+      // The InvitePreview must surface this as an actionable error
+      // state (existing error rendering covers any non-null error).
+      const useInviteMock = vi.fn().mockReturnValue({
+        invite: mockInvite,
+        isLoading: false,
+        error: {
+          code: 'session_expired',
+          message: 'Your session has expired. Please sign in again.',
+        },
+        acceptInvite: vi.fn().mockResolvedValue(null),
+        isAccepting: false,
+      });
+
+      const useAuthMock = vi.fn().mockReturnValue({
+        isAuthenticated: true,
+        redirectToLogin: vi.fn(),
+      });
+
+      vi.mocked(useInvite).mockImplementation(useInviteMock);
+      vi.mocked(useAuth).mockImplementation(useAuthMock);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      // Error state appears with the session-expired copy.
+      expect(screen.getByTestId('error-state')).toBeInTheDocument();
+      expect(screen.queryByText(/An unexpected error occurred/i)).not.toBeInTheDocument();
+    });
+  });
 });
