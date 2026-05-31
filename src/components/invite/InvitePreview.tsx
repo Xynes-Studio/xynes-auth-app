@@ -176,12 +176,13 @@ export function InvitePreview({ token }: InvitePreviewProps) {
   const inviterEmail =
     typeof inviteRecord?.inviterEmail === 'string' ? inviteRecord.inviterEmail.trim() : '';
   // BUG-AUTH-10: the raw invitee email is the address the invite was issued
-  // for. We display it in the wrong-account warning so the user can confirm
-  // which account to switch to. The `'your account'` fallback is preserved
-  // ONLY for the display-only "Invited:" label when the backend payload
-  // omits inviteeEmail entirely; the mismatch comparison below operates on
-  // the raw (un-fallback'd) value so we never treat the fallback string as
-  // a real email address.
+  // for. It is used SOLELY for the local mismatch comparison below; it is
+  // NEVER rendered in the wrong-account warning (see the security note on
+  // `INVITE_PREVIEW_COPY` above). The `'your account'` fallback is preserved
+  // ONLY for the display-only "You are signed in as ..." line when both the
+  // invite payload omits inviteeEmail AND the auth context has not yet
+  // hydrated; the mismatch comparison operates on the raw (un-fallback'd)
+  // value so we never treat the fallback string as a real email address.
   const rawInviteeEmail =
     typeof inviteRecord?.inviteeEmail === 'string' ? inviteRecord.inviteeEmail.trim() : '';
   const inviteeEmail =
