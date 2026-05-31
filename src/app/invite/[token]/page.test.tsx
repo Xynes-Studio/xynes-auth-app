@@ -544,4 +544,307 @@ describe("InvitePreview", () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  describe("BUG-AUTH-10 — invite identity mismatch", () => {
+    const SIGNED_IN_USER = {
+      id: "user-archan",
+      email: "archan@safarnama.city",
+      displayName: "Archan",
+      avatarUrl: null,
+      emailVerified: true,
+      createdAt: "2024-01-01",
+      updatedAt: "2024-01-01",
+    };
+
+    // Reproduces the bug report exactly: invite issued for
+    // archan.ray2011@gmail.com, but the user is signed in as
+    // archan@safarnama.city.
+    const inviteForOtherEmail = {
+      ...mockInvite,
+      inviteeEmail: "archan.ray2011@gmail.com",
+    };
+
+    it("renders the signed-in user's email (NOT the invitee email) on the 'You are signed in as' line when the emails match", () => {
+      const matchingInvite = {
+        ...mockInvite,
+        inviteeEmail: SIGNED_IN_USER.email,
+      };
+      const mockAcceptInvite = vi.fn();
+
+      vi.mocked(useInvite).mockReturnValue({
+        invite: matchingInvite,
+        isLoading: false,
+        error: null,
+        acceptInvite: mockAcceptInvite,
+        isAccepting: false,
+      });
+      vi.mocked(useAuth).mockReturnValue({
+        isAuthenticated: true,
+        user: SIGNED_IN_USER,
+        redirectToLogin: vi.fn(),
+        // The rest of the AuthContextValue surface is unused by the
+        // component; we narrow to what the production-time mock would
+        // expose. The test runtime accepts a partial object because the
+        // mock module is virtual.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      // Happy path: warning is NOT rendered, Join button IS rendered,
+      // and the signed-in line shows the signed-in user's email.
+      expect(
+        screen.queryByTestId("invite-wrong-account-warning"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("invite-wrong-account-cta"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Join Workspace/i }),
+      ).toBeInTheDocument();
+
+      const signedInLine = screen.getByTestId("invite-signed-in-as");
+      // BUG-AUTH-10 invariant: the signed-in line carries the user's
+      // own email, not the invitee email.
+      expect(signedInLine).toHaveTextContent(SIGNED_IN_USER.email);
+      expect(signedInLine).not.toHaveTextContent(
+        inviteForOtherEmail.inviteeEmail,
+      );
+    });
+
+    it("renders the wrong-account warning Alert when the signed-in user's email does NOT match the invitee email, WITHOUT leaking the invitee email", () => {
+      vi.mocked(useInvite).mockReturnValue({
+        invite: inviteForOtherEmail,
+        isLoading: false,
+        error: null,
+        acceptInvite: vi.fn(),
+        isAccepting: false,
+      });
+      vi.mocked(useAuth).mockReturnValue({
+        isAuthenticated: true,
+        user: SIGNED_IN_USER,
+        redirectToLogin: vi.fn(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      // BUG-AUTH-10 invariant: warning Alert is rendered.
+      const warning = screen.getByTestId("invite-wrong-account-warning");
+      expect(warning).toBeInTheDocument();
+      expect(warning).toHaveAttribute("role", "alert");
+
+      // BUG-AUTH-10 security invariant (2026-05-31, follow-up): the
+      // invited email MUST NOT appear in the warning copy. The
+      // currently-signed-in user is, by definition, NOT the intended
+      // recipient — exposing the recipient's address to a non-recipient
+      // would let the holder of a leaked / forwarded invite link
+      // enumerate the recipient's email.
+      expect(warning).not.toHaveTextContent(inviteForOtherEmail.inviteeEmail);
+      // The local-part of the invitee email must also be absent (a
+      // hostile copy template could leak "archan.ray2011" without the
+      // full "@gmail.com" — guard against that too).
+      const inviteeLocalPart = inviteForOtherEmail.inviteeEmail.split("@")[0];
+      expect(warning.textContent ?? "").not.toContain(inviteeLocalPart);
+
+      // The currently-signed-in email IS shown (the user already owns
+      // that account — it is their own session, not a leak — and we
+      // need them to recognise which account they need to switch out
+      // of).
+      expect(warning).toHaveTextContent(SIGNED_IN_USER.email);
+      expect(warning.textContent).toMatch(/different email address/i);
+
+      // The Join button is replaced by the "Sign in with correct
+      // account" CTA — Join MUST be entirely absent so the user cannot
+      // fire a request the backend will reject.
+      expect(
+        screen.queryByRole("button", { name: /Join Workspace/i }),
+      ).not.toBeInTheDocument();
+      const cta = screen.getByTestId("invite-wrong-account-cta");
+      expect(cta).toBeInTheDocument();
+      expect(cta).toHaveTextContent(/Sign in with correct account/i);
+
+      // The "You are signed in as" line is NOT rendered in the
+      // mismatch path — the warning carries the relevant information
+      // in a more actionable shape.
+      expect(
+        screen.queryByTestId("invite-signed-in-as"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("does NOT auto-accept when the autoAccept query param is true but the emails do not match", async () => {
+      mockSearchParamsGet.mockReturnValue("true");
+      const mockAcceptInvite = vi.fn().mockResolvedValue(null);
+
+      vi.mocked(useInvite).mockReturnValue({
+        invite: inviteForOtherEmail,
+        isLoading: false,
+        error: null,
+        acceptInvite: mockAcceptInvite,
+        isAccepting: false,
+      });
+      vi.mocked(useAuth).mockReturnValue({
+        isAuthenticated: true,
+        user: SIGNED_IN_USER,
+        redirectToLogin: vi.fn(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      // Give the auto-accept effect a chance to fire so we are not
+      // making a vacuous "not called yet" assertion.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // BUG-AUTH-10 invariant: auto-accept is gated by `!isEmailMismatch`
+      // so the backend never sees the request, the user never sees a
+      // generic "Unexpected error occurred." toast, and the wrong-account
+      // warning UI surfaces instead.
+      expect(mockAcceptInvite).not.toHaveBeenCalled();
+      expect(
+        screen.getByTestId("invite-wrong-account-warning"),
+      ).toBeInTheDocument();
+    });
+
+    it("upgrades the in-card error UI to the wrong-account warning when the SDK surfaces invite_email_mismatch (post-click defense), WITHOUT leaking the invitee email", () => {
+      // Simulates the case where the user reached Join before the
+      // pre-flight guard caught them (e.g. user object loaded after the
+      // first render, or the user clicked while the auth state was
+      // hydrating). The SDK now returns
+      // `error.code = 'invite_email_mismatch'`, and InvitePreview
+      // upgrades the rendering from the destructive Alert to the
+      // actionable warning + CTA.
+      vi.mocked(useInvite).mockReturnValue({
+        invite: inviteForOtherEmail,
+        isLoading: false,
+        error: {
+          code: "invite_email_mismatch",
+          message:
+            "This invitation was sent to a different email address. Please sign in with the invited account.",
+        },
+        acceptInvite: vi.fn(),
+        isAccepting: false,
+      });
+      vi.mocked(useAuth).mockReturnValue({
+        isAuthenticated: true,
+        user: SIGNED_IN_USER,
+        redirectToLogin: vi.fn(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      // The error-state container is still rendered (preserves the
+      // existing testid contract for the error path), but the
+      // destructive variant + generic copy are replaced.
+      const errorState = screen.getByTestId("error-state");
+      expect(errorState).toBeInTheDocument();
+      expect(errorState).toHaveTextContent(/different email address/i);
+
+      // Defense in depth: the generic unknown-error copy must NOT
+      // appear (this is the bug report's exact failure mode).
+      expect(
+        screen.queryByText(/An unexpected error occurred/i),
+      ).not.toBeInTheDocument();
+
+      // BUG-AUTH-10 security invariant (2026-05-31, follow-up): the
+      // invited email MUST NOT appear anywhere in the rendered
+      // error-state container, even though the invite payload (still
+      // mocked on `useInvite.invite`) contains it.
+      expect(errorState).not.toHaveTextContent(
+        inviteForOtherEmail.inviteeEmail,
+      );
+      const inviteeLocalPart = inviteForOtherEmail.inviteeEmail.split("@")[0];
+      expect(errorState.textContent ?? "").not.toContain(inviteeLocalPart);
+
+      // CTA is wired so the user can recover.
+      expect(
+        screen.getByTestId("invite-wrong-account-cta"),
+      ).toBeInTheDocument();
+    });
+
+    it("routes the pre-flight wrong-account CTA through /logout to break the /login auto-redirect loop", () => {
+      // BUG-AUTH-10 (PR #67 Codex P2 follow-up): when the user is signed
+      // in as a different account, the "Sign in with correct account"
+      // CTA must NOT call `redirectToLogin` directly. /login's
+      // authenticated-user effect (src/app/login/login.client.tsx) would
+      // see `isAuthenticated === true` and immediately redirect back to
+      // the `redirect` target (/invite/<token>?autoAccept=true), looping
+      // until LOGIN_REDIRECT_MAX_ATTEMPTS suppression trips. The CTA
+      // must instead route through the server-side /logout route, which
+      // signs the user out and 302s to /login?redirect=... with a
+      // cleared session.
+      const mockRedirectToLogin = vi.fn();
+      vi.mocked(useInvite).mockReturnValue({
+        invite: inviteForOtherEmail,
+        isLoading: false,
+        error: null,
+        acceptInvite: vi.fn(),
+        isAccepting: false,
+      });
+      vi.mocked(useAuth).mockReturnValue({
+        isAuthenticated: true,
+        user: SIGNED_IN_USER,
+        redirectToLogin: mockRedirectToLogin,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      const cta = screen.getByTestId("invite-wrong-account-cta");
+      cta.click();
+
+      // BUG-AUTH-10 invariant: router.push("/logout?redirect=...") is
+      // called with the invite return path URL-encoded inside the
+      // redirect query. `redirectToLogin` must NOT be called.
+      expect(mockRedirectToLogin).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledTimes(1);
+      const pushTarget = String(mockPush.mock.calls[0]?.[0] ?? "");
+      expect(pushTarget.startsWith("/logout?redirect=")).toBe(true);
+      // The chained redirect target must point back at the invite page
+      // with autoAccept=true so the user resumes the flow seamlessly
+      // after re-authenticating.
+      const encoded = pushTarget.slice("/logout?redirect=".length);
+      const decoded = decodeURIComponent(encoded);
+      expect(decoded).toBe("/invite/test-token?autoAccept=true");
+    });
+
+    it("routes the post-click wrong-account CTA through /logout (defense in depth for invite_email_mismatch error state)", () => {
+      // Same loop-break invariant as the pre-flight CTA, but on the
+      // error-state path that fires when the SDK surfaces
+      // `error.code === "invite_email_mismatch"` (the user reached
+      // Join before the pre-flight guard caught them).
+      const mockRedirectToLogin = vi.fn();
+      vi.mocked(useInvite).mockReturnValue({
+        invite: inviteForOtherEmail,
+        isLoading: false,
+        error: {
+          code: "invite_email_mismatch",
+          message:
+            "This invitation was sent to a different email address. Please sign in with the invited account.",
+        },
+        acceptInvite: vi.fn(),
+        isAccepting: false,
+      });
+      vi.mocked(useAuth).mockReturnValue({
+        isAuthenticated: true,
+        user: SIGNED_IN_USER,
+        redirectToLogin: mockRedirectToLogin,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      const cta = screen.getByTestId("invite-wrong-account-cta");
+      cta.click();
+
+      expect(mockRedirectToLogin).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledTimes(1);
+      const pushTarget = String(mockPush.mock.calls[0]?.[0] ?? "");
+      expect(pushTarget.startsWith("/logout?redirect=")).toBe(true);
+      const encoded = pushTarget.slice("/logout?redirect=".length);
+      const decoded = decodeURIComponent(encoded);
+      expect(decoded).toBe("/invite/test-token?autoAccept=true");
+    });
+  });
 });
