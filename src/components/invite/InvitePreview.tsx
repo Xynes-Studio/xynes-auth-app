@@ -71,21 +71,33 @@ interface InvitePreviewProps {
  * Do NOT inline these strings at the JSX call sites — that defeats the
  * "isolated for migration" purpose. If you add another wrong-account string,
  * add it to this constant first.
+ *
+ * Security note (2026-05-31): the invited email is NEVER rendered in the
+ * mismatch path. The invite token is an unauthenticated bearer credential
+ * (the `/invite/<token>` resolve endpoint does not require auth so the
+ * recipient can preview the invite before signing in). If a signed-in user
+ * is NOT the intended recipient, exposing the invited email to them is an
+ * information-disclosure leak: it lets the holder of a leaked / forwarded
+ * invite link enumerate the recipient's address. The matched-email path is
+ * unaffected because the signed-in user already owns that inbox.
  */
 const INVITE_PREVIEW_COPY = {
   /** Body line shown above the Join button for the matched-email happy path. */
   signedInAs: 'You are signed in as',
   /** Title of the wrong-account warning Alert (Lumia DS `variant="warning"`). */
-  wrongAccountWarningTitle: 'This invitation was sent to a different email address',
+  wrongAccountWarningTitle:
+    'This invitation was sent to a different email address',
   /**
-   * Body of the wrong-account warning Alert. Renders the invited email and
-   * the currently-signed-in email so the user can confirm the mismatch
-   * before switching accounts. Both emails are user-controlled values
-   * displayed exactly as the backend returned them; we do not interpolate
-   * them into HTML.
+   * Body of the wrong-account warning Alert.
+   *
+   * SECURITY: the invited email is intentionally NOT included. The
+   * currently-signed-in email IS included because the user already owns
+   * that account (it is their own session, not a leak). The user can
+   * check the email that delivered the invite link to confirm which
+   * inbox was the intended recipient — we do not need to tell them.
    */
   wrongAccountWarningBody:
-    'This invite was sent to {inviteeEmail}. You are signed in as {signedInEmail}. Please sign in with the invited address to accept this invitation.',
+    'You are signed in as {signedInEmail}, but this invitation was sent to a different address. Open the email that contains the invite to see which account it was sent to, then sign in with that account to accept.',
   /** Label for the "Sign in with correct account" CTA that replaces Join when emails do not match. */
   wrongAccountCta: 'Sign in with correct account',
   /** aria-label fragment for the wrong-account warning Alert region. */
@@ -372,14 +384,23 @@ export function InvitePreview({ token }: InvitePreviewProps) {
               <Skeleton className="h-10 w-full mt-6" />
             </div>
           ) : error ? (
-            isInviteEmailMismatchError && rawInviteeEmail.length > 0 ? (
+            isInviteEmailMismatchError ? (
               // BUG-AUTH-10: when the SDK surfaces invite_email_mismatch
               // (e.g. the user reached Join before the pre-flight guard
               // because the signed-in state changed mid-flight), show
               // the actionable warning UI instead of the destructive
-              // "error" alert. We still surface both emails so the user
-              // can see which account to switch to, and we offer the
-              // "Sign in with correct account" CTA.
+              // "error" alert. The CTA offers the user the path to
+              // recovery (sign in with the correct account).
+              //
+              // SECURITY: we do NOT need to gate on
+              // `rawInviteeEmail.length > 0` here. The previous version
+              // gated this branch on the invitee email being known so
+              // we could display it in the warning copy — that was
+              // exactly the leak vector. The new copy never references
+              // the invited email, so we render the warning whenever
+              // the SDK tells us the backend rejected the join for
+              // identity mismatch, regardless of whether the invite
+              // resolve payload happened to include the address.
               <div className="space-y-4" data-testid="error-state">
                 <Alert
                   variant="warning"
@@ -387,12 +408,10 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                   aria-live="assertive"
                   aria-label={INVITE_PREVIEW_COPY.wrongAccountAriaLabel}
                   title={INVITE_PREVIEW_COPY.wrongAccountWarningTitle}
-                  description={INVITE_PREVIEW_COPY.wrongAccountWarningBody
-                    .replace('{inviteeEmail}', rawInviteeEmail)
-                    .replace(
-                      '{signedInEmail}',
-                      signedInEmail ?? 'your current account',
-                    )}
+                  description={INVITE_PREVIEW_COPY.wrongAccountWarningBody.replace(
+                    '{signedInEmail}',
+                    signedInEmail ?? 'your current account',
+                  )}
                 />
                 <Button
                   className="w-full"
@@ -460,6 +479,16 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                     // account", and disable the Join action entirely so
                     // the user does not accidentally fire a request the
                     // backend will reject with 403.
+                    //
+                    // SECURITY: the invited email is intentionally NOT
+                    // rendered. The currently-signed-in user is, by
+                    // definition, NOT the intended recipient — showing
+                    // them the invited address would leak it to a
+                    // non-recipient. We gate this branch on
+                    // `rawInviteeEmail.length > 0` only to ensure we
+                    // have a real invite (and not the `'your account'`
+                    // fallback) to compare against — we do not use the
+                    // value in the rendered output.
                     <>
                       <Alert
                         variant="warning"
@@ -467,12 +496,10 @@ export function InvitePreview({ token }: InvitePreviewProps) {
                         aria-live="polite"
                         aria-label={INVITE_PREVIEW_COPY.wrongAccountAriaLabel}
                         title={INVITE_PREVIEW_COPY.wrongAccountWarningTitle}
-                        description={INVITE_PREVIEW_COPY.wrongAccountWarningBody
-                          .replace('{inviteeEmail}', rawInviteeEmail)
-                          .replace(
-                            '{signedInEmail}',
-                            signedInEmail ?? 'your current account',
-                          )}
+                        description={INVITE_PREVIEW_COPY.wrongAccountWarningBody.replace(
+                          '{signedInEmail}',
+                          signedInEmail ?? 'your current account',
+                        )}
                         data-testid="invite-wrong-account-warning"
                       />
                       <Button

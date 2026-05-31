@@ -612,7 +612,7 @@ describe("InvitePreview", () => {
       );
     });
 
-    it("renders the wrong-account warning Alert with BOTH emails when the signed-in user's email does NOT match the invitee email", () => {
+    it("renders the wrong-account warning Alert when the signed-in user's email does NOT match the invitee email, WITHOUT leaking the invitee email", () => {
       vi.mocked(useInvite).mockReturnValue({
         invite: inviteForOtherEmail,
         isLoading: false,
@@ -634,8 +634,23 @@ describe("InvitePreview", () => {
       expect(warning).toBeInTheDocument();
       expect(warning).toHaveAttribute("role", "alert");
 
-      // Both emails appear in the warning copy.
-      expect(warning).toHaveTextContent(inviteForOtherEmail.inviteeEmail);
+      // BUG-AUTH-10 security invariant (2026-05-31, follow-up): the
+      // invited email MUST NOT appear in the warning copy. The
+      // currently-signed-in user is, by definition, NOT the intended
+      // recipient — exposing the recipient's address to a non-recipient
+      // would let the holder of a leaked / forwarded invite link
+      // enumerate the recipient's email.
+      expect(warning).not.toHaveTextContent(inviteForOtherEmail.inviteeEmail);
+      // The local-part of the invitee email must also be absent (a
+      // hostile copy template could leak "archan.ray2011" without the
+      // full "@gmail.com" — guard against that too).
+      const inviteeLocalPart = inviteForOtherEmail.inviteeEmail.split("@")[0];
+      expect(warning.textContent ?? "").not.toContain(inviteeLocalPart);
+
+      // The currently-signed-in email IS shown (the user already owns
+      // that account — it is their own session, not a leak — and we
+      // need them to recognise which account they need to switch out
+      // of).
       expect(warning).toHaveTextContent(SIGNED_IN_USER.email);
       expect(warning.textContent).toMatch(/different email address/i);
 
@@ -650,8 +665,8 @@ describe("InvitePreview", () => {
       expect(cta).toHaveTextContent(/Sign in with correct account/i);
 
       // The "You are signed in as" line is NOT rendered in the
-      // mismatch path — the warning carries the same information in a
-      // more actionable shape.
+      // mismatch path — the warning carries the relevant information
+      // in a more actionable shape.
       expect(
         screen.queryByTestId("invite-signed-in-as"),
       ).not.toBeInTheDocument();
@@ -691,7 +706,7 @@ describe("InvitePreview", () => {
       ).toBeInTheDocument();
     });
 
-    it("upgrades the in-card error UI to the wrong-account warning when the SDK surfaces invite_email_mismatch (post-click defense)", () => {
+    it("upgrades the in-card error UI to the wrong-account warning when the SDK surfaces invite_email_mismatch (post-click defense), WITHOUT leaking the invitee email", () => {
       // Simulates the case where the user reached Join before the
       // pre-flight guard caught them (e.g. user object loaded after the
       // first render, or the user clicked while the auth state was
@@ -725,11 +740,20 @@ describe("InvitePreview", () => {
       const errorState = screen.getByTestId("error-state");
       expect(errorState).toBeInTheDocument();
       expect(errorState).toHaveTextContent(/different email address/i);
+
       // Defense in depth: the generic unknown-error copy must NOT
       // appear (this is the bug report's exact failure mode).
       expect(
         screen.queryByText(/An unexpected error occurred/i),
       ).not.toBeInTheDocument();
+
+      // BUG-AUTH-10 security invariant (2026-05-31, follow-up): the
+      // invited email MUST NOT appear anywhere in the rendered
+      // error-state container, even though the invite payload (still
+      // mocked on `useInvite.invite`) contains it.
+      expect(errorState).not.toHaveTextContent(inviteForOtherEmail.inviteeEmail);
+      const inviteeLocalPart = inviteForOtherEmail.inviteeEmail.split("@")[0];
+      expect(errorState.textContent ?? "").not.toContain(inviteeLocalPart);
 
       // CTA is wired so the user can recover.
       expect(
