@@ -751,7 +751,9 @@ describe("InvitePreview", () => {
       // invited email MUST NOT appear anywhere in the rendered
       // error-state container, even though the invite payload (still
       // mocked on `useInvite.invite`) contains it.
-      expect(errorState).not.toHaveTextContent(inviteForOtherEmail.inviteeEmail);
+      expect(errorState).not.toHaveTextContent(
+        inviteForOtherEmail.inviteeEmail,
+      );
       const inviteeLocalPart = inviteForOtherEmail.inviteeEmail.split("@")[0];
       expect(errorState.textContent ?? "").not.toContain(inviteeLocalPart);
 
@@ -759,6 +761,90 @@ describe("InvitePreview", () => {
       expect(
         screen.getByTestId("invite-wrong-account-cta"),
       ).toBeInTheDocument();
+    });
+
+    it("routes the pre-flight wrong-account CTA through /logout to break the /login auto-redirect loop", () => {
+      // BUG-AUTH-10 (PR #67 Codex P2 follow-up): when the user is signed
+      // in as a different account, the "Sign in with correct account"
+      // CTA must NOT call `redirectToLogin` directly. /login's
+      // authenticated-user effect (src/app/login/login.client.tsx) would
+      // see `isAuthenticated === true` and immediately redirect back to
+      // the `redirect` target (/invite/<token>?autoAccept=true), looping
+      // until LOGIN_REDIRECT_MAX_ATTEMPTS suppression trips. The CTA
+      // must instead route through the server-side /logout route, which
+      // signs the user out and 302s to /login?redirect=... with a
+      // cleared session.
+      const mockRedirectToLogin = vi.fn();
+      vi.mocked(useInvite).mockReturnValue({
+        invite: inviteForOtherEmail,
+        isLoading: false,
+        error: null,
+        acceptInvite: vi.fn(),
+        isAccepting: false,
+      });
+      vi.mocked(useAuth).mockReturnValue({
+        isAuthenticated: true,
+        user: SIGNED_IN_USER,
+        redirectToLogin: mockRedirectToLogin,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      const cta = screen.getByTestId("invite-wrong-account-cta");
+      cta.click();
+
+      // BUG-AUTH-10 invariant: router.push("/logout?redirect=...") is
+      // called with the invite return path URL-encoded inside the
+      // redirect query. `redirectToLogin` must NOT be called.
+      expect(mockRedirectToLogin).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledTimes(1);
+      const pushTarget = String(mockPush.mock.calls[0]?.[0] ?? "");
+      expect(pushTarget.startsWith("/logout?redirect=")).toBe(true);
+      // The chained redirect target must point back at the invite page
+      // with autoAccept=true so the user resumes the flow seamlessly
+      // after re-authenticating.
+      const encoded = pushTarget.slice("/logout?redirect=".length);
+      const decoded = decodeURIComponent(encoded);
+      expect(decoded).toBe("/invite/test-token?autoAccept=true");
+    });
+
+    it("routes the post-click wrong-account CTA through /logout (defense in depth for invite_email_mismatch error state)", () => {
+      // Same loop-break invariant as the pre-flight CTA, but on the
+      // error-state path that fires when the SDK surfaces
+      // `error.code === "invite_email_mismatch"` (the user reached
+      // Join before the pre-flight guard caught them).
+      const mockRedirectToLogin = vi.fn();
+      vi.mocked(useInvite).mockReturnValue({
+        invite: inviteForOtherEmail,
+        isLoading: false,
+        error: {
+          code: "invite_email_mismatch",
+          message:
+            "This invitation was sent to a different email address. Please sign in with the invited account.",
+        },
+        acceptInvite: vi.fn(),
+        isAccepting: false,
+      });
+      vi.mocked(useAuth).mockReturnValue({
+        isAuthenticated: true,
+        user: SIGNED_IN_USER,
+        redirectToLogin: mockRedirectToLogin,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      const cta = screen.getByTestId("invite-wrong-account-cta");
+      cta.click();
+
+      expect(mockRedirectToLogin).not.toHaveBeenCalled();
+      expect(mockPush).toHaveBeenCalledTimes(1);
+      const pushTarget = String(mockPush.mock.calls[0]?.[0] ?? "");
+      expect(pushTarget.startsWith("/logout?redirect=")).toBe(true);
+      const encoded = pushTarget.slice("/logout?redirect=".length);
+      const decoded = decodeURIComponent(encoded);
+      expect(decoded).toBe("/invite/test-token?autoAccept=true");
     });
   });
 });
