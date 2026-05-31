@@ -59,6 +59,39 @@ interface InvitePreviewProps {
   token: string;
 }
 
+/**
+ * BUG-AUTH-10 (2026-05-31): isolated copy for the wrong-account warning
+ * surface. The surrounding component still ships raw English strings (not yet
+ * on `next-intl`); this constant exists so the new BUG-AUTH-10 strings can be
+ * migrated en bloc when the InvitePreview component moves onto the shared
+ * `auth.invite` catalog. Keeping the wording in one place also means
+ * translators can review the warning copy independently of the rest of the
+ * card.
+ *
+ * Do NOT inline these strings at the JSX call sites — that defeats the
+ * "isolated for migration" purpose. If you add another wrong-account string,
+ * add it to this constant first.
+ */
+const INVITE_PREVIEW_COPY = {
+  /** Body line shown above the Join button for the matched-email happy path. */
+  signedInAs: 'You are signed in as',
+  /** Title of the wrong-account warning Alert (Lumia DS `variant="warning"`). */
+  wrongAccountWarningTitle: 'This invitation was sent to a different email address',
+  /**
+   * Body of the wrong-account warning Alert. Renders the invited email and
+   * the currently-signed-in email so the user can confirm the mismatch
+   * before switching accounts. Both emails are user-controlled values
+   * displayed exactly as the backend returned them; we do not interpolate
+   * them into HTML.
+   */
+  wrongAccountWarningBody:
+    'This invite was sent to {inviteeEmail}. You are signed in as {signedInEmail}. Please sign in with the invited address to accept this invitation.',
+  /** Label for the "Sign in with correct account" CTA that replaces Join when emails do not match. */
+  wrongAccountCta: 'Sign in with correct account',
+  /** aria-label fragment for the wrong-account warning Alert region. */
+  wrongAccountAriaLabel: 'Invitation email mismatch warning',
+} as const;
+
 function unwrapInvitePayload(value: unknown): Record<string, unknown> | null {
   let current: unknown = value;
   while (
@@ -107,7 +140,7 @@ function getInviteExpiryLabel(expiresAt: unknown): string {
 export function InvitePreview({ token }: InvitePreviewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, redirectToLogin } = useAuth();
+  const { isAuthenticated, redirectToLogin, user } = useAuth();
   const autoAccept = searchParams.get('autoAccept') === 'true';
 
   // Validate environment variable
@@ -130,12 +163,54 @@ export function InvitePreview({ token }: InvitePreviewProps) {
       : 'Workspace owner';
   const inviterEmail =
     typeof inviteRecord?.inviterEmail === 'string' ? inviteRecord.inviterEmail.trim() : '';
+  // BUG-AUTH-10: the raw invitee email is the address the invite was issued
+  // for. We display it in the wrong-account warning so the user can confirm
+  // which account to switch to. The `'your account'` fallback is preserved
+  // ONLY for the display-only "Invited:" label when the backend payload
+  // omits inviteeEmail entirely; the mismatch comparison below operates on
+  // the raw (un-fallback'd) value so we never treat the fallback string as
+  // a real email address.
+  const rawInviteeEmail =
+    typeof inviteRecord?.inviteeEmail === 'string' ? inviteRecord.inviteeEmail.trim() : '';
   const inviteeEmail =
-    typeof inviteRecord?.inviteeEmail === 'string' && inviteRecord.inviteeEmail.trim().length > 0
-      ? inviteRecord.inviteeEmail
-      : 'your account';
+    rawInviteeEmail.length > 0 ? rawInviteeEmail : 'your account';
   const inviteExpiryLabel = getInviteExpiryLabel(inviteRecord?.expiresAt);
-  
+
+  // BUG-AUTH-10: render the currently-signed-in user's email on the
+  // "You are signed in as" line, NOT the invitee email. Before BUG-AUTH-10
+  // the line incorrectly mirrored `inviteeEmail`, which made the wrong
+  // account look like the right one whenever the invite was issued for a
+  // different address than the one currently signed in. We also compare
+  // normalized lowercase + trimmed values so a casing/whitespace
+  // difference does NOT falsely trigger the mismatch warning (the backend
+  // already normalizes both sides the same way before rejecting; see
+  // xynes-accounts-service/src/actions/handlers/invites/accept.ts).
+  const signedInEmail =
+    typeof user?.email === 'string' && user.email.trim().length > 0
+      ? user.email.trim()
+      : null;
+  const normalizedSignedInEmail = signedInEmail ? signedInEmail.toLowerCase() : null;
+  const normalizedInviteeEmail =
+    rawInviteeEmail.length > 0 ? rawInviteeEmail.toLowerCase() : null;
+  // Mismatch is detected ONLY when both sides are known non-empty strings.
+  // If either side is missing (signed-out user, backend omitted the
+  // inviteeEmail field) we fall back to the existing behaviour rather
+  // than block on incomplete data.
+  const isEmailMismatch =
+    isAuthenticated &&
+    normalizedSignedInEmail !== null &&
+    normalizedInviteeEmail !== null &&
+    normalizedSignedInEmail !== normalizedInviteeEmail;
+
+  // BUG-AUTH-10: distinct SDK error code surfaced when the backend
+  // rejected the join because the user is signed in as the wrong
+  // account. Used to upgrade the in-card error UI from the generic
+  // destructive alert to actionable wrong-account copy (defense in depth
+  // for the case where the user reached the Join button without the
+  // pre-flight mismatch guard catching them — e.g. signed-in-as state
+  // changed mid-flight).
+  const isInviteEmailMismatchError = error?.code === 'invite_email_mismatch';
+
   // Handle invite acceptance
   const handleAccept = useCallback(async () => {
     const result = await acceptInvite();
@@ -164,10 +239,33 @@ export function InvitePreview({ token }: InvitePreviewProps) {
 
   // Auto-accept effect
   useEffect(() => {
-    if (isAuthenticated && invite && autoAccept && !isAccepting && !error && !isLoading) {
+    // BUG-AUTH-10: skip auto-accept when the signed-in email does not
+    // match the invitee email. The backend would reject the request
+    // anyway (403 FORBIDDEN), and surfacing that as an error toast for
+    // someone who simply clicked an invite link in the wrong tab is a
+    // worse UX than showing them the warning Alert and the "Sign in
+    // with correct account" CTA.
+    if (
+      isAuthenticated &&
+      invite &&
+      autoAccept &&
+      !isAccepting &&
+      !error &&
+      !isLoading &&
+      !isEmailMismatch
+    ) {
       handleAccept();
     }
-  }, [isAuthenticated, invite, autoAccept, isAccepting, error, isLoading, handleAccept]);
+  }, [
+    isAuthenticated,
+    invite,
+    autoAccept,
+    isAccepting,
+    error,
+    isLoading,
+    isEmailMismatch,
+    handleAccept,
+  ]);
 
   // Determine if we should show the error state card
   const isExpiredOrCancelled = inviteStatus === 'expired' || inviteStatus === 'cancelled';
@@ -274,15 +372,50 @@ export function InvitePreview({ token }: InvitePreviewProps) {
               <Skeleton className="h-10 w-full mt-6" />
             </div>
           ) : error ? (
-            <Alert 
-              variant="error" 
-              data-testid="error-state"
-              role="alert"
-              aria-live="assertive"
-              description={error.message}
-            >
-              {/* Icon is auto-handled by Alert in lumia-ds */}
-            </Alert>
+            isInviteEmailMismatchError && rawInviteeEmail.length > 0 ? (
+              // BUG-AUTH-10: when the SDK surfaces invite_email_mismatch
+              // (e.g. the user reached Join before the pre-flight guard
+              // because the signed-in state changed mid-flight), show
+              // the actionable warning UI instead of the destructive
+              // "error" alert. We still surface both emails so the user
+              // can see which account to switch to, and we offer the
+              // "Sign in with correct account" CTA.
+              <div className="space-y-4" data-testid="error-state">
+                <Alert
+                  variant="warning"
+                  role="alert"
+                  aria-live="assertive"
+                  aria-label={INVITE_PREVIEW_COPY.wrongAccountAriaLabel}
+                  title={INVITE_PREVIEW_COPY.wrongAccountWarningTitle}
+                  description={INVITE_PREVIEW_COPY.wrongAccountWarningBody
+                    .replace('{inviteeEmail}', rawInviteeEmail)
+                    .replace(
+                      '{signedInEmail}',
+                      signedInEmail ?? 'your current account',
+                    )}
+                />
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() =>
+                    redirectToLogin(`/invite/${token}?autoAccept=true`)
+                  }
+                  data-testid="invite-wrong-account-cta"
+                >
+                  {INVITE_PREVIEW_COPY.wrongAccountCta}
+                </Button>
+              </div>
+            ) : (
+              <Alert
+                variant="error"
+                data-testid="error-state"
+                role="alert"
+                aria-live="assertive"
+                description={error.message}
+              >
+                {/* Icon is auto-handled by Alert in lumia-ds */}
+              </Alert>
+            )
           ) : inviteRecord ? (
             <div className="space-y-4">
               <div className="flex flex-col items-center">
@@ -320,34 +453,76 @@ export function InvitePreview({ token }: InvitePreviewProps) {
               
               {isAuthenticated ? (
                 <div className="mt-6 space-y-2">
-                  <p 
-                    className="text-center text-sm text-muted-foreground"
-                    id="signed-in-as"
-                    aria-live="polite"
-                  >
-                    You are signed in as <span className="font-medium">{inviteeEmail}</span>
-                  </p>
-                  
-                  <Button
-                    className="w-full"
-                    onClick={handleAccept}
-                    disabled={isAccepting || isLoading}
-                    aria-describedby="workspace-name inviter-details expiry-info signed-in-as"
-                  >
-                    {isAccepting ? (
-                      <>
-                        <span className="sr-only">Loading</span>
-                        <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                        Accepting...
-                      </>
-                    ) : (
-                      <>
-                        <span className="sr-only">Join</span>
-                        <CheckCircleIcon className="mr-2 h-4 w-4" aria-hidden="true" />
-                        Join Workspace
-                      </>
-                    )}
-                  </Button>
+                  {isEmailMismatch && rawInviteeEmail.length > 0 ? (
+                    // BUG-AUTH-10: pre-flight mismatch guard. Show a
+                    // warning Alert (NOT destructive) explaining the
+                    // mismatch, replace Join with "Sign in with correct
+                    // account", and disable the Join action entirely so
+                    // the user does not accidentally fire a request the
+                    // backend will reject with 403.
+                    <>
+                      <Alert
+                        variant="warning"
+                        role="alert"
+                        aria-live="polite"
+                        aria-label={INVITE_PREVIEW_COPY.wrongAccountAriaLabel}
+                        title={INVITE_PREVIEW_COPY.wrongAccountWarningTitle}
+                        description={INVITE_PREVIEW_COPY.wrongAccountWarningBody
+                          .replace('{inviteeEmail}', rawInviteeEmail)
+                          .replace(
+                            '{signedInEmail}',
+                            signedInEmail ?? 'your current account',
+                          )}
+                        data-testid="invite-wrong-account-warning"
+                      />
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        onClick={() =>
+                          redirectToLogin(`/invite/${token}?autoAccept=true`)
+                        }
+                        aria-describedby="workspace-name inviter-details expiry-info"
+                        data-testid="invite-wrong-account-cta"
+                      >
+                        {INVITE_PREVIEW_COPY.wrongAccountCta}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p
+                        className="text-center text-sm text-muted-foreground"
+                        id="signed-in-as"
+                        aria-live="polite"
+                        data-testid="invite-signed-in-as"
+                      >
+                        {INVITE_PREVIEW_COPY.signedInAs}{' '}
+                        <span className="font-medium">
+                          {signedInEmail ?? inviteeEmail}
+                        </span>
+                      </p>
+
+                      <Button
+                        className="w-full"
+                        onClick={handleAccept}
+                        disabled={isAccepting || isLoading}
+                        aria-describedby="workspace-name inviter-details expiry-info signed-in-as"
+                      >
+                        {isAccepting ? (
+                          <>
+                            <span className="sr-only">Loading</span>
+                            <SpinnerIcon className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                            Accepting...
+                          </>
+                        ) : (
+                          <>
+                            <span className="sr-only">Join</span>
+                            <CheckCircleIcon className="mr-2 h-4 w-4" aria-hidden="true" />
+                            Join Workspace
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="mt-6 space-y-3">

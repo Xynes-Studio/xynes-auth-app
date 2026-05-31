@@ -250,6 +250,20 @@ const url = buildCmsWorkspaceContentUrl({
 - Defense in depth: the SDK's `getAccessToken()` swallows Supabase `Invalid Refresh Token` failures and returns `null` rather than letting them bubble into every caller's try/catch. Downstream HTTP requests will fail with a clean 401 if auth is truly missing.
 - Regression coverage: `src/app/invite/[token]/page.test.tsx` BUG-AUTH-4 block.
 
+### Invite Identity Mismatch UX (BUG-AUTH-10, 2026-05-31)
+
+- A signed-in user clicking an invite link that was issued for a **different** email address used to see two related bugs:
+  1. The "You are signed in as ..." line in the invite-preview card displayed the **invitee email** from the invite payload, not the actual signed-in user's email. The line incorrectly mirrored `inviteRecord.inviteeEmail`, which made the wrong account look like the right one.
+  2. Clicking Join fired the accept POST. The accounts-service correctly rejected the request with `403 FORBIDDEN { message: "Invite email does not match authenticated user" }`, but the SDK's `normalizeAuthError` fell through to the generic `unknown_error` code and the UI showed "An unexpected error occurred. Please try again." — actionable copy was lost.
+- `InvitePreview.tsx` now reads `user` from `useAuth()` and:
+  - Displays the **signed-in user's email** (`user.email`) on the "You are signed in as ..." line, with `inviteeEmail` retained only as a fallback for the rare case where the auth context has not yet hydrated.
+  - Compares `user.email` against `inviteRecord.inviteeEmail` (both normalized via `.trim().toLowerCase()`, matching the backend's normalization in `xynes-accounts-service/src/actions/handlers/invites/accept.ts`).
+  - Renders a Lumia DS `Alert variant="warning"` with both emails when they do not match, replaces Join with a "Sign in with correct account" CTA (calls `redirectToLogin(/invite/<token>?autoAccept=true)`), and gates the `autoAccept` effect so the backend never sees the request.
+- The SDK now exports a closed-set `invite_email_mismatch` error code (`@xynes/auth-sdk` `AuthErrorCode`). `useInvite().acceptInvite()` surfaces this code instead of `unknown_error` when the accounts-service returns the 403 mismatch shape. Defense in depth: the BUG-AUTH-4 refresh-token recovery path is intentionally skipped for this case — the backend has explicitly rejected the join, so recovery must not falsely "confirm" success.
+- The card's destructive error Alert is upgraded to the wrong-account warning + CTA whenever `error.code === 'invite_email_mismatch'`, so a user who reached Join before the pre-flight guard caught them (mid-flight auth-state hydration) still sees the actionable surface.
+- BUG-AUTH-10 strings live in an `INVITE_PREVIEW_COPY` constant at the top of `InvitePreview.tsx`. The surrounding component is not yet on `next-intl`; the constant exists so the new strings can be migrated en bloc when the file moves onto the shared `auth.invite` catalog.
+- Regression coverage: `src/app/invite/[token]/page.test.tsx` BUG-AUTH-10 block (4 tests: match path, mismatch warning, blocked auto-accept, SDK-error-code defense). SDK-side coverage: `xynes-auth-sdk/src/utils/errors.test.ts` (`isInviteEmailMismatchError` describe) + `xynes-auth-sdk/src/hooks/useInvite.test.ts` (BUG-AUTH-10 describe).
+
 ## Dashboard UX Standards
 
 - Dashboard routes live under `src/app/dashboard/*` and should compose `AuthDashboardShell` for layout consistency.
