@@ -1,8 +1,8 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
-import { Suspense, useCallback, useMemo } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   DashboardShell,
@@ -26,6 +26,62 @@ interface AuthDashboardShellProps {
 
 type LumiaDashboardChildren = ComponentProps<typeof DashboardShell>["children"];
 
+/**
+ * BUG-AUTH-9 (2026-06-01): Build the `/onboarding` target URL for the
+ * no-workspace guard. Appends `?redirect=<encoded path>` so the post-create
+ * flow honours WSA-FIX-2 semantics and the user lands back on the dashboard
+ * route they originally tried to visit.
+ *
+ * The redirect param value is the path-only portion (`pathname + search`),
+ * NOT a fully-qualified URL — `/onboarding` already lives in the same
+ * auth-app origin, and downstream redirect-allowlist code treats relative
+ * paths as same-origin safe.
+ *
+ * **Query-string preservation (PR #73 Codex P2 follow-up, 2026-06-01).** The
+ * input MUST be `${pathname}${searchString}` so dashboard query parameters
+ * survive the round-trip — e.g. `/dashboard/apps?tab=overview` or the
+ * FE-XAPP-BUG-001 cross-app handoff URL `/dashboard/apps?workspace=<slug>`.
+ * The caller is responsible for combining `usePathname()` + `useSearchParams()`
+ * before calling this helper. This mirrors the canonical pattern already
+ * used by `ProfileCompletionGate.tsx` so the two redirect surfaces stay
+ * behaviourally aligned.
+ *
+ * If `currentPathWithQuery` is unavailable (initial render before
+ * `usePathname` resolves) or is itself `/onboarding` (with or without
+ * query), we omit the redirect param to avoid a self-loop.
+ */
+function buildOnboardingRedirectTarget(
+  currentPathWithQuery: string | null,
+): string {
+  if (!currentPathWithQuery) {
+    return "/onboarding";
+  }
+  // Strip any query string before comparing against the onboarding routes so
+  // `/onboarding?foo=bar` still short-circuits the self-loop guard.
+  const queryStart = currentPathWithQuery.indexOf("?");
+  const pathnameOnly =
+    queryStart === -1
+      ? currentPathWithQuery
+      : currentPathWithQuery.slice(0, queryStart);
+  if (
+    pathnameOnly === "/onboarding" ||
+    pathnameOnly.startsWith("/onboarding/")
+  ) {
+    return "/onboarding";
+  }
+  // Defense-in-depth: drop any path that escapes the auth-app origin. The
+  // value comes from Next.js `usePathname()` so it is always a same-origin
+  // path string, but we keep this guard so a future contract change cannot
+  // smuggle an external URL into the redirect param.
+  if (
+    !currentPathWithQuery.startsWith("/") ||
+    currentPathWithQuery.startsWith("//")
+  ) {
+    return "/onboarding";
+  }
+  return `/onboarding?redirect=${encodeURIComponent(currentPathWithQuery)}`;
+}
+
 export function AuthDashboardShell({
   children,
   activeNav,
@@ -33,7 +89,8 @@ export function AuthDashboardShell({
 }: AuthDashboardShellProps) {
   const router = useRouter();
   const activePath = usePathname();
-  const { user, workspaces } = useAuth();
+  const searchParams = useSearchParams();
+  const { user, workspaces, isLoading: isAuthLoading } = useAuth();
   const { currentWorkspace, selectWorkspace } = useWorkspace();
   const { show: showToast } = useToast();
   const tNav = useTranslations("auth.dashboard.navigation");
@@ -46,6 +103,44 @@ export function AuthDashboardShell({
   );
   const tShellUserMenu = useTranslations("auth.dashboard.shell.userMenu");
   const tShell = useTranslations("auth.dashboard.shell");
+
+  /**
+   * BUG-AUTH-9 (2026-06-01): No-workspace guard. When auth bootstrap has
+   * resolved AND the user has zero workspaces, redirect to `/onboarding`
+   * (preserving the requested dashboard path + query via `?redirect=`).
+   * The guard fires once per mount via `router.replace` — `replace` keeps
+   * the broken `/dashboard/*` URL out of session history so a back-button
+   * click after workspace creation does not land them back here.
+   *
+   * Why client-side and not a server RSC redirect: every `/dashboard/*`
+   * route in this app is a client page wrapping `<AuthGuard><AuthDashboardShell>`,
+   * and workspace state is bootstrapped client-side by the SDK's
+   * `AuthProvider` (Supabase session + `/me` round-trip). A server-side
+   * redirect would require a major rewrite of the auth pipeline. Matches
+   * the existing `redirectToLogin` pattern in `CmsDashboardShell` and the
+   * shell's own `handleCreateWorkspace` posture.
+   *
+   * Query-string handling (PR #73 Codex P2 follow-up): we combine
+   * `usePathname()` + `useSearchParams()` before encoding so dashboard
+   * query params like `?tab=overview` and the FE-XAPP-BUG-001 cross-app
+   * handoff URL `?workspace=<slug>` survive the post-create round-trip.
+   * Mirrors the canonical pattern in `ProfileCompletionGate.tsx`.
+   *
+   * The render guard below the effect prevents any flash of the dashboard
+   * shell while `router.replace` is in flight.
+   */
+  const shouldRedirectToOnboarding = !isAuthLoading && workspaces.length === 0;
+  const searchString = searchParams?.toString() ?? "";
+  const activePathWithQuery = activePath
+    ? `${activePath}${searchString ? `?${searchString}` : ""}`
+    : null;
+
+  useEffect(() => {
+    if (!shouldRedirectToOnboarding) {
+      return;
+    }
+    router.replace(buildOnboardingRedirectTarget(activePathWithQuery));
+  }, [activePathWithQuery, router, shouldRedirectToOnboarding]);
 
   const workspaceById = new Map(
     workspaces.map((workspace) => [workspace.id, workspace]),
@@ -157,6 +252,44 @@ export function AuthDashboardShell({
     }),
     [tShellNav, tShellWorkspace, tShellProfile, tShellNotifications],
   );
+
+  /**
+   * BUG-AUTH-9 (2026-06-01): Render a minimal loading fallback while either
+   * (a) auth bootstrap is still in flight (workspaces array not final), or
+   * (b) the no-workspace redirect to `/onboarding` is queued via the effect
+   *     above. Prevents a flash of dashboard chrome rendered against a
+   *     workspace context that does not exist.
+   *
+   * `AuthGuard` (upstream) handles the unauthenticated case — if we got
+   * here we are authenticated; this branch only fires for the
+   * `authenticated && workspaces.length === 0` window.
+   *
+   * Uses a `role="status"` live region so screen readers announce the
+   * transition. The Lumia DS spinner is intentionally NOT pulled in — we
+   * keep the markup minimal (the redirect resolves within one tick) and
+   * defer to next-intl for translated copy.
+   */
+  if (shouldRedirectToOnboarding) {
+    return (
+      <main
+        data-testid="auth-dashboard-no-workspace-fallback"
+        className="flex min-h-dvh items-center justify-center px-6"
+      >
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex max-w-md flex-col items-center gap-2 text-center"
+        >
+          <p className="text-base font-medium text-foreground">
+            {tShell("noWorkspaceRedirect.title")}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {tShell("noWorkspaceRedirect.description")}
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <DashboardShell

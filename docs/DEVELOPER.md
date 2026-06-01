@@ -838,3 +838,30 @@ document.cookie = "xynes_locale=en-XA; path=/";
 - The form reads the structured `error.code` from the SDK's thrown envelope (`{ ok: false, error: { code, message }, meta }`) via a defensive `extractApiErrorCode` helper. Backend message text is NEVER echoed into the UI — only the closed-set code is consumed, and a hostile `error.code: "boom"` (or any non-allowlisted value) falls through to the generic "Failed to create invite. Please try again." copy.
 - i18n: new keys `auth.invite.create.errors.{selfInvite,alreadyMember}` registered in `messages/en-US/auth.invite.json` + the meta sidecar; pseudo-locale regenerated via `pnpm generate:pseudo`. The rest of `CreateInviteForm`'s static strings remain hard-coded English — a full next-intl migration of the form is a separate follow-up.
 - Regression coverage: 4 new tests in `CreateInviteForm.integration.test.tsx` (SELF_INVITE localized copy + no-leak of backend message; ALREADY_MEMBER localized copy; FORBIDDEN closed-set code + no-leak of backend `"Access denied"`; unknown-code fallback + no-leak of backend `"boom"`). Backend coverage: 3 new tests in `xynes-accounts-service/tests/invites.unit.test.ts` (SELF_INVITE via `ctx.user.email`; SELF_INVITE via users-table fallback when `ctx.user` is missing; ALREADY_MEMBER + no-leak of the existing member's userId in the error message).
+
+### No-Workspace Guard on `/dashboard/*` Routes (BUG-AUTH-9, 2026-06-01)
+
+Before BUG-AUTH-9, an authenticated user with **zero workspaces** who navigated directly to any `/dashboard/*` route (for example `http://localhost:3100/dashboard/apps` immediately after signup) saw the dashboard shell render against an empty workspace context — the workspace switcher was blank, every server call that expected `currentWorkspace.id` failed silently, and the user had no on-ramp to create their first workspace. The intended flow was to send them to `/onboarding`, but no client-side or server-side guard enforced it.
+
+BUG-AUTH-9 adds the guard inside `AuthDashboardShell.tsx` so every `/dashboard/*` client page (each one already wraps content in `<AuthGuard><AuthDashboardShell>`) inherits the fix without per-route changes:
+
+- When `useAuth().isLoading === false` AND `workspaces.length === 0`, the shell:
+  1. Fires `router.replace('/onboarding?redirect=<encoded current path>')` via a `useEffect`. The `?redirect=` query param forwards the requested dashboard URL through the WSA-FIX-2 contract so once the user creates their first workspace via `CreateWorkspaceForm`, they land back on the route they were trying to reach.
+  2. Renders a minimal `<main role="status" data-testid="auth-dashboard-no-workspace-fallback">` with translated transition copy (`auth.dashboard.shell.noWorkspaceRedirect.{title,description}`) instead of the Lumia `DashboardShell` itself. This is the "no flash of broken UI" guarantee: nav, switcher, and profile menu are NOT mounted against the empty workspace context.
+- `useEffect` fires once per mount; `router.replace` (NOT `router.push`) keeps the broken `/dashboard/*` URL out of session history so the user can't back-button into it after creating a workspace.
+- The guard does NOT fire while auth is still bootstrapping (`isLoading === true`) — `workspaces.length === 0` is only a valid signal once `isLoading` flips to false.
+
+Why client-side, not a server RSC redirect: every `/dashboard/*` route in this app is a client page; workspaces are bootstrapped client-side by the SDK's `AuthProvider` (Supabase session + `/me` round-trip). A server-side redirect would require rewriting the auth pipeline. Matches the existing `redirectToLogin` posture in `CmsDashboardShell` and the shell's own `handleCreateWorkspace` link target.
+
+The path-encoding helper `buildOnboardingRedirectTarget(currentPathWithQuery)`:
+- Drops the redirect param entirely when the current path is `/onboarding` or `/onboarding/*` (with or without a query string) to avoid a self-loop.
+- Defense-in-depth refuses any path that doesn't start with `/` or that starts with `//` (protocol-relative URL smuggling).
+- Source comes from Next.js `usePathname()` combined with `useSearchParams().toString()`, which is always a same-origin path string — but the explicit guard keeps the contract resilient if a future change wires a different source.
+
+**Query-string preservation (PR #73 Codex P2 follow-up, 2026-06-01).** The redirect target preserves the full `pathname + search` of the originally-requested dashboard URL — not just the pathname. The shell combines `usePathname()` + `useSearchParams().toString()` before passing to the helper, mirroring the canonical pattern already used by `ProfileCompletionGate.tsx`. This matters in two real flows:
+
+- A user lands on `http://localhost:3100/dashboard/apps?tab=overview` with zero workspaces; after creating their first workspace, WSA-FIX-2 sends them back to the encoded redirect → they arrive on the exact tab they originally requested.
+- FE-XAPP-BUG-001 / BUG-LDS-2 cross-app handoff URL: a CMS Console deep link sends the user to `http://localhost:3100/dashboard/apps?workspace=<slug>` to switch active workspace. Without query-string preservation the `?workspace=<slug>` param would be dropped and the post-onboarding redirect would lose the cross-app handoff hint. With preservation, the user lands on `/dashboard/apps?workspace=<slug>` after onboarding and the auth-app workspace-handoff sync runs as designed.
+
+Regression coverage: `AuthDashboardShell.integration.test.tsx > workspace guard (BUG-AUTH-9)` — 6 tests covering: empty-workspaces redirect target + path encoding; role=status fallback markup; non-empty workspaces does NOT redirect; `isLoading === true` does NOT redirect; **query string `?tab=overview` is preserved end-to-end (Codex P2 follow-up)**; **FE-XAPP-BUG-001 cross-app `?workspace=<slug>` is preserved end-to-end (Codex P2 follow-up)**.
+

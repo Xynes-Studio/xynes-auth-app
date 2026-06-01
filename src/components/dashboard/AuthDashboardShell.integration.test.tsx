@@ -6,14 +6,26 @@ import { AuthDashboardShell } from "./AuthDashboardShell";
 const mockUseAuth = vi.fn();
 const mockUseWorkspace = vi.fn();
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 const mockDashboardShell = vi.fn();
 const mockSelectWorkspace = vi.fn();
 const mockShowToast = vi.fn();
 
+/**
+ * Hoisted mutable state so individual tests can override `usePathname()` and
+ * `useSearchParams()` outputs without re-declaring the `next/navigation`
+ * mock. Pattern mirrors the `pathnameState` setup in
+ * `CmsDashboardShell.test.tsx` so the two shells stay aligned.
+ */
+const navigationState = vi.hoisted(() => ({
+  pathname: "/dashboard/apps" as string | null,
+  search: "" as string,
+}));
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush, replace: vi.fn() }),
-  usePathname: () => "/dashboard/apps",
-  useSearchParams: () => new URLSearchParams(""),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
+  usePathname: () => navigationState.pathname,
+  useSearchParams: () => new URLSearchParams(navigationState.search),
 }));
 
 vi.mock("@xynes/auth-sdk", () => ({
@@ -35,9 +47,14 @@ vi.mock("@lumia-ui/components", () => ({
 describe("AuthDashboardShell", () => {
   beforeEach(() => {
     mockPush.mockReset();
+    mockReplace.mockReset();
     mockDashboardShell.mockReset();
     mockSelectWorkspace.mockReset();
     mockShowToast.mockReset();
+
+    // Reset navigation state to the default dashboard route + no query.
+    navigationState.pathname = "/dashboard/apps";
+    navigationState.search = "";
 
     mockUseAuth.mockReturnValue({
       user: {
@@ -233,12 +250,18 @@ describe("AuthDashboardShell", () => {
 
   it("uses translated user-menu fallbacks when displayName/email/profileSubtitle are missing (UXR-5)", () => {
     mockUseAuth.mockReturnValue({
+      isLoading: false,
       user: {
         displayName: null,
         email: null,
         avatarUrl: null,
       },
-      workspaces: [],
+      // Non-empty so BUG-AUTH-9's no-workspace guard does NOT short-circuit
+      // the dashboard render path — this test asserts user-menu fallback
+      // copy, which only matters when the Lumia shell actually renders.
+      workspaces: [
+        { id: "ws-fallback", name: "Fallback Workspace", slug: "fallback" },
+      ],
     });
     mockUseWorkspace.mockReturnValue({
       currentWorkspace: null,
@@ -345,6 +368,171 @@ describe("AuthDashboardShell", () => {
       );
 
       consoleError.mockRestore();
+    });
+  });
+
+  describe("workspace guard (BUG-AUTH-9)", () => {
+    it("redirects to /onboarding when authenticated user has zero workspaces", () => {
+      mockUseAuth.mockReturnValue({
+        isLoading: false,
+        user: {
+          displayName: "Brand New",
+          email: "new@example.com",
+          avatarUrl: null,
+        },
+        workspaces: [],
+      });
+      mockUseWorkspace.mockReturnValue({
+        currentWorkspace: null,
+        selectWorkspace: mockSelectWorkspace,
+      });
+
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">Should NOT render</div>
+        </AuthDashboardShell>,
+      );
+
+      // router.replace fires with the onboarding target + the current path
+      // forwarded via ?redirect= so the user lands back on /dashboard/apps
+      // after they create their first workspace.
+      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(mockReplace).toHaveBeenCalledWith(
+        "/onboarding?redirect=%2Fdashboard%2Fapps",
+      );
+      // Defense in depth: the dashboard shell itself is NOT rendered, so the
+      // user never sees a flash of nav / workspace switcher rendered against
+      // an empty workspace list.
+      expect(mockDashboardShell).not.toHaveBeenCalled();
+    });
+
+    it("renders the loading fallback (role=status) while the redirect is in flight", () => {
+      mockUseAuth.mockReturnValue({
+        isLoading: false,
+        user: {
+          displayName: "Brand New",
+          email: "new@example.com",
+          avatarUrl: null,
+        },
+        workspaces: [],
+      });
+      mockUseWorkspace.mockReturnValue({
+        currentWorkspace: null,
+        selectWorkspace: mockSelectWorkspace,
+      });
+
+      const { getByTestId, queryByTestId, getByRole } = render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">Should NOT render</div>
+        </AuthDashboardShell>,
+      );
+
+      // Fallback main is rendered with role=status for screen-reader
+      // announcement; the dashboard body is not.
+      expect(
+        getByTestId("auth-dashboard-no-workspace-fallback"),
+      ).toBeInTheDocument();
+      expect(queryByTestId("dashboard-body")).toBeNull();
+      expect(getByRole("status")).toBeInTheDocument();
+    });
+
+    it("does NOT redirect when the user has at least one workspace", () => {
+      // Default beforeEach() already supplies two workspaces; just assert.
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">Renders normally</div>
+        </AuthDashboardShell>,
+      );
+
+      expect(mockReplace).not.toHaveBeenCalled();
+      // Lumia shell is rendered with the populated workspace context.
+      expect(mockDashboardShell).toHaveBeenCalledTimes(1);
+    });
+
+    it("does NOT redirect while auth bootstrap is still in flight (isLoading=true)", () => {
+      mockUseAuth.mockReturnValue({
+        isLoading: true,
+        // workspaces is empty here too — but isLoading=true means we have
+        // no signal yet that the user actually owns zero workspaces. The
+        // guard must wait for isLoading to flip to false.
+        user: null,
+        workspaces: [],
+      });
+      mockUseWorkspace.mockReturnValue({
+        currentWorkspace: null,
+        selectWorkspace: mockSelectWorkspace,
+      });
+
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">May render once loaded</div>
+        </AuthDashboardShell>,
+      );
+
+      expect(mockReplace).not.toHaveBeenCalled();
+    });
+
+    it("preserves dashboard query strings in the onboarding redirect target", () => {
+      // PR #73 Codex P2 follow-up. A user lands on
+      // `/dashboard/apps?tab=overview` (or any other query-bearing dashboard
+      // URL) with zero workspaces; the guard must round-trip the query
+      // through `/onboarding?redirect=` so the post-create flow restores
+      // the exact URL — not just the pathname.
+      navigationState.pathname = "/dashboard/apps";
+      navigationState.search = "tab=overview";
+
+      mockUseAuth.mockReturnValue({
+        isLoading: false,
+        user: { displayName: "A", email: "a@b.co", avatarUrl: null },
+        workspaces: [],
+      });
+      mockUseWorkspace.mockReturnValue({
+        currentWorkspace: null,
+        selectWorkspace: mockSelectWorkspace,
+      });
+
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">Should NOT render</div>
+        </AuthDashboardShell>,
+      );
+
+      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(mockReplace).toHaveBeenCalledWith(
+        "/onboarding?redirect=%2Fdashboard%2Fapps%3Ftab%3Doverview",
+      );
+    });
+
+    it("preserves the FE-XAPP-BUG-001 cross-app handoff `?workspace=<slug>` param through the redirect", () => {
+      // BUG-LDS-2 / FE-XAPP-BUG-001 cross-app handoff URL. A CMS Console
+      // deep link sends the user back to the auth-app with
+      // `?workspace=<slug>`; if the user has zero workspaces yet, the
+      // BUG-AUTH-9 guard must NOT swallow that param — `/onboarding`
+      // honours it via WSA-FIX-2 redirect-param semantics after workspace
+      // creation, restoring the handoff loop.
+      navigationState.pathname = "/dashboard/apps";
+      navigationState.search = "workspace=acme-co";
+
+      mockUseAuth.mockReturnValue({
+        isLoading: false,
+        user: { displayName: "A", email: "a@b.co", avatarUrl: null },
+        workspaces: [],
+      });
+      mockUseWorkspace.mockReturnValue({
+        currentWorkspace: null,
+        selectWorkspace: mockSelectWorkspace,
+      });
+
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">Should NOT render</div>
+        </AuthDashboardShell>,
+      );
+
+      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(mockReplace).toHaveBeenCalledWith(
+        "/onboarding?redirect=%2Fdashboard%2Fapps%3Fworkspace%3Dacme-co",
+      );
     });
   });
 });

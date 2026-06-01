@@ -55,6 +55,10 @@
       "fallbackName": "User",
       "fallbackEmail": "No email"
     },
+    "noWorkspaceRedirect": {
+      "title": "Setting up your workspace…",
+      "description": "Redirecting you to create your first workspace."
+    },
     "footerNote": "Need access? Contact your workspace owner."
   },
   "workspaceSwitcher": {
