@@ -1687,3 +1687,130 @@ describe("BUG-AUTH-7: DNS TXT verification modal UX", () => {
     expect(screen.queryByText(/DO_NOT_RENDER_HASH_BUG_AUTH_7/)).toBeNull();
   });
 });
+
+// ── BUG-AUTH-7 Codex follow-up: copy-feedback / auto-dismiss timers ──
+//
+// Codex flagged on PR #70 that the copy-feedback timer was aliasing
+// the BUG-AUTH-7 auto-dismiss timer ref. Two regressions: (a) a copy
+// click during a successful auto-recheck overwrote the auto-dismiss
+// timer; (b) a fresh reveal cancelled the copy timer through the
+// reveal-change cleanup but did not reset `copiedCellKey`, so the
+// new value could render as already "Copied". The fix uses a bare
+// setTimeout for the copy timer and explicitly resets
+// `copiedCellKey` on reveal change.
+
+describe("BUG-AUTH-7 Codex follow-up: copy-feedback + auto-dismiss timer isolation", () => {
+  function pendingRevealProps(
+    overrides: Partial<React.ComponentProps<typeof DomainManagementPanel>> = {},
+  ) {
+    return defaultProps({
+      domains: [pendingDomain],
+      pendingVerificationValue: {
+        domainId: pendingDomain.id,
+        verificationValue: "xynes-verify=abc123",
+      },
+      ...overrides,
+    });
+  }
+
+  it("a copy click during a pending auto-dismiss must NOT cancel the auto-dismiss timer (regression guard)", async () => {
+    // Drive the success path so the auto-dismiss timer is armed,
+    // then click a Copy button before the 1.5s elapses, then assert
+    // onDismiss STILL fires.
+    const onVerify = vi.fn().mockResolvedValue(undefined);
+    const onDismiss = vi.fn();
+    const verifiedAfter: WorkspaceDomain = {
+      ...pendingDomain,
+      status: "verified",
+      verifiedAt: "2026-06-01T00:00:00.000Z",
+    };
+    const { rerender } = render(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          onVerifyDomain: async (id) => {
+            await onVerify(id);
+            rerender(
+              <DomainManagementPanel
+                {...pendingRevealProps({
+                  domains: [verifiedAfter],
+                  onVerifyDomain: onVerify,
+                  onDismissVerificationValue: onDismiss,
+                })}
+              />,
+            );
+          },
+          onDismissVerificationValue: onDismiss,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /i've added it\. recheck dns now/i }),
+    );
+
+    // Wait for the success transition (toast fires synchronously
+    // with the outcome flip; auto-dismiss timer is now armed).
+    await waitFor(() => {
+      expect(showToastMock).toHaveBeenCalledTimes(1);
+    });
+
+    // Click a Copy button BEFORE the auto-dismiss fires. Pre-fix,
+    // this overwrote `autoDismissTimerRef.current` with the copy
+    // timer's id; the original auto-dismiss timer kept ticking but
+    // could no longer be cleaned up — and worse, a manual dismiss
+    // would cancel the copy timer instead of the auto-dismiss timer.
+    await userEvent.click(
+      screen.getByRole("button", { name: /copy dns record type/i }),
+    );
+
+    // The auto-dismiss timer MUST still fire. We give it ample
+    // budget (3s) to cover the 1.5s configured delay plus React
+    // commit overhead.
+    await waitFor(
+      () => {
+        expect(onDismiss).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 3000 },
+    );
+  });
+
+  it("a fresh reveal value renders WITHOUT a stale 'Copied' pill on the same cell key (regression guard)", async () => {
+    // User copies the current TXT value. Container then provides a
+    // fresh `verificationValue` (e.g. via "Get new value"). The
+    // reveal-change cleanup effect MUST reset `copiedCellKey` so
+    // the new (different) value's Copy button renders as "Copy",
+    // not "Copied".
+    const initialProps = pendingRevealProps();
+    const { rerender } = render(
+      <DomainManagementPanel {...initialProps} />,
+    );
+
+    // Click Copy on the Type cell — sets copiedCellKey="type".
+    await userEvent.click(
+      screen.getByRole("button", { name: /copy dns record type/i }),
+    );
+    expect(
+      screen.getByRole("button", { name: /copy dns record type/i }),
+    ).toHaveTextContent(/copied/i);
+
+    // Container ships a fresh reveal (different value, same row).
+    rerender(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          pendingVerificationValue: {
+            domainId: pendingDomain.id,
+            verificationValue: "xynes-verify=NEW_VALUE_AFTER_REGENERATE",
+          },
+        })}
+      />,
+    );
+
+    // The Type Copy button MUST be back to "Copy" — the new value
+    // hasn't been copied yet. Pre-fix this rendered "Copied"
+    // because the reveal-change effect cleared the timer but not
+    // the `copiedCellKey` state.
+    expect(
+      screen.getByRole("button", { name: /copy dns record type/i }),
+    ).toHaveTextContent(/^copy$/i);
+  });
+});

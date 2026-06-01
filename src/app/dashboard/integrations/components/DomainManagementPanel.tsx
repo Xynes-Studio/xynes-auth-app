@@ -470,6 +470,11 @@ export function DomainManagementPanel({
   useEffect(() => {
     setVerificationOutcome("idle");
     setRevealStatusMessage(null);
+    // BUG-AUTH-7 Codex follow-up: also reset copy-feedback. The new
+    // reveal has a different value; a stale "Copied" pill would
+    // wrongly suggest the new value was already copied. Defense in
+    // depth on top of the per-cell functional-set staleness guard.
+    setCopiedCellKey(null);
     if (autoDismissTimerRef.current !== null) {
       clearTimeout(autoDismissTimerRef.current);
       autoDismissTimerRef.current = null;
@@ -560,9 +565,22 @@ export function DomainManagementPanel({
     }
     setCopiedCellKey(cellKey);
     // Clear the "Copied" affordance after a short delay so the
-    // button can be reused. We intentionally don't await this.
+    // button can be reused. We intentionally don't await this, and
+    // we deliberately do NOT route this timer through
+    // `autoDismissTimerRef` — that ref is reserved for the BUG-AUTH-7
+    // 1.5s auto-dismiss of the entire reveal. Sharing one ref between
+    // the two timers caused two race bugs (Codex review on PR #70):
+    //   (a) a copy click during a successful auto-recheck would
+    //       OVERWRITE the auto-dismiss timer with the copy timer,
+    //       so the reveal would never auto-close; and
+    //   (b) a fresh reveal (via "Get new value") would cancel the
+    //       copy timer along with the auto-dismiss timer through
+    //       the reveal-change cleanup effect, leaving `copiedCellKey`
+    //       set so the new (different) value would render as already
+    //       "Copied". Bare setTimeout + the functional-set staleness
+    //       guard below is the correct contract for this timer.
     if (typeof window !== "undefined") {
-      autoDismissTimerRef.current = setTimeout(() => {
+      setTimeout(() => {
         // Defensive: only clear if the same key is still active so
         // a rapid second copy on a different cell isn't overwritten.
         setCopiedCellKey((current) => (current === cellKey ? null : current));
