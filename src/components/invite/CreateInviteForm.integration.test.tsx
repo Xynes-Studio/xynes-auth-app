@@ -139,4 +139,122 @@ describe("CreateInviteForm", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /send invite/i })).toBeDisabled();
   });
+
+  // ── BUG-AUTH-8: SELF_INVITE + ALREADY_MEMBER error mapping ────────────
+
+  it("surfaces SELF_INVITE error with localized copy when backend rejects self-invite", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        ok: false,
+        error: {
+          code: "SELF_INVITE",
+          // Backend message is deliberately distinct from the FE copy to
+          // prove the form NEVER echoes the backend's English text.
+          message: "Cannot invite yourself to this workspace",
+        },
+        meta: { requestId: "req-test" },
+      }),
+    });
+
+    render(<CreateInviteForm apiBaseUrl="http://localhost:4100" />);
+    await user.type(screen.getByLabelText(/email/i), "user@example.com");
+    await user.click(screen.getByRole("button", { name: /send invite/i }));
+
+    expect(await screen.findByText(/cannot invite yourself/i)).toBeInTheDocument();
+    // Defense in depth: the backend message text must NOT appear in the UI.
+    expect(
+      screen.queryByText(/cannot invite yourself to this workspace/i),
+    ).not.toBeInTheDocument();
+    // The generic fallback copy must NOT appear.
+    expect(
+      screen.queryByText(/failed to create invite/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("surfaces ALREADY_MEMBER error with localized copy when invitee is already a member", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        ok: false,
+        error: {
+          code: "ALREADY_MEMBER",
+          message: "This person is already a workspace member",
+        },
+        meta: { requestId: "req-test" },
+      }),
+    });
+
+    render(<CreateInviteForm apiBaseUrl="http://localhost:4100" />);
+    await user.type(screen.getByLabelText(/email/i), "colleague@example.com");
+    await user.click(screen.getByRole("button", { name: /send invite/i }));
+
+    expect(
+      await screen.findByText(/already a workspace member/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/failed to create invite/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("falls back to the generic error message when the backend returns an unknown code", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({
+        ok: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "boom",
+        },
+        meta: { requestId: "req-test" },
+      }),
+    });
+
+    render(<CreateInviteForm apiBaseUrl="http://localhost:4100" />);
+    await user.type(screen.getByLabelText(/email/i), "colleague@example.com");
+    await user.click(screen.getByRole("button", { name: /send invite/i }));
+
+    expect(
+      await screen.findByText(/failed to create invite/i),
+    ).toBeInTheDocument();
+    // Backend's raw "boom" string must NOT bleed through.
+    expect(screen.queryByText(/boom/i)).not.toBeInTheDocument();
+  });
+
+  it("surfaces the forbidden message when the backend returns the FORBIDDEN closed-set code", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({
+        ok: false,
+        error: {
+          code: "FORBIDDEN",
+          // Backend message text must NOT bleed through into the UI.
+          message: "Access denied",
+        },
+        meta: { requestId: "req-test" },
+      }),
+    });
+
+    render(<CreateInviteForm apiBaseUrl="http://localhost:4100" />);
+    await user.type(screen.getByLabelText(/email/i), "colleague@example.com");
+    await user.click(screen.getByRole("button", { name: /send invite/i }));
+
+    expect(
+      await screen.findByText(/don[’']t have permission to create invites/i),
+    ).toBeInTheDocument();
+    // Defense in depth: backend "Access denied" string must NOT appear.
+    expect(screen.queryByText(/access denied/i)).not.toBeInTheDocument();
+    // Generic fallback must NOT have fired.
+    expect(
+      screen.queryByText(/failed to create invite/i),
+    ).not.toBeInTheDocument();
+  });
 });

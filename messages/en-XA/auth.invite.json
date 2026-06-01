@@ -14,5 +14,11 @@
     "empty": "[EEnntteerr yyoouurr iinnvviittee lliinnkk oorr ccooddee ttoo ccoonnttiinnuuee.]",
     "invalid": "[TThhaatt iinnvviittee ccooddee llooookkss iinnccoorrrreecctt. CChheecckk tthhee lliinnkk aanndd ttrryy aaggaaiinn.]",
     "length": "[IInnvviittee ccooddee mmuusstt bbee bbeettwweeeenn 16 aanndd 128 cchhaarraacctteerrss.]"
+  },
+  "create": {
+    "errors": {
+      "selfInvite": "[YYoouu ccaannnnoott iinnvviittee yyoouurrsseellff.]",
+      "alreadyMember": "[TThhiiss ppeerrssoonn iiss aallrreeaaddyy aa wwoorrkkssppaaccee mmeemmbbeerr.]"
+    }
   }
 }
