@@ -86,6 +86,7 @@ describe("auth i18n config", () => {
         expect(messages.auth.invite).toBeDefined();
         expect(messages.auth.onboarding).toBeDefined();
         expect(messages.auth.profile).toBeDefined();
+        expect(messages.auth.integrations).toBeDefined();
         expect(messages.auth.workspaces).toBeDefined();
       }
     });

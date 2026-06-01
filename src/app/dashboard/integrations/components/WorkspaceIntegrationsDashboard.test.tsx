@@ -459,17 +459,182 @@ describe("WorkspaceIntegrationsDashboard", () => {
     );
   });
 
-  it("renders a permission-denied error message for 403 responses", async () => {
-    mockListWorkspaceApiKeys.mockRejectedValueOnce(
-      new WorkspaceIntegrationsApiError(403, "permission denied"),
-    );
+  describe("BUG-AUTH-6 — permission-aware empty state on 403 load", () => {
+    // Pre-BUG-AUTH-6 behaviour: a 403 from the list refetch rendered the
+    // same destructive "Couldn’t load integrations" alert as a 5xx
+    // failure, wrongly framing a deliberate permission boundary as a
+    // load error. After BUG-AUTH-6, 403 renders a neutral empty state.
 
-    render(<WorkspaceIntegrationsDashboard />);
+    it("renders a neutral permission-aware empty state when the API keys load returns 403", async () => {
+      mockListWorkspaceApiKeys.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(403, "permission denied"),
+      );
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent(
-      /you don.?t have permission to manage workspace integrations/i,
-    );
+      render(<WorkspaceIntegrationsDashboard />);
+
+      // The forbidden empty-state card carries an accessible region with
+      // its own heading so SR users land on the explanation directly.
+      const region = await screen.findByTestId(
+        "workspace-integrations-forbidden-empty-state",
+      );
+      expect(region).toBeInTheDocument();
+
+      // The neutral explanation (not "couldn't load", not "denied"):
+      expect(
+        screen.getByRole("heading", {
+          name: /workspace integrations are managed by owners/i,
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /workspace integrations — verified domains and workspace api keys — are managed by workspace owners\. contact your workspace owner to request changes\./i,
+        ),
+      ).toBeInTheDocument();
+
+      // The "Back to dashboard" link is rendered as a real anchor and
+      // targets the dashboard landing route.
+      const backLink = screen.getByRole("link", {
+        name: /back to dashboard/i,
+      });
+      expect(backLink).toHaveAttribute("href", "/dashboard/apps");
+    });
+
+    it("does NOT render a destructive error alert when the load returns 403", async () => {
+      mockListWorkspaceApiKeys.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(403, "permission denied"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      // Wait for the forbidden region to appear so we know the load
+      // settled before the assertions below.
+      await screen.findByTestId(
+        "workspace-integrations-forbidden-empty-state",
+      );
+
+      // No destructive alert role anywhere on the page.
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      // The destructive load-error title MUST NOT appear.
+      expect(
+        screen.queryByText(/couldn.?t load integrations/i),
+      ).not.toBeInTheDocument();
+      // The pre-BUG-AUTH-6 "you don’t have permission" alert copy MUST
+      // NOT appear on the load path. (The same copy is still used by
+      // the per-action error handler — that is a different surface.)
+      expect(
+        screen.queryByText(
+          /you don.?t have permission to manage workspace integrations/i,
+        ),
+      ).not.toBeInTheDocument();
+    });
+
+    it("does NOT render the domains or API keys panels when the load returns 403", async () => {
+      mockListWorkspaceApiKeys.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(403, "permission denied"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      await screen.findByTestId(
+        "workspace-integrations-forbidden-empty-state",
+      );
+
+      // The owner-only management panels are completely absent from the
+      // forbidden path. We don't render "0 domains" / "0 keys" copy and
+      // we don't render the add-domain or create-key forms.
+      expect(
+        screen.queryByTestId("workspace-integrations-domains-count"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("workspace-integrations-api-keys-count"),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/^domain$/i)).not.toBeInTheDocument();
+    });
+
+    it("still surfaces the active workspace slug on the forbidden empty state", async () => {
+      mockListWorkspaceApiKeys.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(403, "permission denied"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      await screen.findByTestId(
+        "workspace-integrations-forbidden-empty-state",
+      );
+
+      // Active-workspace context is preserved (no "wrong workspace?"
+      // confusion for members).
+      expect(
+        screen.getByTestId("workspace-integrations-workspace-slug"),
+      ).toHaveTextContent("xynes");
+    });
+
+    it("does NOT classify 401 as forbidden (session expiry stays on the destructive load-error path)", async () => {
+      mockListWorkspaceApiKeys.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(401, "session expired"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      // 401 should still render the destructive alert with the
+      // "session expired" body — NOT the forbidden empty state.
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(/couldn.?t load integrations/i);
+      expect(alert).toHaveTextContent(
+        /your session has expired\. please sign in again\./i,
+      );
+      expect(
+        screen.queryByTestId("workspace-integrations-forbidden-empty-state"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders the rate-limited copy for 429 responses (regression guard)", async () => {
+      // Regression: an earlier draft of BUG-AUTH-6's `classifyLoadOutcome`
+      // mapped status 404 (instead of 429) to the rate-limited message
+      // key, leaving genuine 429 responses falling through to the
+      // generic "Failed to load…" copy. This test pins the pre-existing
+      // 429 → "Too many requests…" contract that the previous
+      // `getIntegrationsLoadErrorMessage` honoured.
+      mockListWorkspaceApiKeys.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(429, "rate limited"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(/couldn.?t load integrations/i);
+      expect(alert).toHaveTextContent(
+        /too many requests\. please try again in a moment\./i,
+      );
+      expect(
+        screen.queryByTestId("workspace-integrations-forbidden-empty-state"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("does NOT leak hostile upstream fields through the forbidden empty state", async () => {
+      // Defense in depth: if the API returns a 403 whose error message
+      // happens to contain a raw token, an internal audit handle, or a
+      // hostile-looking string, none of it should survive into the
+      // visible markup. The forbidden empty state renders pure catalog
+      // copy.
+      mockListWorkspaceApiKeys.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(
+          403,
+          "permission denied for token xynes_live_abc123 (apiKeyId=11111111-1111-1111-1111-111111111111)",
+        ),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const region = await screen.findByTestId(
+        "workspace-integrations-forbidden-empty-state",
+      );
+
+      const html = region.outerHTML;
+      expect(html).not.toMatch(/xynes_live_/);
+      expect(html).not.toMatch(/apiKeyId=/);
+      expect(html).not.toMatch(/11111111-1111-1111-1111-111111111111/);
+    });
   });
 
   it("shows an unavailable state when no workspace is selected", () => {

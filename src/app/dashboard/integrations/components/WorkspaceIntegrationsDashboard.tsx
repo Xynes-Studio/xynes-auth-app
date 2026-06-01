@@ -36,7 +36,9 @@ import {
   Flex,
   Spinner,
 } from "@lumia-ui/components";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth, useWorkspace } from "@xynes/auth-sdk";
 import {
   WorkspaceIntegrationsApiError,
@@ -67,24 +69,51 @@ import {
   type WorkspaceApiKeyPresetKey,
 } from "@/lib/integrations/workspace-integrations-types";
 
-function getIntegrationsLoadErrorMessage(error: unknown): string {
+// ── BUG-AUTH-6: split "forbidden" from "load failure" ──────────────────
+//
+// Pre-BUG-AUTH-6, a 403 response was rendered in the same destructive
+// `Alert` as a genuine 5xx load failure, with the copy "Couldn’t load
+// integrations" / "You don’t have permission to manage workspace
+// integrations." This wrongly framed a deliberate permission boundary
+// (workspace_member visiting an owner-only surface) as a load failure.
+//
+// We now classify the load outcome up front:
+//   - `"forbidden"` (HTTP 403) → render a neutral permission-aware empty
+//     state explaining that workspace owners manage these resources.
+//     NOT a destructive Alert. Reachable, not broken.
+//   - `"error"` (everything else) → render the existing destructive
+//     "Couldn’t load integrations" Alert + Retry button.
+//
+// 401 is preserved on the load-error path because it means "your session
+// expired, please sign in again" — that IS a recoverable failure, not a
+// permission boundary on this resource.
+type LoadOutcomeKind =
+  | { kind: "forbidden" }
+  | { kind: "error"; messageKey: LoadErrorMessageKey };
+
+type LoadErrorMessageKey =
+  | "loadError.defaultMessage"
+  | "loadError.sessionExpired"
+  | "loadError.rateLimited";
+
+function classifyLoadOutcome(error: unknown): LoadOutcomeKind {
   if (!(error instanceof WorkspaceIntegrationsApiError)) {
-    return "Failed to load workspace integrations.";
+    return { kind: "error", messageKey: "loadError.defaultMessage" };
   }
 
   if (error.statusCode === 401) {
-    return "Your session has expired. Please sign in again.";
+    return { kind: "error", messageKey: "loadError.sessionExpired" };
   }
 
   if (error.statusCode === 403) {
-    return "You don’t have permission to manage workspace integrations.";
+    return { kind: "forbidden" };
   }
 
   if (error.statusCode === 429) {
-    return "Too many requests. Please try again in a moment.";
+    return { kind: "error", messageKey: "loadError.rateLimited" };
   }
 
-  return "Failed to load workspace integrations.";
+  return { kind: "error", messageKey: "loadError.defaultMessage" };
 }
 
 // ── WSA-FIX-1: action-error contract ────────────────────────────────────
@@ -195,6 +224,7 @@ export function WorkspaceIntegrationsDashboard() {
   const { currentWorkspace } = useWorkspace();
   const { getAccessToken } = useAuth();
   const searchParams = useSearchParams();
+  const t = useTranslations("auth.integrations");
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "";
   const workspaceId = currentWorkspace?.id ?? "";
@@ -229,7 +259,12 @@ export function WorkspaceIntegrationsDashboard() {
   const [domains, setDomains] = useState<WorkspaceDomain[]>([]);
   const [apiKeys, setApiKeys] = useState<WorkspaceApiKey[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // ── BUG-AUTH-6: discriminated load-outcome state ────────────────────
+  // Replaces the prior `loadError: string | null` field. `forbidden` is
+  // a deliberate permission boundary and renders a neutral empty state;
+  // `error` carries a catalog key for the destructive load-failure copy.
+  // `null` means the load succeeded (or has not run yet).
+  const [loadOutcome, setLoadOutcome] = useState<LoadOutcomeKind | null>(null);
   const [reloadCounter, setReloadCounter] = useState<number>(0);
   // WSA-FIX-1: actionError holds the most recent ACTION failure (register /
   // verify / regenerate / delete / create-key / revoke-key). It is cleared
@@ -304,12 +339,12 @@ export function WorkspaceIntegrationsDashboard() {
       setDomains(Array.isArray(nextDomains) ? nextDomains : []);
       setApiKeys(Array.isArray(nextApiKeys) ? nextApiKeys : []);
       // A successful post-action refresh is also a recovery signal for
-      // any prior `loadError` left on screen — clearing it here avoids
-      // contradictory UI ("Couldn’t load integrations" + fresh data
-      // below it). The `loadError` setter is intentionally NOT touched
-      // in the catch path: a transient refresh failure does NOT imply
-      // the initial load was also broken.
-      setLoadError(null);
+      // any prior load error or forbidden state left on screen —
+      // clearing it here avoids contradictory UI ("Couldn’t load
+      // integrations" + fresh data below it). The `loadOutcome` setter
+      // is intentionally NOT touched in the catch path: a transient
+      // refresh failure does NOT imply the initial load was also broken.
+      setLoadOutcome(null);
       setReloadFailedAfterAction(false);
     } catch {
       // Action succeeded. Surface a soft banner; never escalate to the
@@ -527,13 +562,13 @@ export function WorkspaceIntegrationsDashboard() {
       setDomains([]);
       setApiKeys([]);
       setIsLoading(false);
-      setLoadError(null);
+      setLoadOutcome(null);
       return;
     }
 
     const controller = new AbortController();
     setIsLoading(true);
-    setLoadError(null);
+    setLoadOutcome(null);
 
     const callerGetAccessToken = () => getAccessTokenRef.current();
 
@@ -556,19 +591,21 @@ export function WorkspaceIntegrationsDashboard() {
         setDomains(Array.isArray(nextDomains) ? nextDomains : []);
         setApiKeys(Array.isArray(nextApiKeys) ? nextApiKeys : []);
         // A successful post-action refresh is also a recovery signal for
-        // any prior `loadError` left on screen — clearing it here avoids
-        // contradictory UI ("Couldn’t load integrations" + fresh data
-        // below it). The `loadError` setter is intentionally NOT touched
-        // in the catch path: a transient refresh failure does NOT imply
-        // the initial load was also broken.
-        setLoadError(null);
+        // any prior load error or forbidden state left on screen —
+        // clearing it here avoids contradictory UI ("Couldn’t load
+        // integrations" + fresh data below it). The `loadOutcome` setter
+        // is intentionally NOT touched in the catch path: a transient
+        // refresh failure does NOT imply the initial load was also broken.
+        setLoadOutcome(null);
         setReloadFailedAfterAction(false);
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         setDomains([]);
         setApiKeys([]);
-        setLoadError(getIntegrationsLoadErrorMessage(error));
+        // BUG-AUTH-6: classify the error. 403 → forbidden empty state
+        // (neutral). Everything else → destructive load-error alert.
+        setLoadOutcome(classifyLoadOutcome(error));
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -586,16 +623,73 @@ export function WorkspaceIntegrationsDashboard() {
       <div className="flex h-full min-h-0 flex-col">
         <header className="mb-4">
           <h1 className="text-2xl font-semibold text-foreground">
-            Integrations
+            {t("page.title")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Manage verified domains and workspace API keys.
+            {t("page.subtitle")}
           </p>
         </header>
-        <Alert variant="warning" title="No workspace selected">
-          Select a workspace from the workspace switcher to manage its
-          integrations.
+        <Alert variant="warning" title={t("noWorkspace.title")}>
+          {t("noWorkspace.body")}
         </Alert>
+      </div>
+    );
+  }
+
+  // BUG-AUTH-6: render the permission-aware empty state when the load
+  // surface returned 403. This branch is reached AFTER the load effect
+  // settles, NEVER mid-load. It is NOT a destructive Alert: members
+  // landing here have done nothing wrong; ownership of these resources
+  // simply lives elsewhere.
+  if (loadOutcome?.kind === "forbidden") {
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-6">
+        <header>
+          <h1 className="text-2xl font-semibold text-foreground">
+            {t("page.title")}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {t("page.subtitle")}
+          </p>
+          {workspaceSlug ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t("page.activeWorkspaceLabel")}{" "}
+              <span
+                data-testid="workspace-integrations-workspace-slug"
+                className="font-medium text-foreground"
+              >
+                {workspaceSlug}
+              </span>
+            </p>
+          ) : null}
+        </header>
+
+        <Card
+          aria-labelledby="workspace-integrations-forbidden-heading"
+          role="region"
+          data-testid="workspace-integrations-forbidden-empty-state"
+        >
+          <CardHeader>
+            <CardTitle id="workspace-integrations-forbidden-heading">
+              {t("forbiddenEmptyState.title")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Flex direction="col" gap="md">
+              <p className="text-sm text-foreground/80">
+                {t("forbiddenEmptyState.body")}
+              </p>
+              <div>
+                <Link
+                  href="/dashboard/apps"
+                  className="text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                >
+                  {t("forbiddenEmptyState.backToDashboardLabel")}
+                </Link>
+              </div>
+            </Flex>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -603,13 +697,15 @@ export function WorkspaceIntegrationsDashboard() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
       <header>
-        <h1 className="text-2xl font-semibold text-foreground">Integrations</h1>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {t("page.title")}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Manage verified domains and workspace API keys for this workspace.
+          {t("page.subtitle")}
         </p>
         {workspaceSlug ? (
           <p className="mt-2 text-sm text-muted-foreground">
-            Active workspace:{" "}
+            {t("page.activeWorkspaceLabel")}{" "}
             <span
               data-testid="workspace-integrations-workspace-slug"
               className="font-medium text-foreground"
@@ -620,13 +716,17 @@ export function WorkspaceIntegrationsDashboard() {
         ) : null}
       </header>
 
-      {loadError ? (
-        <Alert variant="error" title="Couldn’t load integrations">
+      {loadOutcome?.kind === "error" ? (
+        <Alert variant="error" title={t("loadError.title")}>
           <Flex direction="col" gap="sm">
-            <span>{loadError}</span>
+            <span>{t(loadOutcome.messageKey)}</span>
             <div>
-              <Button type="button" onClick={handleRetry} aria-label="Retry">
-                Retry
+              <Button
+                type="button"
+                onClick={handleRetry}
+                aria-label={t("loadError.retryLabel")}
+              >
+                {t("loadError.retryLabel")}
               </Button>
             </div>
           </Flex>
@@ -653,31 +753,28 @@ export function WorkspaceIntegrationsDashboard() {
         </Alert>
       ) : null}
 
-      {reloadFailedAfterAction && !loadError ? (
+      {reloadFailedAfterAction && loadOutcome?.kind !== "error" ? (
         <Alert
           variant="warning"
-          title="Couldn’t refresh the list"
+          title={t("reloadFailed.title")}
           data-testid="workspace-integrations-reload-failed"
         >
           <Flex direction="col" gap="sm">
-            <span>
-              Action succeeded, but we couldn’t refresh the list. Some rows may
-              be out of date until you retry.
-            </span>
+            <span>{t("reloadFailed.body")}</span>
             <div>
               <Button
                 type="button"
                 onClick={handleRetry}
-                aria-label="Retry refresh"
+                aria-label={t("reloadFailed.retryLabel")}
               >
-                Retry
+                {t("reloadFailed.retryLabel")}
               </Button>
             </div>
           </Flex>
         </Alert>
       ) : null}
 
-      {isLoading && !loadError ? (
+      {isLoading && loadOutcome?.kind !== "error" ? (
         <div
           role="status"
           aria-live="polite"
@@ -686,7 +783,7 @@ export function WorkspaceIntegrationsDashboard() {
         >
           <Spinner />
           <span className="ml-3 text-sm text-muted-foreground">
-            Loading workspace integrations…
+            {t("loading.message")}
           </span>
         </div>
       ) : null}
