@@ -68,6 +68,11 @@
       "fallbackName": "Displayed in the avatar tooltip + profile menu when the user has no display name and no email.",
       "fallbackEmail": "Displayed under the user name when the user has no email and the consumer did not pass a profileSubtitle."
     },
+    "noWorkspaceRedirect": {
+      "_note": "BUG-AUTH-9 (2026-06-01): Shown for the brief moment between detecting the no-workspace state and `router.replace('/onboarding')` taking effect, so the user does not see a flash of the broken dashboard shell. Both strings are visible; the description appears as a screen-reader-announced status line below the title.",
+      "title": "Title shown in the no-workspace transition card. Keep concise (≤ 4 words after translation).",
+      "description": "Subtitle / status announcement explaining what happens next. Plain copy — no marketing tone."
+    },
     "footerNote": "Static informational copy shown at the bottom of the dashboard sidebar."
   },
   "workspaceSwitcher": {

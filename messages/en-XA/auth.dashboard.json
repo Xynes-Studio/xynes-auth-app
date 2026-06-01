@@ -55,6 +55,10 @@
       "fallbackName": "[UUsseerr]",
       "fallbackEmail": "[NNoo eemmaaiill]"
     },
+    "noWorkspaceRedirect": {
+      "title": "[SSeettttiinngg uupp yyoouurr wwoorrkkssppaaccee…]",
+      "description": "[RReeddiirreeccttiinngg yyoouu ttoo ccrreeaattee yyoouurr ffiirrsstt wwoorrkkssppaaccee.]"
+    },
     "footerNote": "[NNeeeedd aacccceessss? CCoonnttaacctt yyoouurr wwoorrkkssppaaccee oowwnneerr.]"
   },
   "workspaceSwitcher": {

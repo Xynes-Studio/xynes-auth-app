@@ -6,12 +6,13 @@ import { AuthDashboardShell } from "./AuthDashboardShell";
 const mockUseAuth = vi.fn();
 const mockUseWorkspace = vi.fn();
 const mockPush = vi.fn();
+const mockReplace = vi.fn();
 const mockDashboardShell = vi.fn();
 const mockSelectWorkspace = vi.fn();
 const mockShowToast = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush, replace: vi.fn() }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
   usePathname: () => "/dashboard/apps",
   useSearchParams: () => new URLSearchParams(""),
 }));
@@ -35,6 +36,7 @@ vi.mock("@lumia-ui/components", () => ({
 describe("AuthDashboardShell", () => {
   beforeEach(() => {
     mockPush.mockReset();
+    mockReplace.mockReset();
     mockDashboardShell.mockReset();
     mockSelectWorkspace.mockReset();
     mockShowToast.mockReset();
@@ -233,12 +235,18 @@ describe("AuthDashboardShell", () => {
 
   it("uses translated user-menu fallbacks when displayName/email/profileSubtitle are missing (UXR-5)", () => {
     mockUseAuth.mockReturnValue({
+      isLoading: false,
       user: {
         displayName: null,
         email: null,
         avatarUrl: null,
       },
-      workspaces: [],
+      // Non-empty so BUG-AUTH-9's no-workspace guard does NOT short-circuit
+      // the dashboard render path — this test asserts user-menu fallback
+      // copy, which only matters when the Lumia shell actually renders.
+      workspaces: [
+        { id: "ws-fallback", name: "Fallback Workspace", slug: "fallback" },
+      ],
     });
     mockUseWorkspace.mockReturnValue({
       currentWorkspace: null,
@@ -345,6 +353,108 @@ describe("AuthDashboardShell", () => {
       );
 
       consoleError.mockRestore();
+    });
+  });
+
+  describe("workspace guard (BUG-AUTH-9)", () => {
+    it("redirects to /onboarding when authenticated user has zero workspaces", () => {
+      mockUseAuth.mockReturnValue({
+        isLoading: false,
+        user: {
+          displayName: "Brand New",
+          email: "new@example.com",
+          avatarUrl: null,
+        },
+        workspaces: [],
+      });
+      mockUseWorkspace.mockReturnValue({
+        currentWorkspace: null,
+        selectWorkspace: mockSelectWorkspace,
+      });
+
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">Should NOT render</div>
+        </AuthDashboardShell>,
+      );
+
+      // router.replace fires with the onboarding target + the current path
+      // forwarded via ?redirect= so the user lands back on /dashboard/apps
+      // after they create their first workspace.
+      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(mockReplace).toHaveBeenCalledWith(
+        "/onboarding?redirect=%2Fdashboard%2Fapps",
+      );
+      // Defense in depth: the dashboard shell itself is NOT rendered, so the
+      // user never sees a flash of nav / workspace switcher rendered against
+      // an empty workspace list.
+      expect(mockDashboardShell).not.toHaveBeenCalled();
+    });
+
+    it("renders the loading fallback (role=status) while the redirect is in flight", () => {
+      mockUseAuth.mockReturnValue({
+        isLoading: false,
+        user: {
+          displayName: "Brand New",
+          email: "new@example.com",
+          avatarUrl: null,
+        },
+        workspaces: [],
+      });
+      mockUseWorkspace.mockReturnValue({
+        currentWorkspace: null,
+        selectWorkspace: mockSelectWorkspace,
+      });
+
+      const { getByTestId, queryByTestId, getByRole } = render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">Should NOT render</div>
+        </AuthDashboardShell>,
+      );
+
+      // Fallback main is rendered with role=status for screen-reader
+      // announcement; the dashboard body is not.
+      expect(
+        getByTestId("auth-dashboard-no-workspace-fallback"),
+      ).toBeInTheDocument();
+      expect(queryByTestId("dashboard-body")).toBeNull();
+      expect(getByRole("status")).toBeInTheDocument();
+    });
+
+    it("does NOT redirect when the user has at least one workspace", () => {
+      // Default beforeEach() already supplies two workspaces; just assert.
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">Renders normally</div>
+        </AuthDashboardShell>,
+      );
+
+      expect(mockReplace).not.toHaveBeenCalled();
+      // Lumia shell is rendered with the populated workspace context.
+      expect(mockDashboardShell).toHaveBeenCalledTimes(1);
+    });
+
+    it("does NOT redirect while auth bootstrap is still in flight (isLoading=true)", () => {
+      mockUseAuth.mockReturnValue({
+        isLoading: true,
+        // workspaces is empty here too — but isLoading=true means we have
+        // no signal yet that the user actually owns zero workspaces. The
+        // guard must wait for isLoading to flip to false.
+        user: null,
+        workspaces: [],
+      });
+      mockUseWorkspace.mockReturnValue({
+        currentWorkspace: null,
+        selectWorkspace: mockSelectWorkspace,
+      });
+
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">May render once loaded</div>
+        </AuthDashboardShell>,
+      );
+
+      expect(mockReplace).not.toHaveBeenCalled();
     });
   });
 });
