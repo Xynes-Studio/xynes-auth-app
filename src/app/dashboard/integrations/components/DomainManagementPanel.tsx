@@ -43,6 +43,8 @@ import {
   useConfirmDialog,
   useToast,
 } from "@lumia-ui/components";
+import { Icon } from "@lumia-ui/icons";
+import { useTranslations } from "next-intl";
 
 import type {
   WorkspaceDomain,
@@ -52,6 +54,7 @@ import {
   DNS_INSTRUCTION_COPY,
   deriveSubdomainOnlyName,
 } from "@/lib/integrations/dns-instructions";
+import { CopyButton } from "./CopyButton";
 
 export interface PendingDomainVerificationValue {
   domainId: string;
@@ -334,8 +337,10 @@ function renderInstructionRow(args: {
   label: string;
   value: string;
   ariaCopyLabel: string;
-  copied: boolean;
-  onCopy: (cellKey: string, value: string) => void | Promise<void>;
+  copyLabel: string;
+  copiedLabel: string;
+  /** Reveal-scoped value; changing it clears the cell's "Copied" state. */
+  resetKey: unknown;
   hint?: string;
   monospace?: boolean;
   muted?: boolean;
@@ -345,8 +350,9 @@ function renderInstructionRow(args: {
     label,
     value,
     ariaCopyLabel,
-    copied,
-    onCopy,
+    copyLabel,
+    copiedLabel,
+    resetKey,
     hint,
     monospace,
     muted,
@@ -357,26 +363,30 @@ function renderInstructionRow(args: {
       data-testid={`domain-verification-cell-${cellKey}`}
       className="contents"
     >
-      <dt className="font-medium">{label}</dt>
-      <dd className={muted ? "text-muted-foreground" : ""}>
+      <dt className="text-xs font-medium text-muted-foreground sm:self-center">
+        {label}
+      </dt>
+      <dd className={`min-w-0 ${muted ? "text-muted-foreground" : ""}`}>
         {monospace ? (
-          <code className="block break-all rounded bg-muted px-2 py-1 font-mono">
+          <code className="block overflow-x-auto whitespace-nowrap rounded bg-muted px-2 py-1 font-mono text-xs text-foreground">
             {value}
           </code>
         ) : (
-          <span className="break-all">{value}</span>
+          <span className="break-all font-mono text-xs text-foreground">
+            {value}
+          </span>
         )}
         {hint ? (
-          <p className="mt-1 text-[10px] text-muted-foreground">{hint}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
         ) : null}
       </dd>
-      <Button
-        type="button"
-        onClick={() => onCopy(cellKey, value)}
-        aria-label={ariaCopyLabel}
-      >
-        {copied ? "Copied" : "Copy"}
-      </Button>
+      <CopyButton
+        value={value}
+        ariaLabel={ariaCopyLabel}
+        label={copyLabel}
+        copiedLabel={copiedLabel}
+        resetKey={resetKey}
+      />
     </div>
   );
 }
@@ -393,6 +403,9 @@ export function DomainManagementPanel({
   pendingVerificationValue,
   onDismissVerificationValue,
 }: DomainManagementPanelProps) {
+  const t = useTranslations("auth.integrations");
+  const copyLabel = t("common.copy");
+  const copiedLabel = t("common.copied");
   const [hostnameInput, setHostnameInput] = useState<string>("");
   const [validationMessage, setValidationMessage] = useState<string | null>(
     null,
@@ -433,9 +446,8 @@ export function DomainManagementPanel({
   const [verificationOutcome, setVerificationOutcome] = useState<
     "idle" | "success" | "failure"
   >("idle");
-  // Track per-cell copy feedback so each Copy button can give a brief
-  // "Copied" affordance independent of the others.
-  const [copiedCellKey, setCopiedCellKey] = useState<string | null>(null);
+  // Per-cell copy feedback is owned by each self-contained `CopyButton`,
+  // so the panel no longer tracks a central `copiedCellKey`.
 
   // Keep a fresh ref to `domains` so the auto-recheck handler can
   // read the post-call row state without being held back by a stale
@@ -470,11 +482,6 @@ export function DomainManagementPanel({
   useEffect(() => {
     setVerificationOutcome("idle");
     setRevealStatusMessage(null);
-    // BUG-AUTH-7 Codex follow-up: also reset copy-feedback. The new
-    // reveal has a different value; a stale "Copied" pill would
-    // wrongly suggest the new value was already copied. Defense in
-    // depth on top of the per-cell functional-set staleness guard.
-    setCopiedCellKey(null);
     if (autoDismissTimerRef.current !== null) {
       clearTimeout(autoDismissTimerRef.current);
       autoDismissTimerRef.current = null;
@@ -547,46 +554,9 @@ export function DomainManagementPanel({
     [onRegenerateVerification],
   );
 
-  // WSA-FIX-3: per-cell copy helper. Each row in the reveal table
-  // (Type / Name (short) / Name (FQDN) / Value / TTL) has its own
-  // Copy button so users can paste each field into their DNS provider
-  // without trying to extract one piece of a long value. The clipboard
-  // write itself is best-effort: when the browser refuses (no user
-  // gesture, missing permission), the cell text stays visible for
-  // manual copy.
-  const handleCopyCell = useCallback(async (cellKey: string, value: string) => {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(value);
-      } catch {
-        // Silently fall through — the visible cell stays available
-        // for manual copy.
-      }
-    }
-    setCopiedCellKey(cellKey);
-    // Clear the "Copied" affordance after a short delay so the
-    // button can be reused. We intentionally don't await this, and
-    // we deliberately do NOT route this timer through
-    // `autoDismissTimerRef` — that ref is reserved for the BUG-AUTH-7
-    // 1.5s auto-dismiss of the entire reveal. Sharing one ref between
-    // the two timers caused two race bugs (Codex review on PR #70):
-    //   (a) a copy click during a successful auto-recheck would
-    //       OVERWRITE the auto-dismiss timer with the copy timer,
-    //       so the reveal would never auto-close; and
-    //   (b) a fresh reveal (via "Get new value") would cancel the
-    //       copy timer along with the auto-dismiss timer through
-    //       the reveal-change cleanup effect, leaving `copiedCellKey`
-    //       set so the new (different) value would render as already
-    //       "Copied". Bare setTimeout + the functional-set staleness
-    //       guard below is the correct contract for this timer.
-    if (typeof window !== "undefined") {
-      setTimeout(() => {
-        // Defensive: only clear if the same key is still active so
-        // a rapid second copy on a different cell isn't overwritten.
-        setCopiedCellKey((current) => (current === cellKey ? null : current));
-      }, 1500);
-    }
-  }, []);
+  // Per-cell copy is handled by the self-contained `CopyButton` (which owns
+  // its own transient "Copied" state and the best-effort clipboard write), so
+  // the panel no longer tracks copy feedback centrally.
 
   // WSA-FIX-3: "I've added it" is now a one-shot auto-recheck instead
   // of a silent dismiss. We:
@@ -730,23 +700,19 @@ export function DomainManagementPanel({
               <InlineAlert variant="info">
                 <div
                   data-testid="domain-verification-reveal"
-                  className="flex flex-col gap-3"
+                  className="flex flex-col gap-4"
                   role="status"
                   aria-live="polite"
                 >
                   {/* BUG-AUTH-7: surface the one-time-only warning as a
                       real Lumia DS Alert (variant="warning") so the AT
                       semantics + colour token match the seriousness of
-                      "we can't show this value again". Previously this
-                      sentence lived as a plain <p> at the top of the
-                      reveal which gave it no visual prominence and no
-                      a11y status role. */}
+                      "we can't show this value again". A shield-check
+                      icon badge would be redundant with this callout. */}
                   <Alert
                     variant="warning"
                     title={DNS_INSTRUCTION_COPY.oneTimeWarning.title}
-                    description={
-                      DNS_INSTRUCTION_COPY.oneTimeWarning.description
-                    }
+                    description={DNS_INSTRUCTION_COPY.oneTimeWarning.description}
                     data-testid="domain-verification-one-time-warning"
                   />
 
@@ -768,20 +734,20 @@ export function DomainManagementPanel({
                   {/* Structured Name + Value table.
                       Each cell carries its own Copy button so users
                       can paste a single field at a time into their
-                      DNS provider. Cell keys must be stable so the
-                      "Copied" affordance can be scoped per cell. */}
+                      DNS provider. */}
                   <dl
                     data-testid="domain-verification-instructions"
                     aria-label="DNS TXT record values to add"
-                    className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-[max-content_1fr_max-content]"
+                    className="grid grid-cols-1 items-center gap-x-3 gap-y-2 rounded-md border border-border bg-background p-3 text-xs sm:grid-cols-[160px_minmax(0,1fr)_max-content]"
                   >
                     {renderInstructionRow({
                       cellKey: "type",
                       label: "Type",
                       value: DNS_INSTRUCTION_COPY.type,
                       ariaCopyLabel: "Copy DNS record type",
-                      copied: copiedCellKey === "type",
-                      onCopy: handleCopyCell,
+                      copyLabel,
+                      copiedLabel,
+                      resetKey: rawValue,
                     })}
                     {subdomainOnly !== null
                       ? renderInstructionRow({
@@ -790,8 +756,9 @@ export function DomainManagementPanel({
                           value: subdomainOnly,
                           ariaCopyLabel:
                             "Copy DNS record name, subdomain-only form",
-                          copied: copiedCellKey === "name-short",
-                          onCopy: handleCopyCell,
+                          copyLabel,
+                          copiedLabel,
+                          resetKey: rawValue,
                           hint: "Use this if your DNS provider shows a separate apex field (Cloudflare, Namecheap, GoDaddy).",
                         })
                       : null}
@@ -800,8 +767,9 @@ export function DomainManagementPanel({
                       label: "Name (full FQDN)",
                       value: fqdn || pendingVerificationValue.domainId,
                       ariaCopyLabel: "Copy DNS record name, full FQDN form",
-                      copied: copiedCellKey === "name-full",
-                      onCopy: handleCopyCell,
+                      copyLabel,
+                      copiedLabel,
+                      resetKey: rawValue,
                       hint: "Use this if your DNS provider asks for the entire record name (AWS Route 53).",
                       muted: !fqdn,
                     })}
@@ -810,8 +778,9 @@ export function DomainManagementPanel({
                       label: "Value",
                       value: rawValue,
                       ariaCopyLabel: "Copy DNS record value",
-                      copied: copiedCellKey === "value",
-                      onCopy: handleCopyCell,
+                      copyLabel,
+                      copiedLabel,
+                      resetKey: rawValue,
                       monospace: true,
                     })}
                     {renderInstructionRow({
@@ -819,8 +788,9 @@ export function DomainManagementPanel({
                       label: "TTL",
                       value: DNS_INSTRUCTION_COPY.ttl,
                       ariaCopyLabel: "Copy DNS record TTL",
-                      copied: copiedCellKey === "ttl",
-                      onCopy: handleCopyCell,
+                      copyLabel,
+                      copiedLabel,
+                      resetKey: rawValue,
                     })}
                   </dl>
 
@@ -847,31 +817,34 @@ export function DomainManagementPanel({
                   </details>
 
                   <Flex gap="sm" wrap="wrap" align="center">
-                    {/* Back-compat "Copy" button copies the raw value
-                        for users who skim past the table. Hidden from
-                        AT (each cell has its own labelled copy
-                        button) so screen-reader users aren't told
-                        about a redundant control. */}
+                    {/* Back-compat copy affordance for users who skim
+                        past the per-cell buttons and just want the raw
+                        verification value. */}
+                    <CopyButton
+                      value={rawValue}
+                      ariaLabel="Copy verification value"
+                      label={copyLabel}
+                      copiedLabel={copiedLabel}
+                      resetKey={rawValue}
+                    />
                     <Button
                       type="button"
-                      onClick={() => handleCopyCell("value", rawValue)}
-                      aria-label="Copy verification value"
-                    >
-                      Copy value
-                    </Button>
-                    <Button
-                      type="button"
+                      variant="primary"
+                      size="sm"
                       onClick={handleConfirmAddedAndRecheck}
                       disabled={isAutoRechecking}
                       aria-busy={isAutoRechecking}
                       aria-label="I've added it. Recheck DNS now."
                     >
+                      <Icon name="refresh-cw" size={15} color="currentColor" aria-hidden />
                       {isAutoRechecking
                         ? "Re-checking\u2026"
                         : "I\u2019ve added it"}
                     </Button>
                     <Button
                       type="button"
+                      variant="ghost"
+                      size="sm"
                       onClick={handleManualDismiss}
                       aria-label="Dismiss verification value without rechecking"
                     >
@@ -921,25 +894,36 @@ export function DomainManagementPanel({
         className="flex flex-col gap-2"
         noValidate
       >
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Domain</span>
-          <Input
-            type="text"
-            value={hostnameInput}
-            onChange={(event) => {
-              setHostnameInput(event.target.value);
-              if (validationMessage) setValidationMessage(null);
-            }}
-            placeholder="example.com"
-            aria-invalid={validationMessage ? true : undefined}
-            aria-describedby={
-              validationMessage ? "domain-input-error" : undefined
-            }
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <label className="flex flex-1 flex-col gap-1 text-sm">
+            <span className="font-medium">Domain</span>
+            <Input
+              type="text"
+              value={hostnameInput}
+              onChange={(event) => {
+                setHostnameInput(event.target.value);
+                if (validationMessage) setValidationMessage(null);
+              }}
+              placeholder="example.com"
+              aria-invalid={validationMessage ? true : undefined}
+              aria-describedby={
+                validationMessage ? "domain-input-error" : undefined
+              }
+              disabled={isPanelBusy}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+          <Button
+            type="submit"
             disabled={isPanelBusy}
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
+            aria-label="Add domain"
+            className="sm:flex-none"
+          >
+            <Icon name="plus" size={16} color="currentColor" aria-hidden />
+            Add domain
+          </Button>
+        </div>
         {validationMessage ? (
           <p
             id="domain-input-error"
@@ -949,11 +933,6 @@ export function DomainManagementPanel({
             {validationMessage}
           </p>
         ) : null}
-        <div>
-          <Button type="submit" disabled={isPanelBusy} aria-label="Add domain">
-            Add domain
-          </Button>
-        </div>
       </form>
 
       {domains.length === 0 ? (
@@ -971,11 +950,21 @@ export function DomainManagementPanel({
               <li
                 key={domain.id}
                 data-testid={`domain-row-${domain.id}`}
-                className="rounded border border-border p-3"
+                className="rounded-lg border border-border bg-card p-3"
               >
                 <Flex direction="col" gap="sm">
                   <Flex justify="between" align="center" gap="sm">
-                    <span className="font-medium">{domain.hostname}</span>
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span
+                        className="flex h-9 w-9 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
+                        aria-hidden
+                      >
+                        <Icon name="globe" size={18} color="currentColor" />
+                      </span>
+                      <span className="truncate font-medium text-foreground">
+                        {domain.hostname}
+                      </span>
+                    </span>
                     <StatusPill variant={statusVariant(domain.status)}>
                       {statusLabel(domain.status)}
                     </StatusPill>
@@ -1020,15 +1009,9 @@ export function DomainManagementPanel({
                         className="flex flex-col gap-1 rounded border border-border bg-muted/40 p-2 text-xs"
                       >
                         {strip.map((step) => {
-                          const icon =
-                            step.status === "pass"
-                              ? "✓"
-                              : step.status === "fail"
-                                ? "✗"
-                                : "·";
                           const colorClass =
                             step.status === "pass"
-                              ? "text-emerald-700"
+                              ? "text-emerald-600"
                               : step.status === "fail"
                                 ? "text-destructive"
                                 : "text-muted-foreground";
@@ -1039,7 +1022,13 @@ export function DomainManagementPanel({
                               className="flex items-center gap-2"
                             >
                               <span aria-hidden="true" className={colorClass}>
-                                {icon}
+                                {step.status === "pass" ? (
+                                  <Icon name="check" size={15} color="currentColor" />
+                                ) : step.status === "fail" ? (
+                                  "✗"
+                                ) : (
+                                  "·"
+                                )}
                               </span>
                               <span className="font-medium">{step.label}:</span>
                               <span className="text-muted-foreground">
@@ -1057,16 +1046,21 @@ export function DomainManagementPanel({
                     {showRecheck ? (
                       <Button
                         type="button"
+                        variant="secondary"
+                        size="sm"
                         onClick={() => handleVerify(domain.id)}
                         disabled={isLoading || isRowPending}
                         aria-label={`Recheck verification for ${domain.hostname}`}
                       >
+                        <Icon name="refresh-cw" size={15} color="currentColor" aria-hidden />
                         Recheck
                       </Button>
                     ) : null}
                     {showRecheck ? (
                       <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleRegenerate(domain.id)}
                         disabled={isLoading || isRowPending}
                         aria-label={`Get a new verification value for ${domain.hostname}`}
@@ -1087,6 +1081,8 @@ export function DomainManagementPanel({
                           return (
                             <Button
                               type="button"
+                              variant="ghost"
+                              size="sm"
                               onClick={() => requestDelete(domain)}
                               disabled={isLoading || isRowPending}
                               aria-label={`${copy.ariaLabelPrefix} ${domain.hostname}`}

@@ -4,6 +4,23 @@
     "subtitle": "[MMaannaaggee vveerriiffiieedd ddoommaaiinnss aanndd wwoorrkkssppaaccee AAPPII kkeeyyss ffoorr tthhiiss wwoorrkkssppaaccee.]",
     "activeWorkspaceLabel": "[AAccttiivvee wwoorrkkssppaaccee:]"
   },
+  "tabs": {
+    "domains": "[DDoommaaiinnss]",
+    "apiKeys": "[AAPPII KKeeyyss]",
+    "webhooks": "[WWeebbhhooookkss]"
+  },
+  "domains": {
+    "heading": "[VVeerriiffiieedd ddoommaaiinnss]",
+    "description": "[DDoommaaiinnss yyoouurr wwoorrkkssppaaccee oowwnnss aanndd ccaann ppuubblliisshh ccoonntteenntt ffrroomm.]"
+  },
+  "apiKeys": {
+    "heading": "[WWoorrkkssppaaccee AAPPII kkeeyyss]",
+    "description": "[PPrrooggrraammmmaattiicc aacccceessss ssccooppeedd ttoo aa ssiinnggllee wwoorrkkssppaaccee. RRaaww kkeeyyss aarree sshhoowwnn oonnccee oonn ccrreeaattiioonn aanndd nneevveerr ssttoorreedd cclliieenntt-ssiiddee.]"
+  },
+  "common": {
+    "copy": "[CCooppyy]",
+    "copied": "[CCooppiieedd]"
+  },
   "noWorkspace": {
     "title": "[NNoo wwoorrkkssppaaccee sseelleecctteedd]",
     "body": "[SSeelleecctt aa wwoorrkkssppaaccee ffrroomm tthhee wwoorrkkssppaaccee sswwiittcchheerr ttoo mmaannaaggee iittss iinntteeggrraattiioonnss.]"

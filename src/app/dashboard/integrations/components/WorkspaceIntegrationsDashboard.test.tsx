@@ -200,6 +200,44 @@ vi.mock("@lumia-ui/components", () => ({
     children?: React.ReactNode;
     variant?: string;
   }) => <span data-variant={variant}>{children}</span>,
+  // Pass-through Tabs mock: the real underline Tabs hides inactive panels
+  // (covered by lumia-ds tabs tests), but the container's behavioural tests
+  // need both the domains and API-keys panels mounted at once, so the mock
+  // renders every panel. Triggers expose role="tab" + count so the tab-level
+  // tests below can assert labels, counts, and the disabled state.
+  Tabs: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  TabsList: ({
+    children,
+    "aria-label": ariaLabel,
+  }: {
+    children?: React.ReactNode;
+    "aria-label"?: string;
+  }) => (
+    <div role="tablist" aria-label={ariaLabel}>
+      {children}
+    </div>
+  ),
+  TabsTrigger: ({
+    children,
+    value,
+    count,
+    disabled,
+  }: {
+    children?: React.ReactNode;
+    value?: string;
+    count?: React.ReactNode;
+    disabled?: boolean;
+  }) => (
+    <button type="button" role="tab" disabled={disabled} data-value={value}>
+      {children}
+      {count !== undefined && count !== null ? (
+        <span data-testid={`tab-count-${value}`}>{count}</span>
+      ) : null}
+    </button>
+  ),
+  TabsContent: ({ children }: { children?: React.ReactNode }) => (
+    <div role="tabpanel">{children}</div>
+  ),
   StatusPill: ({
     children,
     variant,
@@ -371,6 +409,21 @@ describe("WorkspaceIntegrationsDashboard", () => {
     await waitFor(() => {
       expect(mockListWorkspaceDomains).toHaveBeenCalled();
       expect(mockListWorkspaceApiKeys).toHaveBeenCalled();
+    });
+  });
+
+  it("renders Domains, API Keys, and a disabled Webhooks tab with live counts", async () => {
+    render(<WorkspaceIntegrationsDashboard />);
+
+    expect(screen.getByRole("tab", { name: /domains/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /api keys/i })).toBeInTheDocument();
+    // Webhooks is a disabled placeholder for the next section.
+    expect(screen.getByRole("tab", { name: /webhooks/i })).toBeDisabled();
+
+    // Count badges reflect the loaded domain / API-key totals.
+    await waitFor(() => {
+      expect(screen.getByTestId("tab-count-domains")).toHaveTextContent("1");
+      expect(screen.getByTestId("tab-count-api-keys")).toHaveTextContent("1");
     });
   });
 
@@ -982,16 +1035,55 @@ describe("WorkspaceIntegrationsDashboard", () => {
     expect(presetSelect).toHaveValue("cms_publisher");
   });
 
+  // ── PR #71 Codex P2: in-place deep-link change focuses the newly
+  // selected tab heading AFTER it commits ────────────────────────────────
+  //
+  // Regression for the two-step focus pattern (split into a focus-pending
+  // effect and a commit-driven apply effect). Before the fix the dashboard
+  // called `setActiveTab("api-keys")` and `focus()` synchronously in the
+  // same effect — with the real Lumia Tabs, the API-keys heading is inside
+  // a `hidden` TabsContent at that moment and `focus()` silently no-ops.
+  // The test mock here renders both panels so both flows would have passed
+  // in jsdom, but the contract is now: focus is applied after the tab
+  // change commits and the matching panel is mounted.
+  it("moves focus to the newly selected tab heading after an in-place ?tab= change", async () => {
+    searchParamsState.query = "tab=domains";
+    mockListWorkspaceApiKeys.mockResolvedValue([]);
+
+    const { rerender } = render(<WorkspaceIntegrationsDashboard />);
+
+    const domainsHeading = await screen.findByRole("heading", {
+      name: /verified domains/i,
+    });
+    await waitFor(() => {
+      expect(domainsHeading).toHaveFocus();
+    });
+
+    // Flip the URL param in-place — the SDK mock's `useSearchParams`
+    // returns a fresh `URLSearchParams` per call, so a rerender re-reads
+    // `tab=api-keys` and the dashboard must move focus to the API-keys
+    // heading once the API-keys tab commits.
+    searchParamsState.query = "tab=api-keys";
+    rerender(<WorkspaceIntegrationsDashboard />);
+
+    const apiKeysHeading = await screen.findByRole("heading", {
+      name: /workspace api keys/i,
+    });
+    await waitFor(() => {
+      expect(apiKeysHeading).toHaveFocus();
+    });
+  });
+
   // ── WSA-FIX-1: action-error vs reload-error split ──────────────────────
   //
   // Per the WSA-FIX-1 plan, action handlers (register/verify/regenerate/
   // delete domain, create/revoke API key) must NOT write to the
-  // "Couldn't load integrations" load-error alert on failure. Each action
+  // "Couldn’t load integrations" load-error alert on failure. Each action
   // surfaces failures through its own action-error alert with action-
-  // specific copy ("Couldn't remove domain", "Couldn't verify domain", …).
+  // specific copy ("Couldn’t remove domain", "Couldn’t verify domain", …).
   //
   // When an action SUCCEEDS but the follow-up list refetch fails, we
-  // must show a soft "Couldn't refresh the list" banner instead of the
+  // must show a soft "Couldn’t refresh the list" banner instead of the
   // destructive load-error alert — the action did succeed, the page is
   // not broken, the list is just stale until the user retries.
   describe("WSA-FIX-1: action-error vs reload-error split", () => {

@@ -27,15 +27,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
+  Badge,
   Button,
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
   Flex,
   Spinner,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from "@lumia-ui/components";
+import { Icon } from "@lumia-ui/icons";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -87,6 +92,10 @@ import {
 // 401 is preserved on the load-error path because it means "your session
 // expired, please sign in again" — that IS a recoverable failure, not a
 // permission boundary on this resource.
+// In-content tab identifiers. `webhooks` is a disabled placeholder showing
+// where future integration sections will slot in.
+type IntegrationsTabValue = "domains" | "api-keys" | "webhooks";
+
 type LoadOutcomeKind =
   | { kind: "forbidden" }
   | { kind: "error"; messageKey: LoadErrorMessageKey };
@@ -252,6 +261,25 @@ export function WorkspaceIntegrationsDashboard() {
         : undefined,
     [presetParam],
   );
+
+  // In-content tab selection. The `?tab=` deep link (domains | api-keys)
+  // chooses the initially-active section so CMS-console links land users on
+  // the right tab. Unknown values fall back to the domains tab.
+  const initialTab: IntegrationsTabValue =
+    tabParam === "api-keys" ? "api-keys" : "domains";
+  const [activeTab, setActiveTab] = useState<IntegrationsTabValue>(initialTab);
+  // Pending-focus target driven by the `?tab=` deep link. We set this
+  // synchronously when the URL param changes, then a second effect — gated
+  // on `activeTab` matching the pending target — actually moves keyboard
+  // focus. This guarantees the heading is mounted and visible (i.e. inside
+  // the now-active TabsContent panel, not the still-hidden one) before
+  // `focus()` runs. Without this two-step pattern, focus on the API-keys
+  // heading is silently dropped on in-place URL changes from `?tab=domains`
+  // to `?tab=api-keys` because the panel is `hidden` at the moment focus
+  // is called. Manual tab clicks (without a URL param change) deliberately
+  // do not set this — they should not steal focus to the section heading.
+  const [pendingFocusTab, setPendingFocusTab] =
+    useState<IntegrationsTabValue | null>(null);
 
   const domainsHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const apiKeysHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -546,16 +574,43 @@ export function WorkspaceIntegrationsDashboard() {
     setActionError(null);
   }, []);
 
-  // Move keyboard focus to the deep-linked section heading once the
-  // headings are mounted. Runs only when the tab parameter changes so
-  // re-renders triggered by data fetches do not steal focus from the user.
+  // Honor the `?tab=` deep link: select the requested tab AND queue a focus
+  // request for the matching section heading. We deliberately split tab
+  // selection (synchronous) from focus (deferred to the next commit) because
+  // the real Lumia Tabs hides inactive panels — calling `focus()` in the
+  // same effect that flipped `activeTab` would target a still-hidden heading
+  // and the browser would silently drop the focus move. A second effect
+  // below (`[activeTab, pendingFocusTab]`) does the actual focus after the
+  // newly-active panel mounts.
+  //
+  // Runs only when the tab parameter changes so re-renders triggered by
+  // data fetches do not steal focus from the user or override a manual
+  // tab switch.
   useEffect(() => {
     if (tabParam === "api-keys") {
-      apiKeysHeadingRef.current?.focus();
+      setActiveTab("api-keys");
+      setPendingFocusTab("api-keys");
     } else if (tabParam === "domains") {
-      domainsHeadingRef.current?.focus();
+      setActiveTab("domains");
+      setPendingFocusTab("domains");
     }
   }, [tabParam]);
+
+  // Apply the pending focus request once the target tab is actually the
+  // committed `activeTab` — by then the matching TabsContent panel is
+  // visible and its heading is focusable. Clears the pending slot on
+  // success so a subsequent manual tab click doesn't trigger another
+  // focus move on an unrelated re-render.
+  useEffect(() => {
+    if (pendingFocusTab === null) return;
+    if (pendingFocusTab !== activeTab) return;
+    if (pendingFocusTab === "api-keys") {
+      apiKeysHeadingRef.current?.focus();
+    } else if (pendingFocusTab === "domains") {
+      domainsHeadingRef.current?.focus();
+    }
+    setPendingFocusTab(null);
+  }, [activeTab, pendingFocusTab]);
 
   useEffect(() => {
     if (!workspaceId) {
@@ -618,6 +673,26 @@ export function WorkspaceIntegrationsDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBaseUrl, reloadCounter, workspaceId]);
 
+  // Active-workspace chip surfaced under the page title so owners always have
+  // unambiguous context for which workspace they're editing.
+  const headerWorkspaceChip = workspaceSlug ? (
+    <Badge
+      variant="outline"
+      className="mt-2 inline-flex w-fit items-center gap-1.5"
+    >
+      <Icon name="briefcase" size={14} color="currentColor" aria-hidden />
+      <span className="text-muted-foreground">
+        {t("page.activeWorkspaceLabel")}
+      </span>
+      <span
+        data-testid="workspace-integrations-workspace-slug"
+        className="font-semibold text-foreground"
+      >
+        {workspaceSlug}
+      </span>
+    </Badge>
+  ) : null;
+
   if (!workspaceId) {
     return (
       <div className="flex h-full min-h-0 flex-col">
@@ -642,22 +717,12 @@ export function WorkspaceIntegrationsDashboard() {
   if (loadOutcome?.kind === "forbidden") {
     return (
       <div className="flex h-full min-h-0 flex-col gap-6">
-        <header>
+        <header className="flex flex-col">
           <h1 className="text-2xl font-semibold text-foreground">
             {t("page.title")}
           </h1>
           <p className="text-sm text-muted-foreground">{t("page.subtitle")}</p>
-          {workspaceSlug ? (
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t("page.activeWorkspaceLabel")}{" "}
-              <span
-                data-testid="workspace-integrations-workspace-slug"
-                className="font-medium text-foreground"
-              >
-                {workspaceSlug}
-              </span>
-            </p>
-          ) : null}
+          {headerWorkspaceChip}
         </header>
 
         <Card
@@ -692,22 +757,12 @@ export function WorkspaceIntegrationsDashboard() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
-      <header>
+      <header className="flex flex-col">
         <h1 className="text-2xl font-semibold text-foreground">
           {t("page.title")}
         </h1>
         <p className="text-sm text-muted-foreground">{t("page.subtitle")}</p>
-        {workspaceSlug ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t("page.activeWorkspaceLabel")}{" "}
-            <span
-              data-testid="workspace-integrations-workspace-slug"
-              className="font-medium text-foreground"
-            >
-              {workspaceSlug}
-            </span>
-          </p>
-        ) : null}
+        {headerWorkspaceChip}
       </header>
 
       {loadOutcome?.kind === "error" ? (
@@ -782,24 +837,48 @@ export function WorkspaceIntegrationsDashboard() {
         </div>
       ) : null}
 
-      <Flex direction="col" gap="lg">
-        <Card
-          aria-labelledby="workspace-integrations-domains-heading"
-          role="region"
-        >
-          <CardHeader>
-            <CardTitle
-              id="workspace-integrations-domains-heading"
-              ref={domainsHeadingRef}
-              tabIndex={-1}
-            >
-              Verified domains
-            </CardTitle>
-            <CardDescription>
-              Domains your workspace owns and can publish content from.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      <Tabs
+        variant="underline"
+        value={activeTab}
+        onValueChange={(next) => setActiveTab(next as IntegrationsTabValue)}
+      >
+        <TabsList aria-label={t("page.title")}>
+          <TabsTrigger value="domains" count={domains.length}>
+            <Icon name="globe" size={16} color="currentColor" aria-hidden />
+            {t("tabs.domains")}
+          </TabsTrigger>
+          <TabsTrigger value="api-keys" count={apiKeys.length}>
+            <Icon name="key" size={16} color="currentColor" aria-hidden />
+            {t("tabs.apiKeys")}
+          </TabsTrigger>
+          {/* Placeholder for the next integration section. Disabled until
+              the Webhooks surface ships — shown so owners can see where
+              upcoming sections will appear. */}
+          <TabsTrigger value="webhooks" disabled>
+            <Icon name="plus" size={16} color="currentColor" aria-hidden />
+            {t("tabs.webhooks")}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="domains">
+          <section
+            role="region"
+            aria-labelledby="workspace-integrations-domains-heading"
+            className="flex flex-col gap-4"
+          >
+            <header className="flex flex-col gap-1">
+              <h2
+                id="workspace-integrations-domains-heading"
+                ref={domainsHeadingRef}
+                tabIndex={-1}
+                className="text-lg font-semibold text-foreground"
+              >
+                {t("domains.heading")}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {t("domains.description")}
+              </p>
+            </header>
             <span
               data-testid="workspace-integrations-domains-count"
               className="sr-only"
@@ -816,27 +895,28 @@ export function WorkspaceIntegrationsDashboard() {
               pendingVerificationValue={pendingVerificationValue}
               onDismissVerificationValue={handleDismissVerificationValue}
             />
-          </CardContent>
-        </Card>
+          </section>
+        </TabsContent>
 
-        <Card
-          aria-labelledby="workspace-integrations-api-keys-heading"
-          role="region"
-        >
-          <CardHeader>
-            <CardTitle
-              id="workspace-integrations-api-keys-heading"
-              ref={apiKeysHeadingRef}
-              tabIndex={-1}
-            >
-              Workspace API keys
-            </CardTitle>
-            <CardDescription>
-              Programmatic access scoped to a single workspace. Raw keys are
-              shown once on creation and never stored client-side.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <TabsContent value="api-keys">
+          <section
+            role="region"
+            aria-labelledby="workspace-integrations-api-keys-heading"
+            className="flex flex-col gap-4"
+          >
+            <header className="flex flex-col gap-1">
+              <h2
+                id="workspace-integrations-api-keys-heading"
+                ref={apiKeysHeadingRef}
+                tabIndex={-1}
+                className="text-lg font-semibold text-foreground"
+              >
+                {t("apiKeys.heading")}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {t("apiKeys.description")}
+              </p>
+            </header>
             <span
               data-testid="workspace-integrations-api-keys-count"
               className="sr-only"
@@ -852,9 +932,9 @@ export function WorkspaceIntegrationsDashboard() {
               onDismissRawKey={handleDismissRawApiKey}
               initialPresetKey={initialPresetKey}
             />
-          </CardContent>
-        </Card>
-      </Flex>
+          </section>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

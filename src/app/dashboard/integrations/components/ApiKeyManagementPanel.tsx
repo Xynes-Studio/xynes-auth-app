@@ -31,6 +31,7 @@
 
 import { useCallback, useState, type FormEvent } from "react";
 import {
+  Badge,
   Button,
   ConfirmDialog,
   Flex,
@@ -40,6 +41,8 @@ import {
   StatusPill,
   useConfirmDialog,
 } from "@lumia-ui/components";
+import { Icon } from "@lumia-ui/icons";
+import { useTranslations } from "next-intl";
 
 import {
   WORKSPACE_API_KEY_PRESET_KEYS,
@@ -47,6 +50,7 @@ import {
   type WorkspaceApiKeyPresetKey,
   type WorkspaceApiKeyStatus,
 } from "@/lib/integrations/workspace-integrations-types";
+import { CopyButton } from "./CopyButton";
 
 export interface PendingWorkspaceRawApiKey {
   /** ID of the key the raw value belongs to. */
@@ -158,6 +162,9 @@ export function ApiKeyManagementPanel({
   onDismissRawKey,
   initialPresetKey,
 }: ApiKeyManagementPanelProps) {
+  const t = useTranslations("auth.integrations");
+  const copyLabel = t("common.copy");
+  const copiedLabel = t("common.copied");
   const [nameInput, setNameInput] = useState<string>("");
   const [presetInput, setPresetInput] = useState<WorkspaceApiKeyPresetKey>(
     initialPresetKey ?? "cms_readonly",
@@ -227,22 +234,31 @@ export function ApiKeyManagementPanel({
   return (
     <Flex direction="col" gap="md">
       {pendingRawKey ? (
-        <InlineAlert variant="info">
+        <InlineAlert variant="success">
           <div
             data-testid="api-key-raw-reveal"
-            className="flex flex-col gap-2"
+            className="flex flex-col gap-3"
             role="status"
             aria-live="polite"
           >
-            <p className="text-sm font-medium">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <Icon name="circle-check" size={16} color="currentColor" aria-hidden />
               Copy your new API key now. You won’t see this key again.
             </p>
-            <code className="block break-all rounded bg-muted px-2 py-1 font-mono text-xs">
-              {pendingRawKey.rawKey}
-            </code>
-            <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground">
+                {pendingRawKey.rawKey}
+              </code>
+              <CopyButton
+                value={pendingRawKey.rawKey}
+                ariaLabel="Copy API key"
+                label={copyLabel}
+                copiedLabel={copiedLabel}
+              />
               <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={onDismissRawKey}
                 aria-label="Dismiss API key"
               >
@@ -256,44 +272,55 @@ export function ApiKeyManagementPanel({
       <form
         onSubmit={handleSubmitCreate}
         aria-label="Create workspace API key"
-        className="flex flex-col gap-2"
+        className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
         noValidate
       >
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Name</span>
-          <Input
-            type="text"
-            value={nameInput}
-            onChange={(event) => {
-              setNameInput(event.target.value);
-              if (validationMessage) setValidationMessage(null);
-            }}
-            placeholder="e.g. Production publisher"
-            aria-invalid={validationMessage ? true : undefined}
-            aria-describedby={
-              validationMessage ? "api-key-name-error" : undefined
-            }
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_220px_max-content] sm:items-end">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Name</span>
+            <Input
+              type="text"
+              value={nameInput}
+              onChange={(event) => {
+                setNameInput(event.target.value);
+                if (validationMessage) setValidationMessage(null);
+              }}
+              placeholder="e.g. Production publisher"
+              aria-invalid={validationMessage ? true : undefined}
+              aria-describedby={
+                validationMessage ? "api-key-name-error" : undefined
+              }
+              disabled={isPanelBusy}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">Preset</span>
+            <Select
+              value={presetInput}
+              onChange={(event) =>
+                setPresetInput(event.target.value as WorkspaceApiKeyPresetKey)
+              }
+              disabled={isPanelBusy}
+            >
+              {WORKSPACE_API_KEY_PRESET_KEYS.map((presetKey) => (
+                <option key={presetKey} value={presetKey}>
+                  {PRESET_LABELS[presetKey]}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <Button
+            type="submit"
             disabled={isPanelBusy}
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Preset</span>
-          <Select
-            value={presetInput}
-            onChange={(event) =>
-              setPresetInput(event.target.value as WorkspaceApiKeyPresetKey)
-            }
-            disabled={isPanelBusy}
+            aria-label="Create API key"
+            className="sm:flex-none"
           >
-            {WORKSPACE_API_KEY_PRESET_KEYS.map((presetKey) => (
-              <option key={presetKey} value={presetKey}>
-                {PRESET_LABELS[presetKey]}
-              </option>
-            ))}
-          </Select>
-        </label>
+            <Icon name="plus" size={16} color="currentColor" aria-hidden />
+            Create API key
+          </Button>
+        </div>
         {validationMessage ? (
           <p
             id="api-key-name-error"
@@ -303,15 +330,6 @@ export function ApiKeyManagementPanel({
             {validationMessage}
           </p>
         ) : null}
-        <div>
-          <Button
-            type="submit"
-            disabled={isPanelBusy}
-            aria-label="Create API key"
-          >
-            Create API key
-          </Button>
-        </div>
       </form>
 
       {apiKeys.length === 0 ? (
@@ -331,24 +349,31 @@ export function ApiKeyManagementPanel({
               <li
                 key={apiKey.id}
                 data-testid={`api-key-row-${apiKey.id}`}
-                className="rounded border border-border p-3"
+                className="rounded-lg border border-border bg-card p-3"
               >
                 <Flex direction="col" gap="sm">
                   <Flex justify="between" align="center" gap="sm">
-                    <span className="font-medium">{apiKey.name}</span>
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span
+                        className="flex h-9 w-9 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
+                        aria-hidden
+                      >
+                        <Icon name="key" size={18} color="currentColor" />
+                      </span>
+                      <span className="truncate font-medium text-foreground">
+                        {apiKey.name}
+                      </span>
+                    </span>
                     <StatusPill variant={statusVariant(apiKey.status)}>
                       {statusLabel(apiKey.status)}
                     </StatusPill>
                   </Flex>
 
-                  <p className="text-xs text-muted-foreground">
+                  <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                     <span className="sr-only">Key prefix: </span>
                     <code className="font-mono">{apiKey.keyPrefix}</code>
                     {presetLabelText ? (
-                      <>
-                        {" · "}
-                        <span>{presetLabelText}</span>
-                      </>
+                      <Badge variant="subtle">{presetLabelText}</Badge>
                     ) : null}
                   </p>
 
@@ -369,6 +394,8 @@ export function ApiKeyManagementPanel({
                     <Flex gap="sm" wrap="wrap">
                       <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => requestRevoke(apiKey)}
                         disabled={isLoading || isRowPending}
                         aria-label={`Revoke API key ${apiKey.name}`}

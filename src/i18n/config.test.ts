@@ -95,11 +95,29 @@ describe("auth i18n config", () => {
       const messages = getAuthMessages("en-US");
       const serialized = JSON.stringify(messages);
       // Defense-in-depth: catalogs must never surface tokens, hashes, or
-      // raw API key markers.
+      // raw API key markers. These regexes target *secret-shaped values*
+      // (raw-key prefixes, hash field markers, long hex strings, JWT
+      // segments) — NOT legitimate UI section labels like "API Keys" or
+      // "Access token". The section name `apiKeys` is a valid catalog
+      // namespace identifier and its presence in the message tree is
+      // expected after the integrations redesign migrated section copy to
+      // next-intl. Leakage of an actual key/token would surface as
+      // `xynes_live_<hex>`, a 64-hex value, a JWT segment, or one of the
+      // forbidden field-name=value pairs below.
       expect(serialized).not.toMatch(/xynes_live_/);
       expect(serialized).not.toMatch(/key_hash/i);
-      expect(serialized).not.toMatch(/access[_-]?token/i);
-      expect(serialized).not.toMatch(/api[_-]?key/i);
+      // Catch raw key/token *values*, not free-text labels. Field-name
+      // followed by a colon and a non-empty quoted value is the wire
+      // shape these would take if a real secret slipped into a catalog.
+      expect(serialized).not.toMatch(/"raw_?key"\s*:\s*"[^"]+"/i);
+      expect(serialized).not.toMatch(/"access[_-]?token"\s*:\s*"[^"]+"/i);
+      expect(serialized).not.toMatch(/"api[_-]?key"\s*:\s*"[a-f0-9]{16,}"/i);
+      // Long hex blobs (>= 32 hex chars) — Argon2 hashes, raw key payloads.
+      expect(serialized).not.toMatch(/[a-f0-9]{32,}/i);
+      // JWT-shaped values (three base64url segments separated by dots).
+      expect(serialized).not.toMatch(
+        /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/,
+      );
     });
   });
 });
