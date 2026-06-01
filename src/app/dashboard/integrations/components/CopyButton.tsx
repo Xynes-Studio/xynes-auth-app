@@ -15,7 +15,7 @@
  *   hard-coded copy.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@lumia-ui/components";
 import { Icon } from "@lumia-ui/icons";
 
@@ -28,6 +28,14 @@ export interface CopyButtonProps {
   copiedLabel: string;
   /** Accessible name describing what is being copied. */
   ariaLabel: string;
+  /**
+   * Optional value that, when it changes, clears the transient "Copied"
+   * state. Use it to reset the button when the surrounding context shows a
+   * brand-new secret (e.g. a regenerated DNS verification value) so a stale
+   * "Copied" pill never implies the new value was already copied — even for
+   * sibling cells whose own `value` did not change.
+   */
+  resetKey?: unknown;
   className?: string;
 }
 
@@ -36,9 +44,16 @@ export function CopyButton({
   label,
   copiedLabel,
   ariaLabel,
+  resetKey,
   className,
 }: CopyButtonProps) {
   const [copied, setCopied] = useState<boolean>(false);
+
+  // Clear the "Copied" affordance when the reveal context changes so a
+  // freshly-shown value never inherits a previous "Copied" state.
+  useEffect(() => {
+    setCopied(false);
+  }, [resetKey]);
 
   const handleCopy = useCallback(async () => {
     if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {

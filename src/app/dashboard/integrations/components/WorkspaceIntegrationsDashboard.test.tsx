@@ -303,6 +303,12 @@ vi.mock("@lumia-ui/components", () => ({
       dialogProps: { open, onOpenChange: setOpen },
     };
   },
+  // BUG-AUTH-7: DomainManagementPanel now consumes `useToast` from
+  // Lumia DS to fire a success toast on a verified auto-recheck.
+  // The container-level tests don't assert on the toast itself
+  // (that's covered in DomainManagementPanel.test.tsx); they just
+  // need the hook to resolve without throwing.
+  useToast: () => ({ show: vi.fn(), dismiss: vi.fn() }),
 }));
 
 const sampleDomain: WorkspaceDomain = {
