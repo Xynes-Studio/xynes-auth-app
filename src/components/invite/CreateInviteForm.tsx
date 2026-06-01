@@ -7,6 +7,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { z } from "zod";
 import { Alert, Button, Card, Input } from "@lumia-ui/components";
 import { AccountsClient, useAuth, useWorkspace } from "@xynes/auth-sdk";
@@ -46,12 +47,35 @@ function buildInviteUrl(token: string): string {
   return base ? `${base}${path}` : path;
 }
 
+/**
+ * BUG-AUTH-8: extract the closed-set backend error code from the SDK's
+ * thrown payload. The SDK throws either:
+ *   (a) the parsed envelope `{ ok: false, error: { code, message }, meta }`
+ *       (happy 4xx/5xx with a JSON body), or
+ *   (b) `{ statusCode, message }` (network-level / parse-failure fallback).
+ *
+ * We read `(error as { error?: { code?: string } }).error?.code` defensively
+ * and never trust the value beyond a closed-set comparison.
+ */
+function extractApiErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== "object") return null;
+  const envelope = (error as { error?: unknown }).error;
+  if (!envelope || typeof envelope !== "object") return null;
+  const code = (envelope as { code?: unknown }).code;
+  return typeof code === "string" ? code : null;
+}
+
 export function CreateInviteForm({
   apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "",
 }: CreateInviteFormProps) {
   const router = useRouter();
   const { getAccessToken } = useAuth();
   const { currentWorkspace, isLoading } = useWorkspace();
+  // BUG-AUTH-8: localized copy for the two new closed-set error codes. Other
+  // visible strings in this form are still hard-coded English (out of scope
+  // for BUG-AUTH-8; a full next-intl migration of the form is a separate
+  // follow-up story).
+  const tCreateErrors = useTranslations("auth.invite.create.errors");
 
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -120,6 +144,29 @@ export function CreateInviteForm({
       const inviteUrl = buildInviteUrl(result.token);
       setState({ status: "success", inviteUrl });
     } catch (error) {
+      // BUG-AUTH-8: branch on the backend's closed-set code FIRST. This catches
+      // the two new guards regardless of HTTP status (both are 400) and falls
+      // back to the legacy statusCode-based mapping for the historical 403/429
+      // surfaces. The error message text itself is never echoed to the UI; we
+      // only consume the structured code.
+      const apiCode = extractApiErrorCode(error);
+      if (apiCode === "SELF_INVITE") {
+        setState({ status: "error", message: tCreateErrors("selfInvite") });
+        return;
+      }
+      if (apiCode === "ALREADY_MEMBER") {
+        setState({ status: "error", message: tCreateErrors("alreadyMember") });
+        return;
+      }
+      if (apiCode === "FORBIDDEN") {
+        setState({
+          status: "error",
+          message:
+            "You don’t have permission to create invites for this workspace.",
+        });
+        return;
+      }
+
       const statusCode = (error as { statusCode?: number }).statusCode;
       if (statusCode === 403) {
         setState({
@@ -142,7 +189,7 @@ export function CreateInviteForm({
         message: "Failed to create invite. Please try again.",
       });
     }
-  }, [accountsClient, canInvite, currentWorkspace, email]);
+  }, [accountsClient, canInvite, currentWorkspace, email, tCreateErrors]);
 
   const handleCopy = useCallback(async () => {
     if (state.status !== "success") return;

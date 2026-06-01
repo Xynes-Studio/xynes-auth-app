@@ -1,8 +1,8 @@
 {
   "_meta": {
-    "description": "Translator-context sidecar for auth.invite. Workspace-invite entry surface.",
-    "audience": "Users who have an invite link or code from a workspace owner.",
-    "tone": "Welcoming.",
+    "description": "Translator-context sidecar for auth.invite. Workspace-invite entry surface and the invite-create surface.",
+    "audience": "Users who have an invite link or code from a workspace owner (entry surface) and workspace owners creating an invite (create surface).",
+    "tone": "Welcoming for the entry surface; clear and corrective for the create surface error messages.",
     "owners": ["xynes-front-end/xynes-auth-app"]
   },
   "shell": {
@@ -21,5 +21,12 @@
     "empty": "Shown when the field is submitted empty.",
     "invalid": "Shown when the value does not match the invite-token shape.",
     "length": "Shown when the value is outside the allowed length range. The fixed numbers reflect the gateway contract; do not translate them as words."
+  },
+  "create": {
+    "_use": "BUG-AUTH-8: Backend-driven error messages surfaced inside CreateInviteForm when the accounts-service rejects the request with a closed-set code.",
+    "errors": {
+      "selfInvite": "Shown when the workspace owner submits their own email address. Backend code: SELF_INVITE (HTTP 400). Keep the copy short and corrective; do not lecture the user.",
+      "alreadyMember": "Shown when the invited address already has an active membership in this workspace. Backend code: ALREADY_MEMBER (HTTP 400). Do not name the existing member; the UI only surfaces the rejection."
+    }
   }
 }

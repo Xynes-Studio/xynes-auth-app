@@ -14,5 +14,11 @@
     "empty": "Enter your invite link or code to continue.",
     "invalid": "That invite code looks incorrect. Check the link and try again.",
     "length": "Invite code must be between 16 and 128 characters."
+  },
+  "create": {
+    "errors": {
+      "selfInvite": "You cannot invite yourself.",
+      "alreadyMember": "This person is already a workspace member."
+    }
   }
 }
