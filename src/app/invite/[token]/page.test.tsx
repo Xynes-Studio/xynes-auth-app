@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@/test/test-utils";
 import { InvitePreview } from "@/components/invite/InvitePreview";
@@ -49,6 +49,11 @@ describe("InvitePreview", () => {
     vi.clearAllMocks();
     mockSearchParamsGet.mockReturnValue(null);
     mockPush.mockReset();
+  });
+
+  afterEach(() => {
+    // Clear all mocks after each test
+    vi.clearAllMocks();
   });
 
   it("renders loading state initially", () => {
@@ -794,7 +799,7 @@ describe("InvitePreview", () => {
       const cta = screen.getByTestId("invite-wrong-account-cta");
       cta.click();
 
-      // BUG-AUTH-10 invariant: router.push("/logout?redirect=...") is
+      // BUG-AUTH-10 invariant: router.push("/logout?redirect=") is
       // called with the invite return path URL-encoded inside the
       // redirect query. `redirectToLogin` must NOT be called.
       expect(mockRedirectToLogin).not.toHaveBeenCalled();
@@ -845,6 +850,177 @@ describe("InvitePreview", () => {
       const encoded = pushTarget.slice("/logout?redirect=".length);
       const decoded = decodeURIComponent(encoded);
       expect(decoded).toBe("/invite/test-token?autoAccept=true");
+    });
+  });
+
+  // BUG-AUTH-11 (2026-05-31): post-join redirect must land the user on
+  // the CMS Console workspace dashboard (`/dashboard/<slug>`), NOT the
+  // console root, and NOT a non-existent `/<slug>` route. Regression
+  // guard for the symptom reported as redirect-to-`/workspace-url`.
+  describe("BUG-AUTH-11 — post-join redirect target", () => {
+    const acceptedWorkspace = {
+      id: "workspace-123",
+      name: "Test Workspace",
+      slug: "test-workspace",
+      planType: "free" as const,
+      role: "workspace_member" as const,
+    };
+
+    let originalLocation: Location;
+    let mockLocation: { href: string };
+    let originalConsoleUrl: string | undefined;
+
+    beforeEach(() => {
+      originalLocation = window.location;
+      mockLocation = { href: "" };
+      Object.defineProperty(window, "location", {
+        value: mockLocation,
+        writable: true,
+      });
+      originalConsoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL;
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, "location", {
+        value: originalLocation,
+        writable: true,
+      });
+      process.env.NEXT_PUBLIC_CONSOLE_URL = originalConsoleUrl;
+    });
+
+    const setupAcceptedInvite = (acceptResult: unknown) => {
+      const mockAcceptInvite = vi.fn().mockResolvedValue(acceptResult);
+      vi.mocked(useInvite).mockReturnValue({
+        invite: mockInvite,
+        isLoading: false,
+        error: null,
+        acceptInvite: mockAcceptInvite,
+        isAccepting: false,
+      });
+      vi.mocked(useAuth).mockReturnValue({
+        isAuthenticated: true,
+        user: null,
+        redirectToLogin: vi.fn(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+      return mockAcceptInvite;
+    };
+
+    it("redirects to ${consoleUrl}/dashboard/<workspaceSlug> when console URL is set and slug is present", async () => {
+      process.env.NEXT_PUBLIC_CONSOLE_URL = "https://cms.xynes.com";
+      const mockAcceptInvite = setupAcceptedInvite(acceptedWorkspace);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      const joinButton = screen.getByRole("button", {
+        name: /Join Workspace/i,
+      });
+      joinButton.click();
+
+      await waitFor(() => {
+        expect(mockAcceptInvite).toHaveBeenCalled();
+        expect(mockLocation.href).toBe(
+          "https://cms.xynes.com/dashboard/test-workspace",
+        );
+      });
+
+      // Did NOT call router.push (external navigation only).
+      expect(mockPush).not.toHaveBeenCalled();
+    });
+
+    it("never produces a non-existent /<slug> route on the console root (regression guard for the original /workspace-url symptom)", async () => {
+      process.env.NEXT_PUBLIC_CONSOLE_URL = "https://cms.xynes.com";
+      setupAcceptedInvite(acceptedWorkspace);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      const joinButton = screen.getByRole("button", {
+        name: /Join Workspace/i,
+      });
+      joinButton.click();
+
+      await waitFor(() => {
+        expect(mockLocation.href).not.toBe(
+          "https://cms.xynes.com/test-workspace",
+        );
+        expect(mockLocation.href).toContain("/dashboard/");
+        // The literal `/workspace-url` placeholder must never appear.
+        expect(mockLocation.href).not.toContain("/workspace-url");
+      });
+    });
+
+    it("strips a single trailing slash from the console URL", async () => {
+      process.env.NEXT_PUBLIC_CONSOLE_URL = "https://cms.xynes.com/";
+      setupAcceptedInvite(acceptedWorkspace);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      screen.getByRole("button", { name: /Join Workspace/i }).click();
+
+      await waitFor(() => {
+        expect(mockLocation.href).toBe(
+          "https://cms.xynes.com/dashboard/test-workspace",
+        );
+      });
+    });
+
+    it("URI-encodes the workspace slug (defense in depth)", async () => {
+      process.env.NEXT_PUBLIC_CONSOLE_URL = "https://cms.xynes.com";
+      // Hostile slug that the backend should never emit, but the FE
+      // should still encode safely if it ever did.
+      setupAcceptedInvite({
+        ...acceptedWorkspace,
+        slug: "weird slug/with?chars",
+      });
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      screen.getByRole("button", { name: /Join Workspace/i }).click();
+
+      await waitFor(() => {
+        expect(mockLocation.href).toBe(
+          "https://cms.xynes.com/dashboard/" +
+            encodeURIComponent("weird slug/with?chars"),
+        );
+        // The raw slug must NOT appear unencoded in the final URL.
+        expect(mockLocation.href).not.toContain("weird slug");
+        expect(mockLocation.href).not.toContain("with?chars");
+      });
+    });
+
+    it("falls back to /dashboard/apps when the console URL is unset", async () => {
+      process.env.NEXT_PUBLIC_CONSOLE_URL = "";
+      setupAcceptedInvite(acceptedWorkspace);
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      screen.getByRole("button", { name: /Join Workspace/i }).click();
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
+      });
+      // window.location.href must not be set on the fallback path.
+      expect(mockLocation.href).toBe("");
+    });
+
+    it("falls back to /dashboard/apps when the accept payload omits a slug (legacy response shape)", async () => {
+      process.env.NEXT_PUBLIC_CONSOLE_URL = "https://cms.xynes.com";
+      // Mimic the older { accepted, workspaceId, roleKey } payload.
+      setupAcceptedInvite({
+        accepted: true,
+        workspaceId: "workspace-123",
+        roleKey: "workspace_member",
+        workspaceMemberCreated: true,
+      });
+
+      renderWithProviders(<InvitePreview token="test-token" />);
+
+      screen.getByRole("button", { name: /Join Workspace/i }).click();
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/dashboard/apps");
+      });
+      expect(mockLocation.href).toBe("");
     });
   });
 });

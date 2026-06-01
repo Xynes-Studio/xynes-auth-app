@@ -265,6 +265,17 @@ const url = buildCmsWorkspaceContentUrl({
 - BUG-AUTH-10 strings live in an `INVITE_PREVIEW_COPY` constant at the top of `InvitePreview.tsx`. The surrounding component is not yet on `next-intl`; the constant exists so the new strings can be migrated en bloc when the file moves onto the shared `auth.invite` catalog.
 - Regression coverage: `src/app/invite/[token]/page.test.tsx` BUG-AUTH-10 block (4 tests: match path, mismatch warning + no-leak, blocked auto-accept, SDK-error-code defense + no-leak). SDK-side coverage: `xynes-auth-sdk/src/utils/errors.test.ts` (`isInviteEmailMismatchError` describe) + `xynes-auth-sdk/src/hooks/useInvite.test.ts` (BUG-AUTH-10 describe).
 
+### Post-Join Redirect Target (BUG-AUTH-11, 2026-05-31)
+
+- After a successful invite accept, the user must land on the **CMS Console workspace dashboard** (`${NEXT_PUBLIC_CONSOLE_URL}/dashboard/<workspaceSlug>`), NOT the console root, NOT a non-existent `/<slug>` route, and NOT a placeholder `/workspace-url` route.
+- Symptom reported as redirect-to-`/workspace-url`: the previous `handleAccept` callback in `InvitePreview.tsx` built `${consoleUrl}/${workspaceSlug}` and assigned it to `window.location.href`. The CMS Console renders its marketing scaffold at `/` and 404s on `/<slug>` (the workspace dashboard lives at `/dashboard/<workspaceSlug>` and then redirects to `/dashboard/<workspaceSlug>/content` via `WorkspaceDashboardPage`). The end result was a broken landing page — exactly the "ghost route" symptom the bug report described.
+- `InvitePreview.tsx` now:
+  - Builds `${normalizedConsoleUrl}/dashboard/${encodeURIComponent(workspaceSlug)}` when both `NEXT_PUBLIC_CONSOLE_URL` and the accept payload's `workspace.slug` are present.
+  - Strips a single trailing slash from `NEXT_PUBLIC_CONSOLE_URL` (e.g. `https://cms.xynes.com/` → `https://cms.xynes.com`) so the final URL never contains a `//` segment.
+  - URI-encodes the slug as defense in depth — workspace slugs are backend-validated to a safe charset, but encoding guards against an upstream regression that ever loosened the constraint.
+  - Falls back to `router.push("/dashboard/apps")` (the Auth Admin landing, matching BUG-AUTH-2's canonical post-create redirect pattern) when the console URL is unset, or when the accept payload omits a slug (legacy `{ accepted, workspaceId, roleKey }` response shape).
+- Regression coverage: `src/app/invite/[token]/page.test.tsx` BUG-AUTH-11 describe block (6 tests: canonical redirect with `/dashboard/` prefix; never-produces-`/<slug>`-root + never-`/workspace-url` regression guard; trailing-slash normalization; URI-encoded slug + raw-slug-absent invariant; fallback to `/dashboard/apps` when console URL unset; fallback to `/dashboard/apps` when accept payload omits slug).
+
 ## Dashboard UX Standards
 
 - Dashboard routes live under `src/app/dashboard/*` and should compose `AuthDashboardShell` for layout consistency.

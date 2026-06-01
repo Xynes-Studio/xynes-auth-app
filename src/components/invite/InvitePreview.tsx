@@ -322,18 +322,33 @@ export function InvitePreview({ token }: InvitePreviewProps) {
       "slug" in result &&
       typeof (result as { slug?: unknown }).slug === "string" &&
       (result as { slug: string }).slug.trim().length > 0
-        ? (result as { slug: string }).slug
+        ? (result as { slug: string }).slug.trim()
         : null;
 
-    const consoleUrl = process.env.NEXT_PUBLIC_CONSOLE_URL || "";
+    // BUG-AUTH-11 (2026-05-31): redirect to the canonical CMS Console
+    // workspace dashboard, NOT the console root. Previously this built
+    // `${consoleUrl}/${workspaceSlug}` (e.g. `https://console.example.com/<slug>`)
+    // which hits a non-existent route on the CMS Console (the marketing
+    // scaffold at `/` and a 404 for `/<slug>`). The canonical workspace
+    // entry on the CMS Console is `/dashboard/<workspaceSlug>`, which the
+    // CMS console's WorkspaceDashboardPage then redirects to
+    // `/dashboard/<workspaceSlug>/content`.
+    const consoleUrl = (process.env.NEXT_PUBLIC_CONSOLE_URL || "").trim();
     if (consoleUrl && workspaceSlug) {
-      // Redirect to workspace dashboard in console app
-      window.location.href = `${consoleUrl}/${workspaceSlug}`;
+      // Normalize the base URL: strip a single trailing slash so we do
+      // not produce `https://console.example.com//dashboard/<slug>`.
+      const normalizedConsoleUrl = consoleUrl.replace(/\/+$/, "");
+      // Encode the slug as a defense-in-depth — workspace slugs are
+      // backend-validated to a safe charset, but this guards against an
+      // upstream regression that ever loosened the constraint.
+      const encodedSlug = encodeURIComponent(workspaceSlug);
+      window.location.href = `${normalizedConsoleUrl}/dashboard/${encodedSlug}`;
       return;
     }
 
-    // Current accept API may return { accepted, workspaceId, roleKey } without slug.
-    // In that case, route to the dashboard apps landing when no explicit redirect target exists.
+    // No external console configured (or no slug returned from the
+    // accept payload): fall back to the Auth Admin landing route, matching
+    // BUG-AUTH-2's canonical post-create redirect pattern.
     router.push("/dashboard/apps");
   }, [acceptInvite, router]);
 
