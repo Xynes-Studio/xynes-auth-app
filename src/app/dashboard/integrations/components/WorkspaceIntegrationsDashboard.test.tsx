@@ -588,6 +588,29 @@ describe("WorkspaceIntegrationsDashboard", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("renders the rate-limited copy for 429 responses (regression guard)", async () => {
+      // Regression: an earlier draft of BUG-AUTH-6's `classifyLoadOutcome`
+      // mapped status 404 (instead of 429) to the rate-limited message
+      // key, leaving genuine 429 responses falling through to the
+      // generic "Failed to load…" copy. This test pins the pre-existing
+      // 429 → "Too many requests…" contract that the previous
+      // `getIntegrationsLoadErrorMessage` honoured.
+      mockListWorkspaceApiKeys.mockRejectedValueOnce(
+        new WorkspaceIntegrationsApiError(429, "rate limited"),
+      );
+
+      render(<WorkspaceIntegrationsDashboard />);
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(/couldn.?t load integrations/i);
+      expect(alert).toHaveTextContent(
+        /too many requests\. please try again in a moment\./i,
+      );
+      expect(
+        screen.queryByTestId("workspace-integrations-forbidden-empty-state"),
+      ).not.toBeInTheDocument();
+    });
+
     it("does NOT leak hostile upstream fields through the forbidden empty state", async () => {
       // Defense in depth: if the API returns a 403 whose error message
       // happens to contain a raw token, an internal audit handle, or a

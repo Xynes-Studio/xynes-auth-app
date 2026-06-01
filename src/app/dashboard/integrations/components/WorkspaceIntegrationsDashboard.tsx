@@ -109,7 +109,7 @@ function classifyLoadOutcome(error: unknown): LoadOutcomeKind {
     return { kind: "forbidden" };
   }
 
-  if (error.statusCode === 404) {
+  if (error.statusCode === 429) {
     return { kind: "error", messageKey: "loadError.rateLimited" };
   }
 
