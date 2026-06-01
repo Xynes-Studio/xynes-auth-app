@@ -853,9 +853,15 @@ BUG-AUTH-9 adds the guard inside `AuthDashboardShell.tsx` so every `/dashboard/*
 
 Why client-side, not a server RSC redirect: every `/dashboard/*` route in this app is a client page; workspaces are bootstrapped client-side by the SDK's `AuthProvider` (Supabase session + `/me` round-trip). A server-side redirect would require rewriting the auth pipeline. Matches the existing `redirectToLogin` posture in `CmsDashboardShell` and the shell's own `handleCreateWorkspace` link target.
 
-The path-encoding helper `buildOnboardingRedirectTarget(currentPath)`:
-- Drops the redirect param entirely when the current path is `/onboarding` or `/onboarding/*` to avoid a self-loop.
+The path-encoding helper `buildOnboardingRedirectTarget(currentPathWithQuery)`:
+- Drops the redirect param entirely when the current path is `/onboarding` or `/onboarding/*` (with or without a query string) to avoid a self-loop.
 - Defense-in-depth refuses any path that doesn't start with `/` or that starts with `//` (protocol-relative URL smuggling).
-- Source comes from Next.js `usePathname()`, which is always a same-origin path string — but the explicit guard keeps the contract resilient if a future change wires a different source.
+- Source comes from Next.js `usePathname()` combined with `useSearchParams().toString()`, which is always a same-origin path string — but the explicit guard keeps the contract resilient if a future change wires a different source.
 
-Regression coverage: `AuthDashboardShell.integration.test.tsx > workspace guard (BUG-AUTH-9)` — 4 tests covering: empty-workspaces redirect target + path encoding; role=status fallback markup; non-empty workspaces does NOT redirect; `isLoading === true` does NOT redirect.
+**Query-string preservation (PR #73 Codex P2 follow-up, 2026-06-01).** The redirect target preserves the full `pathname + search` of the originally-requested dashboard URL — not just the pathname. The shell combines `usePathname()` + `useSearchParams().toString()` before passing to the helper, mirroring the canonical pattern already used by `ProfileCompletionGate.tsx`. This matters in two real flows:
+
+- A user lands on `http://localhost:3100/dashboard/apps?tab=overview` with zero workspaces; after creating their first workspace, WSA-FIX-2 sends them back to the encoded redirect → they arrive on the exact tab they originally requested.
+- FE-XAPP-BUG-001 / BUG-LDS-2 cross-app handoff URL: a CMS Console deep link sends the user to `http://localhost:3100/dashboard/apps?workspace=<slug>` to switch active workspace. Without query-string preservation the `?workspace=<slug>` param would be dropped and the post-onboarding redirect would lose the cross-app handoff hint. With preservation, the user lands on `/dashboard/apps?workspace=<slug>` after onboarding and the auth-app workspace-handoff sync runs as designed.
+
+Regression coverage: `AuthDashboardShell.integration.test.tsx > workspace guard (BUG-AUTH-9)` — 6 tests covering: empty-workspaces redirect target + path encoding; role=status fallback markup; non-empty workspaces does NOT redirect; `isLoading === true` does NOT redirect; **query string `?tab=overview` is preserved end-to-end (Codex P2 follow-up)**; **FE-XAPP-BUG-001 cross-app `?workspace=<slug>` is preserved end-to-end (Codex P2 follow-up)**.
+

@@ -2,7 +2,7 @@
 
 import type { ComponentProps, ReactNode } from "react";
 import { Suspense, useCallback, useEffect, useMemo } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   DashboardShell,
@@ -37,15 +37,35 @@ type LumiaDashboardChildren = ComponentProps<typeof DashboardShell>["children"];
  * auth-app origin, and downstream redirect-allowlist code treats relative
  * paths as same-origin safe.
  *
- * If `currentPath` is unavailable (initial render before usePathname
- * resolves) or is itself `/onboarding`, we omit the redirect param to avoid
- * a self-loop.
+ * **Query-string preservation (PR #73 Codex P2 follow-up, 2026-06-01).** The
+ * input MUST be `${pathname}${searchString}` so dashboard query parameters
+ * survive the round-trip — e.g. `/dashboard/apps?tab=overview` or the
+ * FE-XAPP-BUG-001 cross-app handoff URL `/dashboard/apps?workspace=<slug>`.
+ * The caller is responsible for combining `usePathname()` + `useSearchParams()`
+ * before calling this helper. This mirrors the canonical pattern already
+ * used by `ProfileCompletionGate.tsx` so the two redirect surfaces stay
+ * behaviourally aligned.
+ *
+ * If `currentPathWithQuery` is unavailable (initial render before
+ * `usePathname` resolves) or is itself `/onboarding` (with or without
+ * query), we omit the redirect param to avoid a self-loop.
  */
-function buildOnboardingRedirectTarget(currentPath: string | null): string {
+function buildOnboardingRedirectTarget(
+  currentPathWithQuery: string | null,
+): string {
+  if (!currentPathWithQuery) {
+    return "/onboarding";
+  }
+  // Strip any query string before comparing against the onboarding routes so
+  // `/onboarding?foo=bar` still short-circuits the self-loop guard.
+  const queryStart = currentPathWithQuery.indexOf("?");
+  const pathnameOnly =
+    queryStart === -1
+      ? currentPathWithQuery
+      : currentPathWithQuery.slice(0, queryStart);
   if (
-    !currentPath ||
-    currentPath === "/onboarding" ||
-    currentPath.startsWith("/onboarding/")
+    pathnameOnly === "/onboarding" ||
+    pathnameOnly.startsWith("/onboarding/")
   ) {
     return "/onboarding";
   }
@@ -53,10 +73,13 @@ function buildOnboardingRedirectTarget(currentPath: string | null): string {
   // value comes from Next.js `usePathname()` so it is always a same-origin
   // path string, but we keep this guard so a future contract change cannot
   // smuggle an external URL into the redirect param.
-  if (!currentPath.startsWith("/") || currentPath.startsWith("//")) {
+  if (
+    !currentPathWithQuery.startsWith("/") ||
+    currentPathWithQuery.startsWith("//")
+  ) {
     return "/onboarding";
   }
-  return `/onboarding?redirect=${encodeURIComponent(currentPath)}`;
+  return `/onboarding?redirect=${encodeURIComponent(currentPathWithQuery)}`;
 }
 
 export function AuthDashboardShell({
@@ -66,6 +89,7 @@ export function AuthDashboardShell({
 }: AuthDashboardShellProps) {
   const router = useRouter();
   const activePath = usePathname();
+  const searchParams = useSearchParams();
   const { user, workspaces, isLoading: isAuthLoading } = useAuth();
   const { currentWorkspace, selectWorkspace } = useWorkspace();
   const { show: showToast } = useToast();
@@ -83,10 +107,10 @@ export function AuthDashboardShell({
   /**
    * BUG-AUTH-9 (2026-06-01): No-workspace guard. When auth bootstrap has
    * resolved AND the user has zero workspaces, redirect to `/onboarding`
-   * (preserving the requested dashboard path via `?redirect=`). The guard
-   * fires once per mount via `router.replace` — `replace` keeps the broken
-   * `/dashboard/*` URL out of session history so a back-button click after
-   * workspace creation does not land them back here.
+   * (preserving the requested dashboard path + query via `?redirect=`).
+   * The guard fires once per mount via `router.replace` — `replace` keeps
+   * the broken `/dashboard/*` URL out of session history so a back-button
+   * click after workspace creation does not land them back here.
    *
    * Why client-side and not a server RSC redirect: every `/dashboard/*`
    * route in this app is a client page wrapping `<AuthGuard><AuthDashboardShell>`,
@@ -96,17 +120,27 @@ export function AuthDashboardShell({
    * the existing `redirectToLogin` pattern in `CmsDashboardShell` and the
    * shell's own `handleCreateWorkspace` posture.
    *
+   * Query-string handling (PR #73 Codex P2 follow-up): we combine
+   * `usePathname()` + `useSearchParams()` before encoding so dashboard
+   * query params like `?tab=overview` and the FE-XAPP-BUG-001 cross-app
+   * handoff URL `?workspace=<slug>` survive the post-create round-trip.
+   * Mirrors the canonical pattern in `ProfileCompletionGate.tsx`.
+   *
    * The render guard below the effect prevents any flash of the dashboard
    * shell while `router.replace` is in flight.
    */
   const shouldRedirectToOnboarding = !isAuthLoading && workspaces.length === 0;
+  const searchString = searchParams?.toString() ?? "";
+  const activePathWithQuery = activePath
+    ? `${activePath}${searchString ? `?${searchString}` : ""}`
+    : null;
 
   useEffect(() => {
     if (!shouldRedirectToOnboarding) {
       return;
     }
-    router.replace(buildOnboardingRedirectTarget(activePath));
-  }, [activePath, router, shouldRedirectToOnboarding]);
+    router.replace(buildOnboardingRedirectTarget(activePathWithQuery));
+  }, [activePathWithQuery, router, shouldRedirectToOnboarding]);
 
   const workspaceById = new Map(
     workspaces.map((workspace) => [workspace.id, workspace]),

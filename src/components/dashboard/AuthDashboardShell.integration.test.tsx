@@ -11,10 +11,21 @@ const mockDashboardShell = vi.fn();
 const mockSelectWorkspace = vi.fn();
 const mockShowToast = vi.fn();
 
+/**
+ * Hoisted mutable state so individual tests can override `usePathname()` and
+ * `useSearchParams()` outputs without re-declaring the `next/navigation`
+ * mock. Pattern mirrors the `pathnameState` setup in
+ * `CmsDashboardShell.test.tsx` so the two shells stay aligned.
+ */
+const navigationState = vi.hoisted(() => ({
+  pathname: "/dashboard/apps" as string | null,
+  search: "" as string,
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
-  usePathname: () => "/dashboard/apps",
-  useSearchParams: () => new URLSearchParams(""),
+  usePathname: () => navigationState.pathname,
+  useSearchParams: () => new URLSearchParams(navigationState.search),
 }));
 
 vi.mock("@xynes/auth-sdk", () => ({
@@ -40,6 +51,10 @@ describe("AuthDashboardShell", () => {
     mockDashboardShell.mockReset();
     mockSelectWorkspace.mockReset();
     mockShowToast.mockReset();
+
+    // Reset navigation state to the default dashboard route + no query.
+    navigationState.pathname = "/dashboard/apps";
+    navigationState.search = "";
 
     mockUseAuth.mockReturnValue({
       user: {
@@ -455,6 +470,69 @@ describe("AuthDashboardShell", () => {
       );
 
       expect(mockReplace).not.toHaveBeenCalled();
+    });
+
+    it("preserves dashboard query strings in the onboarding redirect target", () => {
+      // PR #73 Codex P2 follow-up. A user lands on
+      // `/dashboard/apps?tab=overview` (or any other query-bearing dashboard
+      // URL) with zero workspaces; the guard must round-trip the query
+      // through `/onboarding?redirect=` so the post-create flow restores
+      // the exact URL — not just the pathname.
+      navigationState.pathname = "/dashboard/apps";
+      navigationState.search = "tab=overview";
+
+      mockUseAuth.mockReturnValue({
+        isLoading: false,
+        user: { displayName: "A", email: "a@b.co", avatarUrl: null },
+        workspaces: [],
+      });
+      mockUseWorkspace.mockReturnValue({
+        currentWorkspace: null,
+        selectWorkspace: mockSelectWorkspace,
+      });
+
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">Should NOT render</div>
+        </AuthDashboardShell>,
+      );
+
+      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(mockReplace).toHaveBeenCalledWith(
+        "/onboarding?redirect=%2Fdashboard%2Fapps%3Ftab%3Doverview",
+      );
+    });
+
+    it("preserves the FE-XAPP-BUG-001 cross-app handoff `?workspace=<slug>` param through the redirect", () => {
+      // BUG-LDS-2 / FE-XAPP-BUG-001 cross-app handoff URL. A CMS Console
+      // deep link sends the user back to the auth-app with
+      // `?workspace=<slug>`; if the user has zero workspaces yet, the
+      // BUG-AUTH-9 guard must NOT swallow that param — `/onboarding`
+      // honours it via WSA-FIX-2 redirect-param semantics after workspace
+      // creation, restoring the handoff loop.
+      navigationState.pathname = "/dashboard/apps";
+      navigationState.search = "workspace=acme-co";
+
+      mockUseAuth.mockReturnValue({
+        isLoading: false,
+        user: { displayName: "A", email: "a@b.co", avatarUrl: null },
+        workspaces: [],
+      });
+      mockUseWorkspace.mockReturnValue({
+        currentWorkspace: null,
+        selectWorkspace: mockSelectWorkspace,
+      });
+
+      render(
+        <AuthDashboardShell activeNav="apps">
+          <div data-testid="dashboard-body">Should NOT render</div>
+        </AuthDashboardShell>,
+      );
+
+      expect(mockReplace).toHaveBeenCalledTimes(1);
+      expect(mockReplace).toHaveBeenCalledWith(
+        "/onboarding?redirect=%2Fdashboard%2Fapps%3Fworkspace%3Dacme-co",
+      );
     });
   });
 });
