@@ -33,6 +33,7 @@ import {
   type FormEvent,
 } from "react";
 import {
+  Alert,
   Button,
   ConfirmDialog,
   Flex,
@@ -40,6 +41,7 @@ import {
   Input,
   StatusPill,
   useConfirmDialog,
+  useToast,
 } from "@lumia-ui/components";
 
 import type {
@@ -417,6 +419,20 @@ export function DomainManagementPanel({
   // flight. Drives the inline spinner state on the "I've added it"
   // button.
   const [isAutoRechecking, setIsAutoRechecking] = useState<boolean>(false);
+  // BUG-AUTH-7: track the outcome of the most recent recheck so we
+  // can render either a destructive failure Alert (still propagating)
+  // or a brief success state before the auto-dismiss timer fires.
+  //   - "idle"    → no recheck has run since the reveal opened
+  //   - "success" → recheck flipped the row to `verified`; we surface
+  //                 a success toast + auto-close the reveal after
+  //                 DNS_INSTRUCTION_COPY.autoDismissAfterMs.
+  //   - "failure" → recheck completed but the row did NOT flip; we
+  //                 render a Lumia `Alert variant="error"` so the
+  //                 user has a stable in-place callout, not just a
+  //                 transient polite-region announcement.
+  const [verificationOutcome, setVerificationOutcome] = useState<
+    "idle" | "success" | "failure"
+  >("idle");
   // Track per-cell copy feedback so each Copy button can give a brief
   // "Copied" affordance independent of the others.
   const [copiedCellKey, setCopiedCellKey] = useState<string | null>(null);
@@ -432,6 +448,51 @@ export function DomainManagementPanel({
   useEffect(() => {
     domainsRef.current = domains;
   }, [domains]);
+
+  // BUG-AUTH-7: surface a success toast on a verified auto-recheck.
+  // The toast is the visible confirmation; the reveal then auto-
+  // dismisses after `DNS_INSTRUCTION_COPY.autoDismissAfterMs` so the
+  // user sees both the inline success state AND the toast.
+  const { show: showToast } = useToast();
+
+  // BUG-AUTH-7: hold the auto-dismiss timer id so we can cancel it
+  // when (a) the user manually dismisses mid-timer, (b) the reveal
+  // is re-opened with a fresh value (which would otherwise trigger
+  // a phantom dismiss from a stale timer), or (c) the component
+  // unmounts. Stored in a ref so the cleanup effect can read the
+  // latest id without re-creating the effect on every state change.
+  const autoDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  // Reset reveal-level state whenever the active reveal changes (a
+  // fresh `domainId` or a freshly-regenerated `verificationValue`
+  // both mean we're showing a brand-new value to copy).
+  useEffect(() => {
+    setVerificationOutcome("idle");
+    setRevealStatusMessage(null);
+    // BUG-AUTH-7 Codex follow-up: also reset copy-feedback. The new
+    // reveal has a different value; a stale "Copied" pill would
+    // wrongly suggest the new value was already copied. Defense in
+    // depth on top of the per-cell functional-set staleness guard.
+    setCopiedCellKey(null);
+    if (autoDismissTimerRef.current !== null) {
+      clearTimeout(autoDismissTimerRef.current);
+      autoDismissTimerRef.current = null;
+    }
+  }, [
+    pendingVerificationValue?.domainId,
+    pendingVerificationValue?.verificationValue,
+  ]);
+  // Always clear the pending timer on unmount so a slow caller can't
+  // dismiss a reveal that no longer exists.
+  useEffect(() => {
+    return () => {
+      if (autoDismissTimerRef.current !== null) {
+        clearTimeout(autoDismissTimerRef.current);
+        autoDismissTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const confirmDelete = useConfirmDialog();
 
@@ -504,9 +565,22 @@ export function DomainManagementPanel({
     }
     setCopiedCellKey(cellKey);
     // Clear the "Copied" affordance after a short delay so the
-    // button can be reused. We intentionally don't await this.
+    // button can be reused. We intentionally don't await this, and
+    // we deliberately do NOT route this timer through
+    // `autoDismissTimerRef` — that ref is reserved for the BUG-AUTH-7
+    // 1.5s auto-dismiss of the entire reveal. Sharing one ref between
+    // the two timers caused two race bugs (Codex review on PR #70):
+    //   (a) a copy click during a successful auto-recheck would
+    //       OVERWRITE the auto-dismiss timer with the copy timer,
+    //       so the reveal would never auto-close; and
+    //   (b) a fresh reveal (via "Get new value") would cancel the
+    //       copy timer along with the auto-dismiss timer through
+    //       the reveal-change cleanup effect, leaving `copiedCellKey`
+    //       set so the new (different) value would render as already
+    //       "Copied". Bare setTimeout + the functional-set staleness
+    //       guard below is the correct contract for this timer.
     if (typeof window !== "undefined") {
-      window.setTimeout(() => {
+      setTimeout(() => {
         // Defensive: only clear if the same key is still active so
         // a rapid second copy on a different cell isn't overwritten.
         setCopiedCellKey((current) => (current === cellKey ? null : current));
@@ -532,6 +606,17 @@ export function DomainManagementPanel({
     const domainId = pendingVerificationValue.domainId;
     setIsAutoRechecking(true);
     setRevealStatusMessage(DNS_INSTRUCTION_COPY.status.rechecking);
+    // BUG-AUTH-7: a fresh recheck supersedes any previous outcome.
+    // Reset to `idle` so the destructive Alert from an earlier
+    // attempt is cleared and the success-path can render its
+    // confirmation Alert + toast cleanly.
+    setVerificationOutcome("idle");
+    // Cancel any pending auto-dismiss timer from a previous recheck
+    // so a stale timer can never close a reveal mid-retry.
+    if (autoDismissTimerRef.current !== null) {
+      clearTimeout(autoDismissTimerRef.current);
+      autoDismissTimerRef.current = null;
+    }
     let didThrow = false;
     try {
       await onVerifyDomain(domainId);
@@ -551,11 +636,36 @@ export function DomainManagementPanel({
     const isVerified = refreshedRow?.status === "verified";
     if (isVerified && !didThrow) {
       setRevealStatusMessage(DNS_INSTRUCTION_COPY.status.verified);
-      onDismissVerificationValue();
+      setVerificationOutcome("success");
+      // BUG-AUTH-7: surface a Lumia DS toast so both visual and SR
+      // users get a transient confirmation independent of where
+      // their focus currently lives.
+      showToast({
+        variant: "success",
+        title: DNS_INSTRUCTION_COPY.successToast.title,
+        description: DNS_INSTRUCTION_COPY.successToast.description,
+      });
+      // Auto-close the reveal after a short delay so the user has
+      // time to read the inline success state + toast before the
+      // panel returns to the resting row view.
+      if (typeof window !== "undefined") {
+        autoDismissTimerRef.current = setTimeout(() => {
+          autoDismissTimerRef.current = null;
+          onDismissVerificationValue();
+        }, DNS_INSTRUCTION_COPY.autoDismissAfterMs);
+      } else {
+        onDismissVerificationValue();
+      }
     } else {
       setRevealStatusMessage(DNS_INSTRUCTION_COPY.status.stillPropagating);
+      setVerificationOutcome("failure");
     }
-  }, [onDismissVerificationValue, onVerifyDomain, pendingVerificationValue]);
+  }, [
+    onDismissVerificationValue,
+    onVerifyDomain,
+    pendingVerificationValue,
+    showToast,
+  ]);
 
   // Clear the polite-region message when the reveal slot itself is
   // cleared by the container (e.g. after a successful regenerate).
@@ -583,6 +693,16 @@ export function DomainManagementPanel({
       setDomainToDelete(null);
     }
   }, [domainToDelete, onDeleteDomain]);
+
+  const handleManualDismiss = useCallback(() => {
+    if (autoDismissTimerRef.current !== null) {
+      clearTimeout(autoDismissTimerRef.current);
+      autoDismissTimerRef.current = null;
+    }
+    setVerificationOutcome("idle");
+    setRevealStatusMessage(null);
+    onDismissVerificationValue();
+  }, [onDismissVerificationValue]);
 
   const isPanelBusy = isLoading || isSubmittingHostname;
 
@@ -614,13 +734,36 @@ export function DomainManagementPanel({
                   role="status"
                   aria-live="polite"
                 >
-                  <p className="text-sm font-medium">
-                    Add this DNS TXT record to verify your domain. We only show
-                    this value once.
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {DNS_INSTRUCTION_COPY.helperHeading}
-                  </p>
+                  {/* BUG-AUTH-7: surface the one-time-only warning as a
+                      real Lumia DS Alert (variant="warning") so the AT
+                      semantics + colour token match the seriousness of
+                      "we can't show this value again". Previously this
+                      sentence lived as a plain <p> at the top of the
+                      reveal which gave it no visual prominence and no
+                      a11y status role. */}
+                  <Alert
+                    variant="warning"
+                    title={DNS_INSTRUCTION_COPY.oneTimeWarning.title}
+                    description={
+                      DNS_INSTRUCTION_COPY.oneTimeWarning.description
+                    }
+                    data-testid="domain-verification-one-time-warning"
+                  />
+
+                  {/* BUG-AUTH-7: numbered step-by-step intro. Each
+                      step is one sentence so users can scan-and-do.
+                      Replaces the dense single-paragraph helperHeading
+                      that previously crammed the entire instruction
+                      flow into one block of prose. */}
+                  <ol
+                    data-testid="domain-verification-steps"
+                    aria-label="How to add the DNS TXT record"
+                    className="ml-5 list-decimal text-xs text-muted-foreground"
+                  >
+                    {DNS_INSTRUCTION_COPY.steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
 
                   {/* Structured Name + Value table.
                       Each cell carries its own Copy button so users
@@ -729,12 +872,30 @@ export function DomainManagementPanel({
                     </Button>
                     <Button
                       type="button"
-                      onClick={onDismissVerificationValue}
+                      onClick={handleManualDismiss}
                       aria-label="Dismiss verification value without rechecking"
                     >
                       Dismiss
                     </Button>
                   </Flex>
+
+                  {/* BUG-AUTH-7: destructive inline Alert surfaced when
+                      the auto-recheck completed but did NOT flip the
+                      row to `verified`. Replaces the prior soft polite
+                      announcement so users see a stable, visually
+                      prominent failure callout (not just a transient
+                      live-region message). The reveal stays open so
+                      users can re-copy the value and retry. */}
+                  {verificationOutcome === "failure" ? (
+                    <Alert
+                      variant="error"
+                      title={DNS_INSTRUCTION_COPY.failureAlert.title}
+                      description={
+                        DNS_INSTRUCTION_COPY.failureAlert.description
+                      }
+                      data-testid="domain-verification-failure-alert"
+                    />
+                  ) : null}
 
                   {/* Live region: announces "Re-checking DNS…",
                       "Domain verified.", or "Still propagating —

@@ -538,6 +538,23 @@ The status messages live in a sibling `<p role="status" aria-live="polite" data-
 
 **Files:** `src/lib/integrations/dns-instructions.ts` + `dns-instructions.test.ts` (pure helper, 14 tests), `src/app/dashboard/integrations/components/DomainManagementPanel.tsx` + `DomainManagementPanel.test.tsx` (reveal UI + auto-recheck, +13 new tests).
 
+### Domain verification reveal — modal UX polish (BUG-AUTH-7, landed 2026-06-01)
+
+Builds on the WSA-FIX-3 structured reveal. Four user-visible polish items closing BUG-AUTH-7 of the Q2 bug-fix sprint:
+
+1. **"We only show this value once" is now a Lumia DS `Alert variant="warning"`.** Previously a dense `<p>` at the top of the reveal that gave no visual weight to a one-time-only secret. The new Alert (`data-testid="domain-verification-one-time-warning"`) inherits Lumia's warning colour token and `role="alert"` so AT users hear it with the appropriate urgency. Title + description come from `DNS_INSTRUCTION_COPY.oneTimeWarning`.
+2. **The dense helper paragraph is replaced by a 3-step `<ol>`** (`data-testid="domain-verification-steps"`, `aria-label="How to add the DNS TXT record"`). Each step is one sentence (`"Log in to your DNS provider."` / `"Add this TXT record on your domain."` / `"Come back here and click 'Verify domain'."`) so users can scan-and-do. Step copy comes from `DNS_INSTRUCTION_COPY.steps`.
+3. **Success path:** when the auto-recheck flips the row to `verified`, the panel calls `useToast({variant: "success", ...DNS_INSTRUCTION_COPY.successToast})` for a transient confirmation, then schedules `setTimeout(onDismissVerificationValue, DNS_INSTRUCTION_COPY.autoDismissAfterMs)` (1.5 s) so the user has time to read the inline success state + toast before the reveal closes. The auto-dismiss timer id is held in a ref and cancelled by the cleanup `useEffect` and by `handleManualDismiss` so a stale post-success timer cannot fire after manual dismissal.
+4. **Failure path:** the prior soft polite-region announcement is now backed by a Lumia DS `Alert variant="error"` (`data-testid="domain-verification-failure-alert"`) so the failure state has a stable, visually prominent anchor. The reveal stays open and the user can re-copy the value and retry. Copy comes from `DNS_INSTRUCTION_COPY.failureAlert` (`"We couldn't find the TXT record"` / `"DNS changes can take up to 48 hours to propagate. Double-check the record and try again later."`).
+
+A new `verificationOutcome: "idle" | "success" | "failure"` state drives both transient surfaces. On a retry click the outcome resets to `idle` before the await, so the destructive Alert clears synchronously during the retry instead of hanging around as a stale callout.
+
+`handleManualDismiss` is a small wrapper around the container's `onDismissVerificationValue` prop: it cancels any pending auto-dismiss timer, resets `verificationOutcome` + the polite-region message, then forwards to the container. The `Dismiss` button is wired through this helper instead of calling the bare prop.
+
+**Out of scope (explicitly):** no background polling, no email-based re-verification, no schema changes (the reveal continues to fail closed against missing rows by falling back to the FQDN-only Name cell). i18n migration of the panel copy is still pending the repo-wide auth-app migration to `next-intl`; BUG-AUTH-7 follows the WSA-FIX-3 pattern and keeps new strings in `DNS_INSTRUCTION_COPY` as i18n-ready constants so the eventual catalog move stays a single-file edit.
+
+**Files:** `src/lib/integrations/dns-instructions.ts` (+`oneTimeWarning`, `steps`, `failureAlert`, `successToast`, `autoDismissAfterMs`), `src/app/dashboard/integrations/components/DomainManagementPanel.tsx` (+`Alert`, `useToast`, `verificationOutcome`, auto-dismiss timer + cleanup, `handleManualDismiss`), `src/app/dashboard/integrations/components/DomainManagementPanel.test.tsx` (+7 BUG-AUTH-7 tests), `src/app/dashboard/integrations/components/WorkspaceIntegrationsDashboard.test.tsx` (+`useToast` to the Lumia DS mock so container tests don't crash). Suite: **892/892 pass / 86 files** (was 885 → +7 net new). Coverage overall 90.7% stmts / 83.49% branches / 90.22% funcs / 90.7% lines (above ADR-001 80% floor). Build `/dashboard/integrations` route 9.12 → **9.48 kB** (+0.36 kB).
+
 ### Cross-app workspace handoff (FE-XAPP-BUG-001, landed 2026-05-12)
 
 Workspace identity does NOT travel across app origins. The Auth App and CMS Console each persist their own `xynes_workspace_id` localStorage entry, scoped to their own origin. Without an explicit handoff, clicking "Manage in Workspace Admin" from CMS Console (while CMS has Workspace A selected) silently lands the user on Workspace B because the Auth App resolves `currentWorkspace` from its own independent localStorage.
