@@ -1,0 +1,31 @@
+{
+  "page": {
+    "title": "Integrations",
+    "subtitle": "Manage verified domains and workspace API keys for this workspace.",
+    "activeWorkspaceLabel": "Active workspace:"
+  },
+  "noWorkspace": {
+    "title": "No workspace selected",
+    "body": "Select a workspace from the workspace switcher to manage its integrations."
+  },
+  "forbiddenEmptyState": {
+    "title": "Workspace integrations are managed by owners",
+    "body": "Workspace integrations — verified domains and workspace API keys — are managed by workspace owners. Contact your workspace owner to request changes.",
+    "backToDashboardLabel": "Back to dashboard"
+  },
+  "loadError": {
+    "title": "Couldn’t load integrations",
+    "defaultMessage": "Failed to load workspace integrations.",
+    "sessionExpired": "Your session has expired. Please sign in again.",
+    "rateLimited": "Too many requests. Please try again in a moment.",
+    "retryLabel": "Retry"
+  },
+  "reloadFailed": {
+    "title": "Couldn’t refresh the list",
+    "body": "Action succeeded, but we couldn’t refresh the list. Some rows may be out of date until you retry.",
+    "retryLabel": "Retry refresh"
+  },
+  "loading": {
+    "message": "Loading workspace integrations…"
+  }
+}

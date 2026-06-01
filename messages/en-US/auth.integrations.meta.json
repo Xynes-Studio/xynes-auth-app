@@ -1,0 +1,71 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.integrations. The /dashboard/integrations route in the Workspace Admin app (auth-app) where owners manage verified domains and workspace API keys. CMS console links into this page as a contextual consumer; the actual lifecycle (create / verify / revoke) lives here.",
+    "audience": "Authenticated workspace users. Workspace owners and super-admins see the full management UI; workspace members see a permission-aware empty state (BUG-AUTH-6) explaining that owners manage these resources.",
+    "tone": "Calm, neutral, transparent. Acknowledge limits without sounding like an error. No marketing language. Short sentences. The permission empty state must NOT read as a failure — it is a deliberate explanation, not a 'something went wrong' message.",
+    "owners": ["xynes-front-end/xynes-auth-app"]
+  },
+  "page": {
+    "title": {
+      "_use": "H1 at the top of /dashboard/integrations. Mirrors the dashboard navigation entry the user clicked. Keep to one word when possible."
+    },
+    "subtitle": {
+      "_use": "One supporting sentence under the H1. Names the scope (verified domains + workspace API keys) so users understand what 'integrations' means here. Keep to one sentence."
+    },
+    "activeWorkspaceLabel": {
+      "_use": "Label shown immediately before the active workspace slug (e.g. 'Active workspace: xynes'). The slug itself is a code-like identifier and is NOT translated. Translators should keep the trailing space / colon convention so the slug reads as a value next to the label."
+    }
+  },
+  "noWorkspace": {
+    "title": {
+      "_use": "Lumia DS Alert title shown when the user reaches /dashboard/integrations without an active workspace selected. Warning variant. Short phrase, sentence case."
+    },
+    "body": {
+      "_use": "Lumia DS Alert body explaining the user needs to pick a workspace from the workspace switcher before integrations are visible. One sentence."
+    }
+  },
+  "forbiddenEmptyState": {
+    "title": {
+      "_use": "Heading of the permission-aware empty state shown when a workspace member (NOT owner / super-admin) opens /dashboard/integrations. This is NOT an error — it explains that owners manage these resources. Keep the tone neutral. ≤ 8 words. Do not start with 'Sorry' or 'Error'."
+    },
+    "body": {
+      "_use": "Single explanatory paragraph for the permission-aware empty state. Names the scope (verified domains + workspace API keys), states owners manage them, and points to the owner for changes. Do NOT use words like 'forbidden', 'denied', 'unauthorised', or 'access denied' — they would be misleading because the page is still reachable. One or two short sentences."
+    },
+    "backToDashboardLabel": {
+      "_use": "Visible label on the secondary link that returns the member to /dashboard/apps (the default dashboard landing). Short, sentence case."
+    }
+  },
+  "loadError": {
+    "title": {
+      "_use": "Lumia DS Alert title for a GENUINE load failure (gateway 5xx, network error, malformed response). DESTRUCTIVE variant. Distinct from forbiddenEmptyState — this one means 'something is broken', not 'you don't have access'."
+    },
+    "defaultMessage": {
+      "_use": "Generic load-failure body when no more specific error class applies. One sentence."
+    },
+    "sessionExpired": {
+      "_use": "Body shown when the API returned 401. Tells the user to sign in again. One sentence."
+    },
+    "rateLimited": {
+      "_use": "Body shown when the API returned 429. Tells the user to retry shortly. One sentence."
+    },
+    "retryLabel": {
+      "_use": "Visible label on the retry button inside the load-failure alert. One word ideally."
+    }
+  },
+  "reloadFailed": {
+    "title": {
+      "_use": "Lumia DS Alert title (warning variant) shown when an action succeeded but the follow-up list refresh failed (token expiry mid-flight, transient 5xx). Distinct from loadError because the user's mutation did succeed."
+    },
+    "body": {
+      "_use": "Single sentence explaining the action succeeded but the visible list may be stale until retried."
+    },
+    "retryLabel": {
+      "_use": "Visible label on the retry-refresh button inside the reload-failed banner."
+    }
+  },
+  "loading": {
+    "message": {
+      "_use": "Screen-reader-visible loading text rendered alongside the Spinner while the initial domain / API-key fetch is in flight. Polite live region; do not include exclamation marks."
+    }
+  }
+}

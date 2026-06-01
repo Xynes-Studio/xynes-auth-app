@@ -1,0 +1,31 @@
+{
+  "page": {
+    "title": "[IInntteeggrraattiioonnss]",
+    "subtitle": "[MMaannaaggee vveerriiffiieedd ddoommaaiinnss aanndd wwoorrkkssppaaccee AAPPII kkeeyyss ffoorr tthhiiss wwoorrkkssppaaccee.]",
+    "activeWorkspaceLabel": "[AAccttiivvee wwoorrkkssppaaccee:]"
+  },
+  "noWorkspace": {
+    "title": "[NNoo wwoorrkkssppaaccee sseelleecctteedd]",
+    "body": "[SSeelleecctt aa wwoorrkkssppaaccee ffrroomm tthhee wwoorrkkssppaaccee sswwiittcchheerr ttoo mmaannaaggee iittss iinntteeggrraattiioonnss.]"
+  },
+  "forbiddenEmptyState": {
+    "title": "[WWoorrkkssppaaccee iinntteeggrraattiioonnss aarree mmaannaaggeedd bbyy oowwnneerrss]",
+    "body": "[WWoorrkkssppaaccee iinntteeggrraattiioonnss — vveerriiffiieedd ddoommaaiinnss aanndd wwoorrkkssppaaccee AAPPII kkeeyyss — aarree mmaannaaggeedd bbyy wwoorrkkssppaaccee oowwnneerrss. CCoonnttaacctt yyoouurr wwoorrkkssppaaccee oowwnneerr ttoo rreeqquueesstt cchhaannggeess.]",
+    "backToDashboardLabel": "[BBaacckk ttoo ddaasshhbbooaarrdd]"
+  },
+  "loadError": {
+    "title": "[CCoouullddnn’tt llooaadd iinntteeggrraattiioonnss]",
+    "defaultMessage": "[FFaaiilleedd ttoo llooaadd wwoorrkkssppaaccee iinntteeggrraattiioonnss.]",
+    "sessionExpired": "[YYoouurr sseessssiioonn hhaass eexxppiirreedd. PPlleeaassee ssiiggnn iinn aaggaaiinn.]",
+    "rateLimited": "[TToooo mmaannyy rreeqquueessttss. PPlleeaassee ttrryy aaggaaiinn iinn aa mmoommeenntt.]",
+    "retryLabel": "[RReettrryy]"
+  },
+  "reloadFailed": {
+    "title": "[CCoouullddnn’tt rreeffrreesshh tthhee lliisstt]",
+    "body": "[AAccttiioonn ssuucccceeeeddeedd, bbuutt wwee ccoouullddnn’tt rreeffrreesshh tthhee lliisstt. SSoommee rroowwss mmaayy bbee oouutt ooff ddaattee uunnttiill yyoouu rreettrryy.]",
+    "retryLabel": "[RReettrryy rreeffrreesshh]"
+  },
+  "loading": {
+    "message": "[LLooaaddiinngg wwoorrkkssppaaccee iinntteeggrraattiioonnss…]"
+  }
+}

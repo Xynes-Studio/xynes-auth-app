@@ -451,6 +451,28 @@ Both parameters can be combined: CMS uses targets `cms_readonly_key` (`?tab=api-
 
 The container uses `useSearchParams()` (from `next/navigation`), so `page.tsx` wraps the container in a `<Suspense>` boundary with a `Spinner` fallback — required by Next.js 15 for client-side search-params reads during static prerender.
 
+### Permission-aware empty state on load 403 (BUG-AUTH-6, landed 2026-05-31)
+
+Pre-BUG-AUTH-6, a 403 from `listWorkspaceDomains` or `listWorkspaceApiKeys` on initial mount rendered the same destructive `Alert` (`title="Couldn’t load integrations"`) as a 5xx failure, with the body copy "You don’t have permission to manage workspace integrations." This wrongly framed a deliberate permission boundary — a `workspace_member` opening an owner-only surface — as a load failure. Members had to puzzle out whether the page was broken or whether they were lacking access.
+
+After BUG-AUTH-6, the load surface returns a **discriminated outcome**:
+
+- **HTTP 403** → `loadOutcome = { kind: "forbidden" }`. The container short-circuits the normal render path and emits a neutral `Card` with `data-testid="workspace-integrations-forbidden-empty-state"` containing the heading "Workspace integrations are managed by owners", a single explanatory paragraph, and a "Back to dashboard" link to `/dashboard/apps`. No `Alert` (no `role="alert"`), no destructive variant, no "couldn’t load" copy. The active workspace slug is preserved on the header so the member can still see context.
+- **HTTP 401 / 429 / 5xx / network / malformed** → `loadOutcome = { kind: "error"; messageKey }`. The pre-existing destructive `Alert` ("Couldn’t load integrations" + Retry button) still fires, with the body copy resolved from the new `auth.integrations.loadError.*` catalog branch.
+
+The classification lives in a single `classifyLoadOutcome(error)` helper at the top of `WorkspaceIntegrationsDashboard.tsx`. 401 stays on the load-error path because session expiry IS a recoverable failure — the user can sign in again; permission ownership is not changed by re-auth. The forbidden empty state does NOT render the domain or API-key management panels (no add-domain form, no create-key form, no list counts) — there is nothing for a member to interact with at the owner-only lifecycle surface, and rendering an empty list with a hidden "Add" button would be a misleading affordance.
+
+Behavioural invariants preserved byte-for-byte:
+
+- **Per-action 403** (e.g. a member somehow firing the add-domain mutation through a stale UI) STILL surfaces through the existing `actionError` channel with copy "You don’t have permission to manage workspace integrations." — that text is owned by `getIntegrationsActionErrorMessage`, NOT by the load-error path. The per-action surface is a different concern.
+- **`reloadFailedAfterAction` soft banner** still fires after a successful action whose follow-up refresh failed (WSA-FIX-1 contract).
+- **Cross-workspace leakage guard** still clears the `pendingVerificationValue` and `pendingRawApiKey` reveal slots on workspace switch.
+- **Deep-link query params** (`?tab=…&preset=…`, Task 5) still apply on owner / super-admin loads. Members never reach the panels, so focus-on-heading is a no-op for them.
+
+Visible copy migrated to a new `auth.integrations` i18n namespace (catalog + translator-meta sidecar at `messages/en-US/auth.integrations.{json,meta.json}`; pseudo-locale regenerated via `pnpm generate:pseudo`). The namespace is registered in `src/i18n/config.ts` and the global next-intl test mock in `src/test/setup.ts`. Keys are semantic (`page.title`, `loadError.title`, `forbiddenEmptyState.title`, etc.) — translators get a sidecar that explicitly forbids words like "forbidden", "denied", or "unauthorised" in the empty-state copy because the page is still reachable.
+
+Regression coverage: 6 new tests in `WorkspaceIntegrationsDashboard.test.tsx` under `describe("BUG-AUTH-6 — permission-aware empty state on 403 load", …)` — neutral region renders with documented testid; no `role="alert"` anywhere on the page; domain + API-key panels are absent; workspace slug context preserved; 401 stays on the destructive path; hostile upstream error message text (e.g. an embedded `xynes_live_<hex>` token or `apiKeyId=…` UUID) does NOT survive into the visible markup. The previous single test "renders a permission-denied error message for 403 responses" was deleted — its assertion was the symptom this story fixes.
+
 ### Domain verification UX hardening (Phases A–D, landed 2026-05-08)
 
 The verified-domain lifecycle gained four coordinated UX improvements. Each phase ships across multiple repos; the auth-app side documented here is wired through `DomainManagementPanel` and `WorkspaceIntegrationsDashboard`.
