@@ -625,9 +625,7 @@ export function WorkspaceIntegrationsDashboard() {
           <h1 className="text-2xl font-semibold text-foreground">
             {t("page.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {t("page.subtitle")}
-          </p>
+          <p className="text-sm text-muted-foreground">{t("page.subtitle")}</p>
         </header>
         <Alert variant="warning" title={t("noWorkspace.title")}>
           {t("noWorkspace.body")}
@@ -648,9 +646,7 @@ export function WorkspaceIntegrationsDashboard() {
           <h1 className="text-2xl font-semibold text-foreground">
             {t("page.title")}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {t("page.subtitle")}
-          </p>
+          <p className="text-sm text-muted-foreground">{t("page.subtitle")}</p>
           {workspaceSlug ? (
             <p className="mt-2 text-sm text-muted-foreground">
               {t("page.activeWorkspaceLabel")}{" "}
@@ -700,9 +696,7 @@ export function WorkspaceIntegrationsDashboard() {
         <h1 className="text-2xl font-semibold text-foreground">
           {t("page.title")}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("page.subtitle")}
-        </p>
+        <p className="text-sm text-muted-foreground">{t("page.subtitle")}</p>
         {workspaceSlug ? (
           <p className="mt-2 text-sm text-muted-foreground">
             {t("page.activeWorkspaceLabel")}{" "}

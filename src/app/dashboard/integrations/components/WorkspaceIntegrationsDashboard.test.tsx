@@ -508,9 +508,7 @@ describe("WorkspaceIntegrationsDashboard", () => {
 
       // Wait for the forbidden region to appear so we know the load
       // settled before the assertions below.
-      await screen.findByTestId(
-        "workspace-integrations-forbidden-empty-state",
-      );
+      await screen.findByTestId("workspace-integrations-forbidden-empty-state");
 
       // No destructive alert role anywhere on the page.
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -535,9 +533,7 @@ describe("WorkspaceIntegrationsDashboard", () => {
 
       render(<WorkspaceIntegrationsDashboard />);
 
-      await screen.findByTestId(
-        "workspace-integrations-forbidden-empty-state",
-      );
+      await screen.findByTestId("workspace-integrations-forbidden-empty-state");
 
       // The owner-only management panels are completely absent from the
       // forbidden path. We don't render "0 domains" / "0 keys" copy and
@@ -558,9 +554,7 @@ describe("WorkspaceIntegrationsDashboard", () => {
 
       render(<WorkspaceIntegrationsDashboard />);
 
-      await screen.findByTestId(
-        "workspace-integrations-forbidden-empty-state",
-      );
+      await screen.findByTestId("workspace-integrations-forbidden-empty-state");
 
       // Active-workspace context is preserved (no "wrong workspace?"
       // confusion for members).
