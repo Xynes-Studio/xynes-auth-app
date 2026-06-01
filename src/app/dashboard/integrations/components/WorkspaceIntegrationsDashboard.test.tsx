@@ -200,6 +200,44 @@ vi.mock("@lumia-ui/components", () => ({
     children?: React.ReactNode;
     variant?: string;
   }) => <span data-variant={variant}>{children}</span>,
+  // Pass-through Tabs mock: the real underline Tabs hides inactive panels
+  // (covered by lumia-ds tabs tests), but the container's behavioural tests
+  // need both the domains and API-keys panels mounted at once, so the mock
+  // renders every panel. Triggers expose role="tab" + count so the tab-level
+  // tests below can assert labels, counts, and the disabled state.
+  Tabs: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  TabsList: ({
+    children,
+    "aria-label": ariaLabel,
+  }: {
+    children?: React.ReactNode;
+    "aria-label"?: string;
+  }) => (
+    <div role="tablist" aria-label={ariaLabel}>
+      {children}
+    </div>
+  ),
+  TabsTrigger: ({
+    children,
+    value,
+    count,
+    disabled,
+  }: {
+    children?: React.ReactNode;
+    value?: string;
+    count?: React.ReactNode;
+    disabled?: boolean;
+  }) => (
+    <button type="button" role="tab" disabled={disabled} data-value={value}>
+      {children}
+      {count !== undefined && count !== null ? (
+        <span data-testid={`tab-count-${value}`}>{count}</span>
+      ) : null}
+    </button>
+  ),
+  TabsContent: ({ children }: { children?: React.ReactNode }) => (
+    <div role="tabpanel">{children}</div>
+  ),
   StatusPill: ({
     children,
     variant,
@@ -365,6 +403,21 @@ describe("WorkspaceIntegrationsDashboard", () => {
     await waitFor(() => {
       expect(mockListWorkspaceDomains).toHaveBeenCalled();
       expect(mockListWorkspaceApiKeys).toHaveBeenCalled();
+    });
+  });
+
+  it("renders Domains, API Keys, and a disabled Webhooks tab with live counts", async () => {
+    render(<WorkspaceIntegrationsDashboard />);
+
+    expect(screen.getByRole("tab", { name: /domains/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /api keys/i })).toBeInTheDocument();
+    // Webhooks is a disabled placeholder for the next section.
+    expect(screen.getByRole("tab", { name: /webhooks/i })).toBeDisabled();
+
+    // Count badges reflect the loaded domain / API-key totals.
+    await waitFor(() => {
+      expect(screen.getByTestId("tab-count-domains")).toHaveTextContent("1");
+      expect(screen.getByTestId("tab-count-api-keys")).toHaveTextContent("1");
     });
   });
 

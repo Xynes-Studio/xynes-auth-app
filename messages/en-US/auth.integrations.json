@@ -4,6 +4,23 @@
     "subtitle": "Manage verified domains and workspace API keys for this workspace.",
     "activeWorkspaceLabel": "Active workspace:"
   },
+  "tabs": {
+    "domains": "Domains",
+    "apiKeys": "API Keys",
+    "webhooks": "Webhooks"
+  },
+  "domains": {
+    "heading": "Verified domains",
+    "description": "Domains your workspace owns and can publish content from."
+  },
+  "apiKeys": {
+    "heading": "Workspace API keys",
+    "description": "Programmatic access scoped to a single workspace. Raw keys are shown once on creation and never stored client-side."
+  },
+  "common": {
+    "copy": "Copy",
+    "copied": "Copied"
+  },
   "noWorkspace": {
     "title": "No workspace selected",
     "body": "Select a workspace from the workspace switcher to manage its integrations."

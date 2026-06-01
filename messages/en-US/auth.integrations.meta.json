@@ -16,6 +16,41 @@
       "_use": "Label shown immediately before the active workspace slug (e.g. 'Active workspace: xynes'). The slug itself is a code-like identifier and is NOT translated. Translators should keep the trailing space / colon convention so the slug reads as a value next to the label."
     }
   },
+  "tabs": {
+    "domains": {
+      "_use": "In-content underline tab label for the verified-domains section. Followed by a numeric count badge. Title Case, one word."
+    },
+    "apiKeys": {
+      "_use": "In-content underline tab label for the workspace API-keys section. Followed by a numeric count badge. Title Case."
+    },
+    "webhooks": {
+      "_use": "In-content underline tab label for a future Webhooks section. Currently rendered disabled (placeholder showing where upcoming sections will appear). Title Case, one word."
+    }
+  },
+  "domains": {
+    "heading": {
+      "_use": "Section heading inside the Domains tab panel, above the add-domain form and domain list. Short phrase, sentence case."
+    },
+    "description": {
+      "_use": "One supporting sentence under the Domains section heading describing what verified domains are for."
+    }
+  },
+  "apiKeys": {
+    "heading": {
+      "_use": "Section heading inside the API Keys tab panel, above the create-key form and key list. Short phrase, sentence case."
+    },
+    "description": {
+      "_use": "One or two sentences under the API Keys section heading. Must keep the security note that raw keys are shown once and never stored client-side."
+    }
+  },
+  "common": {
+    "copy": {
+      "_use": "Default visible label on copy-to-clipboard buttons (DNS record fields, one-time secrets). One word, imperative verb."
+    },
+    "copied": {
+      "_use": "Transient confirmation label shown on a copy button for ~1.5s after a successful copy. One word, past tense."
+    }
+  },
   "noWorkspace": {
     "title": {
       "_use": "Lumia DS Alert title shown when the user reaches /dashboard/integrations without an active workspace selected. Warning variant. Short phrase, sentence case."

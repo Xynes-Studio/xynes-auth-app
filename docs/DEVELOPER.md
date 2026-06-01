@@ -430,6 +430,16 @@ This app is the **Workspace Admin** for the Xynes platform. The Integrations das
 
 Other apps (CMS console, future consumers) link **into** this surface as contextual consumers — they MUST NOT host their own domain or API key lifecycle forms.
 
+### Layout — in-content tabs (redesign, 2026-06-01)
+
+The page is organised as **in-content underline tabs** rather than two stacked cards, so the surface scales as new sections are added:
+
+- Tabs: **Domains** (count badge) · **API Keys** (count badge) · **Webhooks** (disabled placeholder for the next section).
+- Tabs use the Lumia `Tabs` family with `variant="underline"` and the per-trigger `count` badge (added to `@lumia-ui/components` in `packages/components/src/tabs/tabs.tsx`). The default `Tabs` variant stays `segmented`; underline is opt-in. **Local Lumia changes require a `pnpm --filter @lumia-ui/components build` before the linked app picks them up.**
+- The selected tab is controlled state (`activeTab`) initialised from the `?tab=` deep link; each panel is a `role="region"` labelled by its section heading (the `tabIndex={-1}` heading is still focused on deep-link for SR/keyboard users).
+- A `briefcase` active-workspace chip (Lumia `Badge variant="outline"`) sits under the page title.
+- All user-facing copy added/relocated by the redesign is in the `auth.integrations` next-intl catalog (`tabs.*`, `domains.heading/description`, `apiKeys.heading/description`, `common.copy/copied`), mirrored in the `en-XA` pseudo-locale, with translator notes in `auth.integrations.meta.json`. Pre-existing panel copy (form labels, DNS provider notes, confirm-dialog text) is **not yet migrated** — tracked as a follow-up.
+
 ### Components
 
 - `src/lib/integrations/workspace-integrations-client.ts` — typed gateway client (Task 1, landed 2026-05-05). Exposes `listWorkspaceDomains`, `registerWorkspaceDomain`, `verifyWorkspaceDomain`, `deleteWorkspaceDomain`, `listWorkspaceApiKeys`, `createWorkspaceApiKey`, `revokeWorkspaceApiKey`, and `WorkspaceIntegrationsApiError`. All payloads are normalised through allowlists so server-side secrets (`keyHash`, `verificationValueHash`, `internalAuditNote`, `rawKey` outside the create flow) cannot leak into UI state.
@@ -437,14 +447,15 @@ Other apps (CMS console, future consumers) link **into** this surface as context
 - `src/app/dashboard/integrations/page.tsx` — thin client page wired through `AuthGuard` + `AuthDashboardShell` with `activeNav="integrations"`.
 - `src/app/dashboard/integrations/components/WorkspaceIntegrationsDashboard.tsx` — container (Task 2, landed 2026-05-05). Owns data fetching for both lists, surfaces active workspace context, and renders accessible loading / error / empty / no-workspace states. Per-row rendering and lifecycle actions live in `DomainManagementPanel` (Task 3) and `ApiKeyManagementPanel` (Task 4).
 - `src/app/dashboard/integrations/components/DomainManagementPanel.tsx` — verified-domain lifecycle UI (Task 3, landed 2026-05-05). Renders the domain list, registration form, DNS-TXT verification action, and soft-delete confirmation with Lumia DS primitives. It keeps the one-time `verificationValue` local to the panel reveal state, never renders hash/internal audit fields, preserves typed input on failed registration, and exposes loading/error/empty/permission states through accessible status regions and labels.
+- `src/app/dashboard/integrations/components/CopyButton.tsx` — small copy-to-clipboard affordance (redesign, 2026-06-01) wrapping the Lumia `Button` (`variant="outline"`, `size="sm"`) with a `copy`→`check` icon and a transient "Copied" label. Clipboard write is best-effort; visible labels are passed in (i18n-ready). Used by the DNS record cells and the one-time secret reveals.
 - `src/app/dashboard/integrations/components/ApiKeyManagementPanel.tsx` — workspace API key lifecycle UI (Task 4, landed 2026-05-08). Renders the API key list (name, prefix, status pill, preset label, last used, expiry), the create-key form (Name input + Preset `Select`), and the revoke confirmation flow with Lumia DS primitives. The one-time raw key (`xynes_live_<hex>`) is held in container state ONLY (`pendingRawApiKey`) and forwarded to the panel via prop; the panel renders it exactly once inside an `InlineAlert` (`role="status"`, `aria-live="polite"`) with the warning copy "You won't see this key again", a single "Dismiss API key" button, and never copies it into any other state. Status pill mapping uses Lumia's `success | warning | error | info` variants only (`active`→success, `expired`→warning, `revoked`→error). Revoked and expired keys correctly do NOT render a Revoke button. The destructive Revoke action is gated by Lumia `ConfirmDialog` (a real focus-trapped `alertdialog`). Preset labels follow `WORKSPACE_API_KEY_PRESET_KEYS` (`CMS Read-only`, `CMS Authoring`, `CMS Publisher`, `Telemetry Read`, `Workspace Admin`).
 
 ### Deep-link contract (Task 5, landed 2026-05-08)
 
 The `/dashboard/integrations` page honors deep-link query parameters from CMS console links built by `xynes-front-end/xynes-cms-console-web/src/features/integrations/workspace-admin-links.ts`:
 
-- `?tab=domains` — moves keyboard focus to the "Verified domains" heading on first load so screen-reader and keyboard users land on the relevant section without scrolling. The heading carries `tabIndex={-1}` so it is programmatically focusable but not part of the natural tab order.
-- `?tab=api-keys` — same focus contract for the "Workspace API keys" heading.
+- `?tab=domains` — selects the Domains tab and moves keyboard focus to the "Verified domains" heading on first load so screen-reader and keyboard users land on the relevant section without scrolling. The heading carries `tabIndex={-1}` so it is programmatically focusable but not part of the natural tab order.
+- `?tab=api-keys` — selects the API Keys tab and applies the same focus contract for the "Workspace API keys" heading.
 - `?preset=cms_readonly` or `?preset=cms_publisher` — pre-selects the matching option in the create-API-key form's Preset `Select`. Only the values in the local allowlist (validated against `WORKSPACE_API_KEY_PRESET_KEYS`) are honored; unknown / hostile values are silently ignored and the default `cms_readonly` is preserved.
 
 Both parameters can be combined: CMS uses targets `cms_readonly_key` (`?tab=api-keys&preset=cms_readonly`) and `cms_publisher_key` (`?tab=api-keys&preset=cms_publisher`).
