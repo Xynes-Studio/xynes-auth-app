@@ -6,6 +6,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DomainManagementPanel } from "./DomainManagementPanel";
 import type { WorkspaceDomain } from "@/lib/integrations/workspace-integrations-types";
 
+// BUG-AUTH-7: shared module-level toast spy. Declared via `vi.hoisted`
+// so the `vi.mock` factory below — which is itself hoisted — can refer
+// to it without a temporal-dead-zone error. Each `beforeEach`
+// clears it so per-test assertions stay isolated.
+const { showToastMock } = vi.hoisted(() => ({
+  showToastMock: vi.fn(),
+}));
+
 // Lumia DS mocks
 //
 // Mirror the mock recipe from `WorkspaceIntegrationsDashboard.test.tsx`
@@ -45,14 +53,19 @@ vi.mock("@lumia-ui/components", () => {
     Alert: ({
       children,
       title,
+      description,
       variant,
+      "data-testid": dataTestId,
     }: {
       children?: React.ReactNode;
       title?: React.ReactNode;
+      description?: React.ReactNode;
       variant?: string;
+      "data-testid"?: string;
     }) => (
-      <div role="alert" data-variant={variant}>
+      <div role="alert" data-variant={variant} data-testid={dataTestId}>
         {title ? <strong>{title}</strong> : null}
+        {description ? <p>{description}</p> : null}
         {children}
       </div>
     ),
@@ -138,6 +151,14 @@ vi.mock("@lumia-ui/components", () => {
         dialogProps: { open, onOpenChange: setOpen },
       };
     },
+    // BUG-AUTH-7: surface the success toast on the panel's
+    // auto-recheck success path. The container test recipe binds the
+    // mock to a module-level spy in the existing
+    // `AuthDashboardShell.integration.test.tsx`; in this panel-level
+    // test we install the spy per-suite (see `showToastMock` below)
+    // so individual assertions can interrogate the call without
+    // cross-test bleed.
+    useToast: () => ({ show: showToastMock, dismiss: vi.fn() }),
   };
 });
 
@@ -1219,9 +1240,17 @@ describe("WSA-FIX-3: 'I've added it' auto-rechecks DNS", () => {
       screen.getByRole("button", { name: /i've added it\. recheck dns now/i }),
     );
 
-    await waitFor(() => {
-      expect(onDismiss).toHaveBeenCalledTimes(1);
-    });
+    // BUG-AUTH-7: the panel now waits ~1.5s after the success state
+    // before firing `onDismissVerificationValue` so the user can read
+    // the inline confirmation + toast. Bump the waitFor budget so
+    // this assertion accommodates the new auto-dismiss timer
+    // (DNS_INSTRUCTION_COPY.autoDismissAfterMs = 1500ms).
+    await waitFor(
+      () => {
+        expect(onDismiss).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 3000 },
+    );
   });
 
   it("keeps the reveal open and announces 'Still propagating' when recheck does not flip the row to verified", async () => {
@@ -1349,5 +1378,312 @@ describe("WSA-FIX-3: 'I've added it' auto-rechecks DNS", () => {
       expect(button).not.toHaveAttribute("aria-busy", "true");
     });
     expect(button).not.toBeDisabled();
+  });
+});
+
+// ── BUG-AUTH-7: DNS TXT verification modal UX ─────────────────────────
+//
+// New behaviour landed on top of WSA-FIX-3:
+//   1. The dense "We only show this value once" sentence is now a
+//      real Lumia DS Alert (variant="warning") at the top of the
+//      reveal.
+//   2. The helperHeading paragraph is replaced by a numbered <ol>
+//      of three short steps.
+//   3. A successful auto-recheck surfaces a Lumia success toast and
+//      auto-dismisses the reveal after `autoDismissAfterMs` (1.5s).
+//   4. A failed auto-recheck renders a Lumia destructive Alert in
+//      the reveal so the failure state has a stable visual anchor
+//      (not just a polite live-region announcement). The reveal
+//      stays open so users can re-copy the value and retry.
+//   5. Manual Dismiss cancels any pending auto-dismiss timer so a
+//      stale post-success timer can never fire after manual
+//      dismissal.
+
+describe("BUG-AUTH-7: DNS TXT verification modal UX", () => {
+  function pendingRevealProps(
+    overrides: Partial<React.ComponentProps<typeof DomainManagementPanel>> = {},
+  ) {
+    return defaultProps({
+      domains: [pendingDomain],
+      pendingVerificationValue: {
+        domainId: pendingDomain.id,
+        verificationValue: "xynes-verify=abc123",
+      },
+      ...overrides,
+    });
+  }
+
+  it("renders the 'we only show this value once' warning as a Lumia Alert (not a paragraph)", () => {
+    render(<DomainManagementPanel {...pendingRevealProps()} />);
+    const warning = screen.getByTestId("domain-verification-one-time-warning");
+    // The Alert mock spreads variant on a data-variant attribute and
+    // applies role="alert". Both must be present.
+    expect(warning).toHaveAttribute("data-variant", "warning");
+    expect(warning).toHaveAttribute("role", "alert");
+    // Title + description copy comes through DNS_INSTRUCTION_COPY so
+    // the message stays single-sourced for the eventual i18n move.
+    expect(warning).toHaveTextContent(/we only show this value once/i);
+    expect(warning).toHaveTextContent(/get new value/i);
+  });
+
+  it("renders three numbered steps explaining how to add the TXT record", () => {
+    render(<DomainManagementPanel {...pendingRevealProps()} />);
+    const steps = screen.getByTestId("domain-verification-steps");
+    expect(steps.tagName.toLowerCase()).toBe("ol");
+    expect(steps).toHaveAttribute(
+      "aria-label",
+      "How to add the DNS TXT record",
+    );
+    const items = within(steps).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    // Each step is one sentence; the third explicitly directs the
+    // user back to the verify button (closing the loop).
+    expect(items[0]).toHaveTextContent(/log in to your dns provider/i);
+    expect(items[1]).toHaveTextContent(/add this txt record/i);
+    expect(items[2]).toHaveTextContent(/verify domain/i);
+  });
+
+  it("fires a Lumia success toast AND auto-dismisses the reveal after autoDismissAfterMs on a successful recheck", async () => {
+    // Mimic the container's "flip to verified" rerender so the
+    // post-call `domainsRef.current.find(...)` sees a verified row.
+    const onVerify = vi.fn().mockResolvedValue(undefined);
+    const onDismiss = vi.fn();
+
+    const verifiedAfter: WorkspaceDomain = {
+      ...pendingDomain,
+      status: "verified",
+      verifiedAt: "2026-06-01T00:00:00.000Z",
+    };
+
+    const { rerender } = render(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          onVerifyDomain: async (id) => {
+            await onVerify(id);
+            rerender(
+              <DomainManagementPanel
+                {...pendingRevealProps({
+                  domains: [verifiedAfter],
+                  onVerifyDomain: onVerify,
+                  onDismissVerificationValue: onDismiss,
+                })}
+              />,
+            );
+          },
+          onDismissVerificationValue: onDismiss,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /i've added it\. recheck dns now/i }),
+    );
+
+    // Toast fires immediately on the success transition, BEFORE the
+    // auto-dismiss timer elapses, so the user sees the confirmation
+    // both inline and as a transient toast.
+    await waitFor(() => {
+      expect(showToastMock).toHaveBeenCalledTimes(1);
+    });
+    expect(showToastMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        variant: "success",
+        title: expect.stringMatching(/domain verified/i),
+      }),
+    );
+
+    // onDismiss is NOT called synchronously — the panel waits the
+    // 1.5s autoDismissAfterMs window so the user can read the
+    // success state and the toast. The waitFor budget covers the
+    // configured delay.
+    await waitFor(
+      () => {
+        expect(onDismiss).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 3000 },
+    );
+  });
+
+  it("renders a destructive Alert and keeps the reveal open when the auto-recheck does not flip the row to verified", async () => {
+    const onVerify = vi.fn().mockResolvedValue(undefined);
+    const onDismiss = vi.fn();
+    render(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          onVerifyDomain: onVerify,
+          onDismissVerificationValue: onDismiss,
+        })}
+      />,
+    );
+
+    // No destructive Alert before the recheck runs.
+    expect(
+      screen.queryByTestId("domain-verification-failure-alert"),
+    ).toBeNull();
+    // Toast must not fire on the failure path.
+    expect(showToastMock).not.toHaveBeenCalled();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /i've added it\. recheck dns now/i }),
+    );
+
+    // The destructive Alert renders with the documented failure copy
+    // and reads as `role="alert"` (Lumia Alert maps error → role=alert).
+    const failure = await screen.findByTestId(
+      "domain-verification-failure-alert",
+    );
+    expect(failure).toHaveAttribute("data-variant", "error");
+    expect(failure).toHaveAttribute("role", "alert");
+    // Match around the apostrophe (the copy uses the curly U+2019
+    // apostrophe but tests should be apostrophe-agnostic so they
+    // continue to pass if the copy ever flips to a straight quote).
+    expect(failure).toHaveTextContent(/couldn.{0,1}t find the txt record/i);
+    expect(failure).toHaveTextContent(/dns changes can take up to 48 hours/i);
+
+    // Reveal stays open + no toast + no dismiss.
+    expect(
+      screen.getByTestId("domain-verification-reveal"),
+    ).toBeInTheDocument();
+    expect(showToastMock).not.toHaveBeenCalled();
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
+
+  it("removes the destructive Alert when the user retries the recheck (transient outcome state, not sticky)", async () => {
+    // First recheck fails; user re-clicks; while the second call is
+    // mid-flight the destructive Alert MUST disappear (we set
+    // outcome back to "idle" before awaiting). This prevents a
+    // confusing "showing the failure callout DURING a retry" state.
+    let inflight: Promise<void> | null = null;
+    let resolveSecond: (() => void) | undefined;
+    const onVerify = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        // First call: resolve immediately (failure path — row stays pending).
+      })
+      .mockImplementationOnce(() => {
+        inflight = new Promise<void>((resolve) => {
+          resolveSecond = resolve;
+        });
+        return inflight;
+      });
+    render(
+      <DomainManagementPanel
+        {...pendingRevealProps({ onVerifyDomain: onVerify })}
+      />,
+    );
+
+    const button = screen.getByRole("button", {
+      name: /i've added it\. recheck dns now/i,
+    });
+    await userEvent.click(button);
+
+    // First call resolved — destructive Alert is up.
+    await screen.findByTestId("domain-verification-failure-alert");
+
+    // Click again — the Alert must clear synchronously when the
+    // new recheck starts (we reset outcome to "idle" before await).
+    await userEvent.click(button);
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("domain-verification-failure-alert"),
+      ).toBeNull();
+    });
+    // Release the second call so React unmounts cleanly.
+    resolveSecond?.();
+    await waitFor(() => {
+      expect(onVerify).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("manual Dismiss cancels a pending auto-dismiss timer (regression guard for stale-timer dismiss)", async () => {
+    // Edge case: a success path schedules the 1.5s auto-dismiss,
+    // but the user clicks the manual Dismiss button immediately.
+    // The auto-dismiss timer must be cancelled — otherwise the
+    // container's slot would be cleared a second time when the
+    // timer fires (which is a no-op on the live container but a
+    // failed call-count assertion in tests, and a fragile
+    // implementation contract). After manual dismiss, no
+    // additional onDismiss call may arrive.
+    const onVerify = vi.fn().mockResolvedValue(undefined);
+    const onDismiss = vi.fn();
+
+    const verifiedAfter: WorkspaceDomain = {
+      ...pendingDomain,
+      status: "verified",
+      verifiedAt: "2026-06-01T00:00:00.000Z",
+    };
+
+    const { rerender } = render(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          onVerifyDomain: async (id) => {
+            await onVerify(id);
+            rerender(
+              <DomainManagementPanel
+                {...pendingRevealProps({
+                  domains: [verifiedAfter],
+                  onVerifyDomain: onVerify,
+                  onDismissVerificationValue: onDismiss,
+                })}
+              />,
+            );
+          },
+          onDismissVerificationValue: onDismiss,
+        })}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /i've added it\. recheck dns now/i }),
+    );
+
+    // Wait for the success transition (toast fires synchronously
+    // with the outcome flip; the auto-dismiss timer is scheduled
+    // immediately after).
+    await waitFor(() => {
+      expect(showToastMock).toHaveBeenCalledTimes(1);
+    });
+
+    // Click Dismiss BEFORE the 1.5s timer fires.
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: /dismiss verification value without rechecking/i,
+      }),
+    );
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+
+    // Give the original 1.5s timer time to potentially fire. If the
+    // timer wasn't cancelled, onDismiss would be called a SECOND
+    // time and this assertion would fail.
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("never echoes hash-shaped fields anywhere in the reveal (warning Alert, steps, destructive Alert) — defense in depth", async () => {
+    // Hostile prop with a verificationValueHash field. None of the
+    // BUG-AUTH-7 surfaces (warning, steps, destructive Alert) may
+    // ever echo a hash-shaped value.
+    const hostile = {
+      ...pendingDomain,
+      verificationValueHash: "DO_NOT_RENDER_HASH_BUG_AUTH_7",
+    } as unknown as WorkspaceDomain;
+    const onVerify = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DomainManagementPanel
+        {...pendingRevealProps({
+          domains: [hostile],
+          onVerifyDomain: onVerify,
+        })}
+      />,
+    );
+
+    // Idle state — no hash anywhere.
+    expect(screen.queryByText(/DO_NOT_RENDER_HASH_BUG_AUTH_7/)).toBeNull();
+    // Drive a failure path so the destructive Alert is mounted too.
+    await userEvent.click(
+      screen.getByRole("button", { name: /i've added it\. recheck dns now/i }),
+    );
+    await screen.findByTestId("domain-verification-failure-alert");
+    expect(screen.queryByText(/DO_NOT_RENDER_HASH_BUG_AUTH_7/)).toBeNull();
   });
 });
