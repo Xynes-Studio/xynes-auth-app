@@ -1781,9 +1781,7 @@ describe("BUG-AUTH-7 Codex follow-up: copy-feedback + auto-dismiss timer isolati
     // the new (different) value's Copy button renders as "Copy",
     // not "Copied".
     const initialProps = pendingRevealProps();
-    const { rerender } = render(
-      <DomainManagementPanel {...initialProps} />,
-    );
+    const { rerender } = render(<DomainManagementPanel {...initialProps} />);
 
     // Click Copy on the Type cell — sets copiedCellKey="type".
     await userEvent.click(
