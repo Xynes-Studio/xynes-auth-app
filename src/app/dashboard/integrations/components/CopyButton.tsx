@@ -56,12 +56,25 @@ export function CopyButton({
   }, [resetKey]);
 
   const handleCopy = useCallback(async () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(value);
-      } catch {
-        // Silently fall through — the visible value remains for manual copy.
-      }
+    // Only flip to the "Copied" state on a CONFIRMED successful clipboard
+    // write. If `navigator.clipboard` is unavailable (insecure context, no
+    // user gesture, missing permission, or the browser doesn't expose the
+    // API) OR if `writeText` rejects, we MUST NOT claim the value was
+    // copied — the user relies on this signal to dismiss one-time secrets
+    // (API keys, DNS verification values) and a false-positive "Copied"
+    // can cause irrecoverable data loss for the API-key reveal flow.
+    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+      // No clipboard API at all. The visible value stays on-screen so the
+      // user can copy it manually; the button keeps its idle label.
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // Clipboard rejected the write (insecure context, denied permission,
+      // user gesture lost). Silently leave the button in the idle state —
+      // the visible value remains for manual copy.
+      return;
     }
     setCopied(true);
     if (typeof window !== "undefined") {
@@ -78,7 +91,12 @@ export function CopyButton({
       aria-label={ariaLabel}
       className={className}
     >
-      <Icon name={copied ? "check" : "copy"} size={14} color="currentColor" aria-hidden />
+      <Icon
+        name={copied ? "check" : "copy"}
+        size={14}
+        color="currentColor"
+        aria-hidden
+      />
       {copied ? copiedLabel : label}
     </Button>
   );

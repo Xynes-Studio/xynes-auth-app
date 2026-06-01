@@ -268,6 +268,18 @@ export function WorkspaceIntegrationsDashboard() {
   const initialTab: IntegrationsTabValue =
     tabParam === "api-keys" ? "api-keys" : "domains";
   const [activeTab, setActiveTab] = useState<IntegrationsTabValue>(initialTab);
+  // Pending-focus target driven by the `?tab=` deep link. We set this
+  // synchronously when the URL param changes, then a second effect — gated
+  // on `activeTab` matching the pending target — actually moves keyboard
+  // focus. This guarantees the heading is mounted and visible (i.e. inside
+  // the now-active TabsContent panel, not the still-hidden one) before
+  // `focus()` runs. Without this two-step pattern, focus on the API-keys
+  // heading is silently dropped on in-place URL changes from `?tab=domains`
+  // to `?tab=api-keys` because the panel is `hidden` at the moment focus
+  // is called. Manual tab clicks (without a URL param change) deliberately
+  // do not set this — they should not steal focus to the section heading.
+  const [pendingFocusTab, setPendingFocusTab] =
+    useState<IntegrationsTabValue | null>(null);
 
   const domainsHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const apiKeysHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -562,19 +574,43 @@ export function WorkspaceIntegrationsDashboard() {
     setActionError(null);
   }, []);
 
-  // Honor the `?tab=` deep link: select the requested tab and move keyboard
-  // focus to that section's heading once the headings are mounted. Runs only
-  // when the tab parameter changes so re-renders triggered by data fetches do
-  // not steal focus from the user or override a manual tab switch.
+  // Honor the `?tab=` deep link: select the requested tab AND queue a focus
+  // request for the matching section heading. We deliberately split tab
+  // selection (synchronous) from focus (deferred to the next commit) because
+  // the real Lumia Tabs hides inactive panels — calling `focus()` in the
+  // same effect that flipped `activeTab` would target a still-hidden heading
+  // and the browser would silently drop the focus move. A second effect
+  // below (`[activeTab, pendingFocusTab]`) does the actual focus after the
+  // newly-active panel mounts.
+  //
+  // Runs only when the tab parameter changes so re-renders triggered by
+  // data fetches do not steal focus from the user or override a manual
+  // tab switch.
   useEffect(() => {
     if (tabParam === "api-keys") {
       setActiveTab("api-keys");
-      apiKeysHeadingRef.current?.focus();
+      setPendingFocusTab("api-keys");
     } else if (tabParam === "domains") {
       setActiveTab("domains");
-      domainsHeadingRef.current?.focus();
+      setPendingFocusTab("domains");
     }
   }, [tabParam]);
+
+  // Apply the pending focus request once the target tab is actually the
+  // committed `activeTab` — by then the matching TabsContent panel is
+  // visible and its heading is focusable. Clears the pending slot on
+  // success so a subsequent manual tab click doesn't trigger another
+  // focus move on an unrelated re-render.
+  useEffect(() => {
+    if (pendingFocusTab === null) return;
+    if (pendingFocusTab !== activeTab) return;
+    if (pendingFocusTab === "api-keys") {
+      apiKeysHeadingRef.current?.focus();
+    } else if (pendingFocusTab === "domains") {
+      domainsHeadingRef.current?.focus();
+    }
+    setPendingFocusTab(null);
+  }, [activeTab, pendingFocusTab]);
 
   useEffect(() => {
     if (!workspaceId) {
