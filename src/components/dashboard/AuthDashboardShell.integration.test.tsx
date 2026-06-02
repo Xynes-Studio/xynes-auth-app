@@ -10,6 +10,12 @@ const mockReplace = vi.fn();
 const mockDashboardShell = vi.fn();
 const mockSelectWorkspace = vi.fn();
 const mockShowToast = vi.fn();
+// BUG-AUTH-3b follow-up (2026-06-02): handleLogout now does a full-page
+// navigation via `window.location.assign("/logout")` because `/logout` is a
+// Next.js Route Handler (not a Page) — `router.push` cannot hit it. We spy
+// on `window.location.assign` so tests can assert the navigation target +
+// ordering relative to the success toast.
+const mockLocationAssign = vi.fn();
 
 /**
  * Hoisted mutable state so individual tests can override `usePathname()` and
@@ -51,6 +57,22 @@ describe("AuthDashboardShell", () => {
     mockDashboardShell.mockReset();
     mockSelectWorkspace.mockReset();
     mockShowToast.mockReset();
+    mockLocationAssign.mockReset();
+
+    // BUG-AUTH-3b follow-up (2026-06-02): Stub `window.location.assign` so
+    // the logout test path can assert the navigation target without jsdom
+    // attempting a real navigation. `window.location.assign` is a
+    // non-configurable accessor in jsdom, so we re-define the whole
+    // `location` object via `Object.defineProperty` with a clone that
+    // proxies the unrelated properties (so `href`, `pathname`, etc. keep
+    // working for any other test surface) and routes `assign` to our spy.
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      writable: true,
+      value: Object.assign({}, window.location, {
+        assign: mockLocationAssign,
+      }),
+    });
 
     // Reset navigation state to the default dashboard route + no query.
     navigationState.pathname = "/dashboard/apps";
@@ -140,7 +162,11 @@ describe("AuthDashboardShell", () => {
     expect(mockPush).toHaveBeenCalledWith("/onboarding");
 
     props.onLogout();
-    expect(mockPush).toHaveBeenCalledWith("/logout");
+    // BUG-AUTH-3b follow-up (2026-06-02): logout uses
+    // `window.location.assign("/logout")` instead of `router.push("/logout")`
+    // because `/logout` is a Route Handler, not a Page.
+    expect(mockLocationAssign).toHaveBeenCalledWith("/logout");
+    expect(mockPush).not.toHaveBeenCalledWith("/logout");
 
     // BUG-AUTH-3b: invoking onLogout also surfaces a success toast so the
     // user gets immediate feedback that the sign-out flow has started; the
@@ -293,15 +319,15 @@ describe("AuthDashboardShell", () => {
 
       // Toast and navigation are both invoked exactly once.
       expect(mockShowToast).toHaveBeenCalledTimes(1);
-      expect(mockPush).toHaveBeenCalledTimes(1);
-      expect(mockPush).toHaveBeenCalledWith("/logout");
+      expect(mockLocationAssign).toHaveBeenCalledTimes(1);
+      expect(mockLocationAssign).toHaveBeenCalledWith("/logout");
 
       // Ordering: toast fires before navigation. We compare invocation
       // order via mock.invocationCallOrder so the user sees feedback even
-      // if the router push is synchronous (route change happens in a
-      // microtask). Smaller order number = earlier call.
+      // if the navigation is synchronous. Smaller order number = earlier
+      // call.
       expect(mockShowToast.mock.invocationCallOrder[0]).toBeLessThan(
-        mockPush.mock.invocationCallOrder[0],
+        mockLocationAssign.mock.invocationCallOrder[0],
       );
     });
 
@@ -325,13 +351,13 @@ describe("AuthDashboardShell", () => {
       });
     });
 
-    it("falls back to an error toast and keeps the user on the dashboard if router.push throws", () => {
+    it("falls back to an error toast and keeps the user on the dashboard if window.location.assign throws", () => {
       // Defensive failure path: the /logout server route is hardened (it
       // always 302s to /login even if Supabase signOut fails server-side),
       // so this branch only fires if the client-side navigation itself
       // throws (extremely rare). We still verify the destructive toast so
       // the user never gets stuck in a silent failure.
-      mockPush.mockImplementationOnce(() => {
+      mockLocationAssign.mockImplementationOnce(() => {
         throw new Error("Simulated navigation failure");
       });
       const consoleError = vi

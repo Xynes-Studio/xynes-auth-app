@@ -181,9 +181,18 @@ export function AuthDashboardShell({
    * navigate to the server-side /logout route. The /logout route performs
    * Supabase signOut + cookie clearing + 302 redirect to /login; it is
    * defensive (always redirects, even on signOut failure) so a failure path
-   * here only fires if router.push itself throws (extremely rare in Next.js
-   * — but we still surface a destructive toast and keep the user on the
-   * dashboard so they know nothing happened).
+   * here only fires if the navigation itself throws (extremely rare).
+   *
+   * **Fix (BUG-AUTH-3b follow-up, 2026-06-02):** `/logout` is a Next.js Route
+   * Handler (`src/app/logout/route.ts`), NOT a Page (`page.tsx`). The Next.js
+   * App Router `router.push()` is designed for Page routes — when handed a
+   * Route Handler target it attempts an RSC fetch that either errors silently
+   * or no-ops, so the toast fired but the browser never navigated. We must
+   * use `window.location.assign()` for a full-page navigation: the browser
+   * issues a real GET to `/logout`, hits the GET handler, follows its 302
+   * to `/login`, and reloads the document. This is the same posture the
+   * `/logout` route was designed for (its JSDoc shows
+   * `window.location.href = 'https://auth.xynes.com/logout?...'`).
    */
   const handleLogout = useCallback(() => {
     showToast({
@@ -192,7 +201,7 @@ export function AuthDashboardShell({
       description: tShellLogout("successDescription"),
     });
     try {
-      router.push("/logout");
+      window.location.assign("/logout");
     } catch (error) {
       console.error("[AuthDashboardShell] logout navigation failed", error);
       showToast({
@@ -201,7 +210,7 @@ export function AuthDashboardShell({
         description: tShellLogout("errorDescription"),
       });
     }
-  }, [router, showToast, tShellLogout]);
+  }, [showToast, tShellLogout]);
 
   // Build the Lumia DashboardShell label bundle from the auth.dashboard
   // catalog. Each branch is a thin map: this is the single seam where Auth
