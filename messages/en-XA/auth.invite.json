@@ -16,9 +16,28 @@
     "length": "[IInnvviittee ccooddee mmuusstt bbee bbeettwweeeenn 16 aanndd 128 cchhaarraacctteerrss.]"
   },
   "create": {
+    "success": {
+      "title": "[IInnvviittaattiioonn sseenntt]",
+      "body": "[WWee'vvee sseenntt {email} aann iinnvviittaattiioonn. TThheeyy hhaavvee uunnttiill {expiresAt} ttoo aacccceepptt.]",
+      "copyLinkSecondary": "[DDiiddnn'tt aarrrriivvee? CCooppyy tthhee lliinnkk aanndd sshhaarree iitt ddiirreeccttllyy.]"
+    },
     "errors": {
       "selfInvite": "[YYoouu ccaannnnoott iinnvviittee yyoouurrsseellff.]",
       "alreadyMember": "[TThhiiss ppeerrssoonn iiss aallrreeaaddyy aa wwoorrkkssppaaccee mmeemmbbeerr.]"
+    }
+  },
+  "resend": {
+    "button": "[RReesseenndd iinnvviittee]",
+    "buttonSending": "[RReesseennddiinngg…]",
+    "success": "[IInnvviittaattiioonn rree-sseenntt. TThhee pprreevviioouuss lliinnkk hhaass bbeeeenn iinnvvaalliiddaatteedd.]",
+    "confirmHint": "[SSeennddiinngg wwiillll iinnvvaalliiddaattee tthhee pprreevviioouuss lliinnkk.]",
+    "errors": {
+      "rateLimited": "[TToooo mmaannyy rreecceenntt rreesseennddss. PPlleeaassee wwaaiitt bbeeffoorree ttrryyiinngg aaggaaiinn.]",
+      "notPending": "[TThhiiss iinnvviittee iiss nnoo lloonnggeerr ppeennddiinngg.]",
+      "expired": "[TThhiiss iinnvviittee hhaass eexxppiirreedd. CCrreeaattee aa nneeww iinnvviittee iinnsstteeaadd.]",
+      "notFound": "[TThhiiss iinnvviittee ccoouulldd nnoott bbee ffoouunndd.]",
+      "forbidden": "[YYoouu ddoonn'tt hhaavvee ppeerrmmiissssiioonn ttoo rreesseenndd tthhiiss iinnvviittee.]",
+      "generic": "[FFaaiilleedd ttoo rreesseenndd iinnvviittee. PPlleeaassee ttrryy aaggaaiinn.]"
     }
   }
 }

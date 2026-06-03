@@ -16,9 +16,28 @@
     "length": "Invite code must be between 16 and 128 characters."
   },
   "create": {
+    "success": {
+      "title": "Invitation sent",
+      "body": "We've sent {email} an invitation. They have until {expiresAt} to accept.",
+      "copyLinkSecondary": "Didn't arrive? Copy the link and share it directly."
+    },
     "errors": {
       "selfInvite": "You cannot invite yourself.",
       "alreadyMember": "This person is already a workspace member."
+    }
+  },
+  "resend": {
+    "button": "Resend invite",
+    "buttonSending": "Resending…",
+    "success": "Invitation re-sent. The previous link has been invalidated.",
+    "confirmHint": "Sending will invalidate the previous link.",
+    "errors": {
+      "rateLimited": "Too many recent resends. Please wait before trying again.",
+      "notPending": "This invite is no longer pending.",
+      "expired": "This invite has expired. Create a new invite instead.",
+      "notFound": "This invite could not be found.",
+      "forbidden": "You don't have permission to resend this invite.",
+      "generic": "Failed to resend invite. Please try again."
     }
   }
 }

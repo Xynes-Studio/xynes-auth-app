@@ -1,13 +1,9 @@
 "use client";
 
-import {
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { z } from "zod";
 import { Alert, Button, Card, Input } from "@lumia-ui/components";
 import { AccountsClient, useAuth, useWorkspace } from "@xynes/auth-sdk";
@@ -20,10 +16,24 @@ const inviteFormSchema = z.object({
     .email("Enter a valid email"),
 });
 
+type ResendState =
+  | { status: "idle" }
+  | { status: "submitting" }
+  | { status: "success"; message: string }
+  | { status: "error"; message: string };
+
 type InviteFormState =
   | { status: "idle" }
   | { status: "submitting" }
-  | { status: "success"; inviteUrl: string }
+  | {
+      status: "success";
+      inviteUrl: string;
+      inviteId: string;
+      email: string;
+      expiresAt: string;
+      emailAttempts: number;
+      resend: ResendState;
+    }
   | { status: "error"; message: string };
 
 export interface CreateInviteFormProps {
@@ -65,17 +75,77 @@ function extractApiErrorCode(error: unknown): string | null {
   return typeof code === "string" ? code : null;
 }
 
+/**
+ * MAIL-6: format a backend ISO-8601 timestamp as a locale-aware date string
+ * for the success-state body. Falls back to the raw input on `Invalid Date`
+ * so a hostile / unparseable upstream value never throws inside render.
+ *
+ * Time is intentionally omitted — the success copy reads "until {expiresAt}
+ * to accept", and the day-resolution is sufficient for an invitation
+ * lifecycle. Operators with locale-specific time-sensitivity get the exact
+ * timestamp from the resend handler's `emailSentAt` audit field anyway.
+ */
+function formatExpiresAt(
+  iso: string | null | undefined,
+  locale: string,
+): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      dateStyle: "long",
+    }).format(d);
+  } catch {
+    return d.toISOString();
+  }
+}
+
+/**
+ * MAIL-6: closed-set backend error code → i18n key suffix under
+ * `auth.invite.resend.errors.*`. Unknown / hostile codes fall through to
+ * `'generic'` — the upstream message string is NEVER consumed.
+ *
+ * Cross-references the closed set documented in
+ * `xynes-accounts-service/src/actions/handlers/invites/resend.ts` (and the
+ * gateway-level 403 for FORBIDDEN_ACTOR_KIND when an api_key actor reaches
+ * the route despite the MVP preset gate).
+ */
+function resolveResendErrorKey(error: unknown): string {
+  const code = extractApiErrorCode(error);
+  switch (code) {
+    case "RATE_LIMITED":
+      return "rateLimited";
+    case "INVALID_STATE":
+      return "notPending";
+    case "GONE":
+      return "expired";
+    case "NOT_FOUND":
+      return "notFound";
+    case "FORBIDDEN":
+    case "FORBIDDEN_ACTOR_KIND":
+      return "forbidden";
+    default:
+      // Fall through on statusCode-only failures (network / parse / 5xx).
+      return "generic";
+  }
+}
+
 export function CreateInviteForm({
   apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "",
 }: CreateInviteFormProps) {
   const router = useRouter();
   const { getAccessToken } = useAuth();
   const { currentWorkspace, isLoading } = useWorkspace();
-  // BUG-AUTH-8: localized copy for the two new closed-set error codes. Other
-  // visible strings in this form are still hard-coded English (out of scope
-  // for BUG-AUTH-8; a full next-intl migration of the form is a separate
-  // follow-up story).
+  // BUG-AUTH-8 + MAIL-6: localized copy for backend error codes AND the
+  // MAIL-5 dispatch success / resend affordance. Other visible strings in
+  // this form are still hard-coded English (a full next-intl migration of
+  // the form's chrome is a separate follow-up story).
   const tCreateErrors = useTranslations("auth.invite.create.errors");
+  const tCreateSuccess = useTranslations("auth.invite.create.success");
+  const tResend = useTranslations("auth.invite.resend");
+  const tResendErrors = useTranslations("auth.invite.resend.errors");
+  const locale = useLocale();
 
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
@@ -142,7 +212,19 @@ export function CreateInviteForm({
       );
 
       const inviteUrl = buildInviteUrl(result.token);
-      setState({ status: "success", inviteUrl });
+      setState({
+        status: "success",
+        inviteUrl,
+        inviteId: result.id,
+        email: result.email,
+        expiresAt: result.expiresAt,
+        // MAIL-3: the row is created with `email_attempts = 0`; if MAIL-5's
+        // initial dispatch succeeded it bumped to 1. We don't get that count
+        // back from the create response today, so start at 1 (best-effort
+        // floor) and let the resend handler return the canonical value.
+        emailAttempts: 1,
+        resend: { status: "idle" },
+      });
     } catch (error) {
       // BUG-AUTH-8: branch on the backend's closed-set code FIRST. This catches
       // the two new guards regardless of HTTP status (both are 400) and falls
@@ -202,6 +284,59 @@ export function CreateInviteForm({
     }
   }, [state]);
 
+  /**
+   * MAIL-6: re-dispatch the just-created invite. The accounts-service handler
+   * rotates the token on every call (see `resend.ts` header), so this also
+   * INVALIDATES the URL the form is currently displaying — that's reflected
+   * in the success copy. The form does NOT update `state.inviteUrl` because
+   * the rotated token never crosses the wire to the FE (security positive).
+   */
+  const handleResend = useCallback(async () => {
+    if (state.status !== "success") return;
+    if (!accountsClient || !currentWorkspace) return;
+
+    const inviteId = state.inviteId;
+
+    setState((prev) =>
+      prev.status === "success"
+        ? { ...prev, resend: { status: "submitting" } }
+        : prev,
+    );
+
+    try {
+      const result = await accountsClient.resendWorkspaceInvite(
+        currentWorkspace.id,
+        inviteId,
+      );
+
+      setState((prev) =>
+        prev.status === "success"
+          ? {
+              ...prev,
+              emailAttempts: result.emailAttempts,
+              resend: {
+                status: "success",
+                message: tResend("success"),
+              },
+            }
+          : prev,
+      );
+    } catch (error) {
+      const key = resolveResendErrorKey(error);
+      setState((prev) =>
+        prev.status === "success"
+          ? {
+              ...prev,
+              resend: {
+                status: "error",
+                message: tResendErrors(key),
+              },
+            }
+          : prev,
+      );
+    }
+  }, [accountsClient, currentWorkspace, state, tResend, tResendErrors]);
+
   const isSubmitting = state.status === "submitting";
 
   return (
@@ -220,7 +355,11 @@ export function CreateInviteForm({
           <Alert
             variant="success"
             role="status"
-            description="Invite created. Copy the link and share it with your teammate."
+            title={tCreateSuccess("title")}
+            description={tCreateSuccess("body", {
+              email: state.email,
+              expiresAt: formatExpiresAt(state.expiresAt, locale),
+            })}
             className="text-left"
           />
         ) : null}
@@ -288,33 +427,84 @@ export function CreateInviteForm({
           </div>
 
           {state.status === "success" ? (
-            <div className="space-y-2">
-              <label
-                htmlFor="invite-link"
-                className="block text-sm font-medium text-foreground"
-              >
-                Invite link
-              </label>
-              <Input
-                id="invite-link"
-                value={state.inviteUrl}
-                readOnly
-                aria-readonly="true"
-                onFocus={(e) => e.currentTarget.select()}
-              />
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Button type="button" variant="outline" onClick={handleCopy}>
-                  {copied ? "Copied" : "Copy link"}
-                </Button>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <label
+                  htmlFor="invite-link"
+                  className="block text-sm font-medium text-foreground"
+                >
+                  Invite link
+                </label>
+                <Input
+                  id="invite-link"
+                  value={state.inviteUrl}
+                  readOnly
+                  aria-readonly="true"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <p
+                  id="invite-copy-secondary"
+                  className="text-sm text-muted-foreground"
+                >
+                  {tCreateSuccess("copyLinkSecondary")}
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button type="button" variant="outline" onClick={handleCopy}>
+                    {copied ? "Copied" : "Copy link"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() =>
+                      router.push(
+                        state.inviteUrl.replace(getInviteBaseUrl(), ""),
+                      )
+                    }
+                  >
+                    Preview invite
+                  </Button>
+                </div>
+              </div>
+
+              {/* MAIL-6: Resend affordance. Inline alert appears INSIDE the
+                  resend block (not at the form top) so the success Alert at
+                  top stays anchored to "invite created" and the resend
+                  result is scoped to the action that produced it. */}
+              <div className="space-y-2">
+                {state.resend.status === "success" ? (
+                  <Alert
+                    variant="success"
+                    role="status"
+                    description={state.resend.message}
+                    className="text-left"
+                  />
+                ) : null}
+                {state.resend.status === "error" ? (
+                  <Alert
+                    variant="error"
+                    role="alert"
+                    description={state.resend.message}
+                    className="text-left"
+                  />
+                ) : null}
                 <Button
                   type="button"
-                  variant="ghost"
-                  onClick={() =>
-                    router.push(state.inviteUrl.replace(getInviteBaseUrl(), ""))
-                  }
+                  variant="outline"
+                  fullWidth
+                  onClick={handleResend}
+                  disabled={state.resend.status === "submitting"}
+                  aria-describedby="invite-resend-hint"
                 >
-                  Preview invite
+                  {state.resend.status === "submitting"
+                    ? tResend("buttonSending")
+                    : tResend("button")}
                 </Button>
+                <p
+                  id="invite-resend-hint"
+                  className="text-xs text-muted-foreground"
+                >
+                  {tResend("confirmHint")}
+                </p>
               </div>
             </div>
           ) : null}
