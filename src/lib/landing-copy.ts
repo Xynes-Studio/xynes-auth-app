@@ -62,6 +62,80 @@ export const LANDING_COOKIE_POLICY_URL =
 /** Apex marketing site. The brand mark in the nav links here. */
 export const LANDING_BRAND_HREF = "https://xynes.com" as const;
 
+const CMS_CONSOLE_LOCAL_FALLBACK = "http://localhost:3000" as const;
+const CMS_CONSOLE_PRODUCTION_FALLBACK = "https://cms.xynes.com" as const;
+
+function normalizeSafeHttpUrl(value: string): string | null {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve the CMS Console origin for the footer cross-product link.
+ *
+ * Resolution order (highest precedence first):
+ *
+ *   1. `NEXT_PUBLIC_CMS_CONSOLE_URL` — LP-AUTH explicit override. Honoured
+ *      when set so an operator can point the landing page at a specific
+ *      CMS console deployment without touching the rest of the auth-app's
+ *      env contract.
+ *   2. `NEXT_PUBLIC_CONSOLE_URL` — the **canonical** repo-wide CMS console
+ *      env var. Used everywhere else in this repo (WorkspaceSwitcher,
+ *      InvitePreview, login/signup redirects, CreateWorkspaceForm). The
+ *      infra `with-env.mjs` mapping also populates this from the canonical
+ *      `CMS_CONSOLE_URL` infra env, so a properly-configured local dev
+ *      stack always sets it. Falling back to it here means a hosted
+ *      deployment that already sets `NEXT_PUBLIC_CONSOLE_URL` for the rest
+ *      of the auth-app does NOT need a separate `NEXT_PUBLIC_CMS_CONSOLE_URL`
+ *      just for the landing-page footer link.
+ *   3. Environment-aware fallback:
+ *        - In non-production (NODE_ENV !== "production") → `http://localhost:3000`
+ *          (the default `CMS_CONSOLE_PORT` per `xynes-front-end/infra/.env.example`).
+ *        - In production → `https://cms.xynes.com`. This avoids the
+ *          Codex P2 bug where a hosted visitor would be sent to their own
+ *          machine when the explicit env var is unset.
+ *
+ * In all cases the resolved string is run through `normalizeSafeHttpUrl`
+ * so a malformed or hostile-scheme value (e.g. `javascript:alert(1)`)
+ * never escapes into the rendered DOM — it falls through to the next
+ * tier of the resolution chain.
+ */
+export function buildCmsConsoleHref(): string {
+  // Tier 1: LP-AUTH explicit override.
+  const explicit = process.env.NEXT_PUBLIC_CMS_CONSOLE_URL?.trim();
+  if (explicit) {
+    const normalized = normalizeSafeHttpUrl(explicit);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  // Tier 2: canonical repo-wide CMS console env var.
+  const canonical = process.env.NEXT_PUBLIC_CONSOLE_URL?.trim();
+  if (canonical) {
+    const normalized = normalizeSafeHttpUrl(canonical);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  // Tier 3: environment-aware fallback. Production must NEVER point at
+  // localhost — that would send visitors to their own machine.
+  return process.env.NODE_ENV === "production"
+    ? CMS_CONSOLE_PRODUCTION_FALLBACK
+    : CMS_CONSOLE_LOCAL_FALLBACK;
+}
+
 /** Internal auth-app destinations. */
 export const LANDING_INTERNAL_LINKS = Object.freeze({
   login: "/login",
@@ -130,7 +204,7 @@ export type LandingFooterColumnSpec = Readonly<{
     Readonly<{
       /** i18n key under `auth.landing.footer.columns.<col>`. */
       labelKey: string;
-      href: string;
+      href: string | { kind: "cmsConsole" };
       external?: boolean;
       /** Optional analytics-friendly id. */
       id?: string;
@@ -157,6 +231,12 @@ export const LANDING_FOOTER_COLUMNS: ReadonlyArray<LandingFooterColumnSpec> =
           labelKey: "footer.columns.product.forgotPassword",
           href: LANDING_INTERNAL_LINKS.forgotPassword,
           id: "footer-forgot",
+        } as const),
+        Object.freeze({
+          labelKey: "footer.columns.product.cmsConsole",
+          href: { kind: "cmsConsole" } as const,
+          external: true,
+          id: "footer-cms-console",
         } as const),
       ] as const),
     } as const),
@@ -236,7 +316,8 @@ export function buildFooterColumns(
     heading: translate(col.headingKey),
     links: col.links.map((link) => ({
       label: translate(link.labelKey),
-      href: link.href,
+      href:
+        typeof link.href === "string" ? link.href : buildCmsConsoleHref(),
       external: link.external,
       id: link.id,
     })),

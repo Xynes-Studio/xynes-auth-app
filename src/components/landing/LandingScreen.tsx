@@ -167,7 +167,6 @@ export function LandingScreen({
           repoUrl={LANDING_TRUST.repoUrl}
           license={LANDING_TRUST.license}
           securityUrl={LANDING_TRUST.securityUrl}
-          residencyNote={t("trust.residency")}
           aria-label={t("trust.ariaLabel")}
         />
       </main>

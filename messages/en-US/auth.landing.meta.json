@@ -32,24 +32,23 @@
     "ariaLabel": "Accessible label for the `<section>` landmark when no visible heading is rendered.",
     "workspaceScoped": {
       "_use": "First card. Icon: shield-check. Speaks to the workspace-as-permission-boundary model.",
-      "headline": "2-3 words. \"Workspace-scoped access\" is the canonical phrasing.",
-      "body": "≤ 2 lines on desktop. Explain that switching workspaces preserves session and permissions follow the workspace."
+      "headline": "Short title. \"One Workspace, Clear Access\" is the canonical phrasing.",
+      "body": "≤ 2 lines on desktop. Explain workspace switching, teammates, and permission boundaries in human terms."
     },
     "sso": {
       "_use": "Second card. Icon: globe. Speaks to single sign-on across Xynes apps.",
-      "headline": "2-4 words. Should signal cross-app sign-in.",
-      "body": "≤ 2 lines on desktop. Mention concrete destinations (CMS, storage console) so the value is tangible."
+      "headline": "Short title. Should signal cross-app movement from Workspace Admin into CMS Console and future apps.",
+      "body": "≤ 2 lines on desktop. Mention CMS Console as the current adjacent product; avoid inventing shipped app surfaces."
     },
     "openSource": {
-      "_use": "Third card. Icon: code. Speaks to the open-source posture and the audit cadence.",
-      "headline": "2-3 words. \"Open source, audited\" is the canonical phrasing.",
-      "body": "≤ 2 lines on desktop. Mention both the OSS posture AND the audit cadence — they reinforce each other."
+      "_use": "Third card. Icon: code. Speaks to the open-source posture.",
+      "headline": "Short title. \"Built In The Open\" is the canonical phrasing.",
+      "body": "≤ 2 lines on desktop. Mention public repos and security policy; do not invent audit cadence or compliance claims."
     }
   },
   "trust": {
     "_use": "Trust strip rendered by `<MarketingTrustStrip>`. Lives between the feature grid and the footer.",
-    "ariaLabel": "Accessible label for the `<aside>` landmark. Translate as the screen-reader equivalent of \"trust and security signals\".",
-    "residency": "One-line residency statement. Must reflect the actual hosting region. Keep neutral — do not invent compliance claims."
+    "ariaLabel": "Accessible label for the `<aside>` landmark. Translate as the screen-reader equivalent of \"trust and security signals\"."
   },
   "footer": {
     "_use": "Site footer rendered by `<MarketingFooter>` with 4 columns: Product / Developers / Company / Legal.",
@@ -60,7 +59,8 @@
         "heading": "Column heading rendered as `<h3>`.",
         "signIn": "Link label — same destination as the hero primary CTA.",
         "signUp": "Link label — same destination as the hero secondary CTA.",
-        "forgotPassword": "Link label — lands on `/forgot-password`."
+        "forgotPassword": "Link label — lands on `/forgot-password`.",
+        "cmsConsole": "External cross-product link label — lands on the CMS Console origin."
       },
       "developers": {
         "heading": "Column heading rendered as `<h3>`.",
