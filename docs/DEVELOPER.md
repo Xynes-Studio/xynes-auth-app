@@ -628,9 +628,9 @@ setDomains(Array.isArray(nextDomains) ? nextDomains : []);
 
 The container distinguishes **two kinds of error** so an action failure never wears the "Couldn't load integrations" copy, and a list refetch failure never wears an action title like "Couldn't remove domain":
 
-- **`loadError`** — surfaces failures of the initial list refetch or an explicit Retry. Renders the destructive Alert titled **"Couldn't load integrations"** with a Retry button.
+- **`loadError`** — surfaces failures of the initial list refetch or an explicit Retry. Renders the destructive Alert titled **"Couldn’t load integrations"** with a Retry button.
 - **`actionError`** — surfaces failures of a single mutation (`registerDomain`, `verifyDomain`, `regenerateVerification`, `deleteDomain`, `createApiKey`, `revokeApiKey`). Renders a destructive Alert with an action-specific title (`"Couldn't add domain"`, `"Couldn't verify domain"`, `"Couldn't regenerate verification value"`, `"Couldn't remove domain"`, `"Couldn't create API key"`, `"Couldn't revoke API key"`). Successful action handlers clear `actionError` before they refetch; the alert also exposes a **Dismiss** button (`aria-label="Dismiss action error"`).
-- **`reloadFailedAfterAction`** — when an action succeeds but the follow-up list refetch fails (transient 5xx, token expiry mid-flight, network glitch), the container surfaces a softer **warning** Alert titled "Couldn't refresh the list" (`data-testid="workspace-integrations-reload-failed"`) with copy "Action succeeded, but we couldn't refresh the list. Some rows may be out of date until you retry." and a Retry button. **The destructive "Couldn't load integrations" alert is NEVER shown for a post-action refetch failure** — the action did succeed and the page is not broken.
+- **`reloadFailedAfterAction`** — when an action succeeds but the follow-up list refetch fails (transient 5xx, token expiry mid-flight, network glitch), the container surfaces a softer **warning** Alert titled "Couldn't refresh the list" (`data-testid="workspace-integrations-reload-failed"`) with copy "Action succeeded, but we couldn't refresh the list. Some rows may be out of date until you retry." and a Retry button. **The destructive "Couldn’t load integrations" alert is NEVER shown for a post-action refetch failure** — the action did succeed and the page is not broken.
 
 Status-code → user-facing copy mapping for action errors (`getIntegrationsActionErrorMessage`):
 
@@ -877,4 +877,46 @@ The path-encoding helper `buildOnboardingRedirectTarget(currentPathWithQuery)`:
 - FE-XAPP-BUG-001 / BUG-LDS-2 cross-app handoff URL: a CMS Console deep link sends the user to `http://localhost:3100/dashboard/apps?workspace=<slug>` to switch active workspace. Without query-string preservation the `?workspace=<slug>` param would be dropped and the post-onboarding redirect would lose the cross-app handoff hint. With preservation, the user lands on `/dashboard/apps?workspace=<slug>` after onboarding and the auth-app workspace-handoff sync runs as designed.
 
 Regression coverage: `AuthDashboardShell.integration.test.tsx > workspace guard (BUG-AUTH-9)` — 6 tests covering: empty-workspaces redirect target + path encoding; role=status fallback markup; non-empty workspaces does NOT redirect; `isLoading === true` does NOT redirect; **query string `?tab=overview` is preserved end-to-end (Codex P2 follow-up)**; **FE-XAPP-BUG-001 cross-app `?workspace=<slug>` is preserved end-to-end (Codex P2 follow-up)**.
+
+### Workspace-invite mail dispatch + Resend affordance (MAIL-6, 2026-06-03)
+
+`CreateInviteForm` is now MAIL-5-aware: after the backend successfully creates an invite AND fires the dispatch side effect, the success Alert renders localized copy that names the recipient address and the invite expiry date. A "Resend invite" button bound to the just-created `inviteId` re-dispatches the mail. The Copy-link affordance is preserved alongside email for the "didn't arrive" fallback.
+
+**Why no separate "Pending invites" list page.** Plan §10.1 explicitly allowed extending the create-invite page instead of building a list surface. The accounts-service does not (yet) expose `accounts.invites.list`; the resend handler accepts an `inviteId` only. The lean path keeps MAIL-6 strictly within the auth-app + `EMAIL.md` runbook scope and closes the DoD ("operator can resend a pending invite from the auth-app UI"). A future story can add a dedicated pending-invites page when listing becomes a product need.
+
+What the form does on success:
+
+1. Stores the `inviteId`, normalized `email`, `expiresAt` ISO, and a best-effort `emailAttempts` floor of `1` in state. The new `WorkspaceInviteCreateResult` shape returns the inviteId (`id` field) — the form keeps reading the existing field, no SDK addition required.
+2. Renders `<Alert title={tCreateSuccess("title")} description={tCreateSuccess("body", { email, expiresAt })}>`. `expiresAt` is run through `Intl.DateTimeFormat(useLocale(), { dateStyle: 'long' })` so the date follows the user's locale; a hostile / unparseable upstream value falls back to the raw ISO string (proven by a regression test).
+3. Renders the Lumia `Button` "Resend invite" bound to `accountsClient.resendWorkspaceInvite(workspaceId, inviteId)`. The button is `aria-describedby="invite-resend-hint"` and the hint paragraph carries `tResend("confirmHint")` — "Sending will invalidate the previous link." — so the operator knows the rotated-on-resend invariant before clicking.
+4. While the request is in-flight, the button label flips to `tResend("buttonSending")` ("Resending…") and the button is `disabled`. Success → inline `<Alert variant="success">` with `tResend("success")` ("Invitation re-sent. The previous link has been invalidated."). Failure → inline `<Alert variant="error">` with one of six closed-set localized messages.
+
+**Closed-set backend → localized copy mapping (auth.invite.resend.errors.*).**
+
+| Backend `error.code` | HTTP | i18n key |
+|---|---:|---|
+| `RATE_LIMITED` | 429 | `rateLimited` |
+| `INVALID_STATE` | 409 | `notPending` |
+| `GONE` | 410 | `expired` |
+| `NOT_FOUND` | 404 | `notFound` |
+| `FORBIDDEN` / `FORBIDDEN_ACTOR_KIND` | 403 | `forbidden` |
+| (anything else, network, parse) | * | `generic` |
+
+The form NEVER consumes the backend's `error.message` string. Hostile / unknown codes (`INTERNAL_ERROR`, `"boom"`, undefined) fall through to the generic copy. Defense-in-depth verified by tests asserting upstream `"Access denied"`, `"boom"`, `"Too many resend attempts"` strings NEVER reach the DOM.
+
+**Rotated-token-no-leak invariant.** The resend handler in `xynes-accounts-service` rotates the invite token on every dispatch (success AND failure) per the security-positive design choice captured in MAIL-5's verification block. The new token never crosses the wire to the FE — the SDK's `WorkspaceInviteResendResult` deliberately omits `token` / `inviteUrl`. The form's displayed `state.inviteUrl` (the original token) is now a dead link after a successful resend; the success Alert copy explicitly tells the operator this. Regression-guarded by a hostile-upstream test that injects `rotatedToken` and `newInviteUrl` into the resend response payload — the SDK normalizer drops them and the DOM never contains the leak markers.
+
+**i18n.** New catalog keys in `messages/en-US/auth.invite.json`:
+
+- `create.success.{title,body,copyLinkSecondary}` — success Alert + Copy-link helper.
+- `resend.{button,buttonSending,success,confirmHint}` — the affordance.
+- `resend.errors.{rateLimited,notPending,expired,notFound,forbidden,generic}` — closed-set mapping.
+
+Translator metadata sidecars in `messages/en-US/auth.invite.meta.json` document the source backend code for every error key, the ICU placeholders in the body (`{email}`, `{expiresAt}`), and the security rationale ("the previous link has been invalidated" clause is REQUIRED). Pseudo-locale (`en-XA`) regenerated via `pnpm generate:pseudo` — placeholder integrity verified (`{email}` and `{expiresAt}` are NOT pseudo-localized).
+
+**SDK addition.** `@xynes/auth-sdk` gained `WorkspaceInviteResendResult` type + `AccountsClient.resendWorkspaceInvite(workspaceId, inviteId)` method. The result is normalized with a documented-keys-only allowlist (`inviteId`, `emailAttempts`, `emailSentAt`, `lastEmailErrorCode`) — hostile fields like `rotatedToken` / `keyHash` are dropped before they reach the FE. 7 new SDK tests cover: happy-path POST, URL encoding to prevent injection, malformed payload → documented-keys-only fallback, fallback inviteId when upstream omits it, RATE_LIMITED envelope forwarding, AuthSessionMissingError on null access token, and workspaceId/inviteId trimming.
+
+**Test coverage.** `CreateInviteForm.integration.test.tsx` gained 11 net new tests under a "MAIL-6 — Resend invite affordance" describe block: renders the affordance + confirm hint + secondary copy; calls POST `/workspaces/{wsId}/invites/{inviteId}/resend` with the correct body and shows the localized success alert; in-flight button label flip + disabled state; the 5 closed-set error code mappings + the unknown-code generic fallback; the rotated-token-no-leak security guard; `formatExpiresAt` happy path (en-US `Intl.DateTimeFormat` long date) + fallback when the ISO is unparseable. Total file count: 18 tests / 1 file (was 7 / 1 before MAIL-6).
+
+**Ops runbook.** Cross-link to [`xynes-infra/infra/release/EMAIL.md`](../../../xynes/xynes-infra/infra/release/EMAIL.md) for per-env Resend wiring, DKIM/SPF/DMARC records, the local-dev Inbucket smoke, the hosted smoke gate (DNS / secret backend / live dispatch / rotate-on-resend / redaction sweep), rotation cadence, and troubleshooting.
 

@@ -23,10 +23,32 @@
     "length": "Shown when the value is outside the allowed length range. The fixed numbers reflect the gateway contract; do not translate them as words."
   },
   "create": {
-    "_use": "BUG-AUTH-8: Backend-driven error messages surfaced inside CreateInviteForm when the accounts-service rejects the request with a closed-set code.",
+    "_use": "BUG-AUTH-8: Backend-driven error messages surfaced inside CreateInviteForm when the accounts-service rejects the request with a closed-set code. MAIL-6 (2026-06-03): adds success-state copy reflecting that the backend now actually dispatches the invitation by email.",
+    "success": {
+      "_use": "Rendered after the accounts-service accepts the invite create AND the gateway returns a 200. Copy reflects MAIL-5 dispatch — the backend mailer fires after the row insert. The Copy-link affordance is preserved alongside the email for the 'didn't arrive' fallback.",
+      "title": "Title of the success Alert. Keep short.",
+      "body": "Body of the success Alert. ICU placeholders: {email} is the invitee address (already lowercased + trimmed by the form); {expiresAt} is a pre-formatted locale-aware date string from the form. Do not split the placeholders across sentences.",
+      "copyLinkSecondary": "Helper text shown next to the Copy-link button after success. Acknowledges that the email may not arrive (spam, deliverability) without alarming the user."
+    },
     "errors": {
       "selfInvite": "Shown when the workspace owner submits their own email address. Backend code: SELF_INVITE (HTTP 400). Keep the copy short and corrective; do not lecture the user.",
       "alreadyMember": "Shown when the invited address already has an active membership in this workspace. Backend code: ALREADY_MEMBER (HTTP 400). Do not name the existing member; the UI only surfaces the rejection."
+    }
+  },
+  "resend": {
+    "_use": "MAIL-6 (2026-06-03): copy for the post-create Resend affordance. The accounts.invites.resend handler ROTATES the invite token on every resend (success AND failure) — the previous emailed link dies regardless. The UI must communicate this clearly so the operator does not accidentally invalidate a working link they were about to share manually.",
+    "button": "Primary CTA label for the Resend button. Keep short.",
+    "buttonSending": "Label rendered while the resend request is in-flight. Use a present-continuous form.",
+    "success": "Inline alert shown after a successful resend. The 'previous link has been invalidated' clause is REQUIRED — it tells the operator that any copied link they had open is now dead.",
+    "confirmHint": "Helper text shown BELOW the resend button BEFORE click. Mirrors the post-resend success copy so the operator can decide to resend or to copy the existing link first.",
+    "errors": {
+      "_use": "Closed-set MailerError / DomainError code → localized copy. Hostile / unknown codes fall back to 'generic'. NEVER echo provider error text — keys map by code only.",
+      "rateLimited": "Backend code: RATE_LIMITED (HTTP 429). Triggered when email_attempts >= MAIL_RESEND_MAX_ATTEMPTS (default 5).",
+      "notPending": "Backend code: INVALID_STATE (HTTP 409). The invite has been accepted, cancelled, or expired since creation.",
+      "expired": "Backend code: GONE (HTTP 410). The invite's expires_at has passed.",
+      "notFound": "Backend code: NOT_FOUND (HTTP 404). Either truly missing OR a cross-workspace probe — both surface the same envelope (no enumeration oracle).",
+      "forbidden": "Backend codes: FORBIDDEN / FORBIDDEN_ACTOR_KIND (HTTP 403). Authz denial OR an api_key actor tried to resend.",
+      "generic": "Fallback for unknown closed-set codes and unexpected failures (network, timeout, 5xx). Defense in depth."
     }
   }
 }
