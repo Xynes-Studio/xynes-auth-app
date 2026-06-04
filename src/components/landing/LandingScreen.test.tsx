@@ -22,6 +22,7 @@ describe("LP-AUTH <LandingScreen>", () => {
     renderScreen();
     const heading = screen.getByRole("heading", { level: 1 });
     expect(heading).toHaveTextContent(enUsLanding.hero.headline);
+    expect(heading).toHaveTextContent("Xynes Workspace Admin");
     // There must be exactly one <h1> on the page (a11y invariant).
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
@@ -156,6 +157,11 @@ describe("LP-AUTH <LandingScreen>", () => {
     renderScreen();
     const footer = screen.getByRole("contentinfo");
     const inFooter = within(footer);
+    expect(
+      inFooter.getByRole("link", {
+        name: new RegExp(enUsLanding.footer.columns.product.cmsConsole, "i"),
+      }),
+    ).toHaveAttribute("href", "http://localhost:3000");
     // Every column heading must be reachable as <h3>.
     for (const col of [
       enUsLanding.footer.columns.product.heading,

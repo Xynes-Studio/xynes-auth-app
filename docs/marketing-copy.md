@@ -21,38 +21,38 @@ When this file changes, run `pnpm generate:pseudo` and update the JSON catalogs 
 
 ## § Hero
 
-- **Headline:** "Sign in to Xynes."
-- **Sub-head:** "One account, every Xynes workspace and console — no second password, no extra setup."
+- **Headline:** "Xynes Workspace Admin"
+- **Sub-head:** "Manage the people, access, domains, and API keys that connect your team’s Xynes apps."
 - **Primary CTA:** "Sign in" → `/login`
 - **Secondary CTA:** "Create an account" → `/signup`
-- **Footnote:** "No credit card required. No tracking cookies."
+- **Footnote:** "Session cookies only. No tracking cookies."
 
 ## § Features (3 cards)
 
-### 1. Workspace-scoped access
+### 1. One Workspace, Clear Access
 
 - **Icon:** `shield-check`
-- **Headline:** "Workspace-scoped access"
-- **Body:** "Sign in once, switch workspaces without losing context. Permissions follow the workspace, not the user."
+- **Headline:** "One Workspace, Clear Access"
+- **Body:** "Invite teammates, switch between workspaces, and keep permissions tied to the place where work actually happens."
 
-### 2. Single sign-on across Xynes apps
+### 2. A Doorway To Every Xynes App
 
 - **Icon:** `globe`
-- **Headline:** "Single sign-on across Xynes apps"
-- **Body:** "Sign in here, land in the CMS, the storage console, or any future Xynes app without re-authenticating."
+- **Headline:** "A Doorway To Every Xynes App"
+- **Body:** "Start in Workspace Admin, then move into CMS Console and future Xynes apps with the same account and workspace context."
 
-### 3. Open source, audited
+### 3. Built In The Open
 
 - **Icon:** `code`
-- **Headline:** "Open source, audited"
-- **Body:** "Every line of the auth flow is open source. Every release ships with a published security policy and a third-party audit cadence."
+- **Headline:** "Built In The Open"
+- **Body:** "Review the auth app, SDK, and security policy in public repositories before your team depends on them."
 
 ## § Trust strip
 
 - **Repo:** `https://github.com/Xynes-Studio/xynes-auth-app`
 - **License:** `AGPL-3.0`
 - **Security:** `/SECURITY.md`
-- **Residency:** "Hosted in the European Union."
+- **Residency:** *(intentionally omitted until there is a canonical hosting-region source.)*
 
 ## § Footer columns
 
@@ -61,6 +61,7 @@ When this file changes, run `pnpm generate:pseudo` and update the JSON catalogs 
 - **Sign in** → `/login`
 - **Sign up** → `/signup`
 - **Forgot password** → `/forgot-password`
+- **CMS Console** → `NEXT_PUBLIC_CMS_CONSOLE_URL` when safe, otherwise local `http://localhost:3000` or production `https://cms.xynes.com` fallback
 
 ### Developers
 

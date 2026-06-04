@@ -10,6 +10,7 @@ import {
   LANDING_FOOTER_COLUMNS,
   LANDING_INTERNAL_LINKS,
   LANDING_TRUST,
+  buildCmsConsoleHref,
   buildFooterColumns,
 } from "@/lib/landing-copy";
 import enUsLanding from "../../messages/en-US/auth.landing.json";
@@ -46,6 +47,26 @@ describe("LP-AUTH landing-copy (structural)", () => {
     expect(LANDING_INTERNAL_LINKS.signup).toBe("/signup");
     expect(LANDING_INTERNAL_LINKS.forgotPassword).toBe("/forgot-password");
     expect(LANDING_INTERNAL_LINKS.security).toBe("/SECURITY.md");
+  });
+
+  it("builds a safe CMS Console link with localhost and production fallbacks", () => {
+    const original = process.env.NEXT_PUBLIC_CMS_CONSOLE_URL;
+    try {
+      delete process.env.NEXT_PUBLIC_CMS_CONSOLE_URL;
+      expect(buildCmsConsoleHref()).toBe("http://localhost:3000");
+
+      process.env.NEXT_PUBLIC_CMS_CONSOLE_URL = "https://cms.xynes.com///";
+      expect(buildCmsConsoleHref()).toBe("https://cms.xynes.com");
+
+      process.env.NEXT_PUBLIC_CMS_CONSOLE_URL = "javascript:alert(1)";
+      expect(buildCmsConsoleHref()).toBe("https://cms.xynes.com");
+    } finally {
+      if (original === undefined) {
+        delete process.env.NEXT_PUBLIC_CMS_CONSOLE_URL;
+      } else {
+        process.env.NEXT_PUBLIC_CMS_CONSOLE_URL = original;
+      }
+    }
   });
 
   it("uses an https GitHub URL for the OSS link", () => {
@@ -132,6 +153,8 @@ describe("LP-AUTH landing catalog parity", () => {
       expect(serialized).not.toMatch(/access_token/i);
       expect(serialized).not.toMatch(/api_key/i);
       expect(serialized).not.toMatch(/X-Amz-Signature/i);
+      expect(serialized).not.toMatch(/European Union/i);
+      expect(serialized).not.toMatch(/audit cadence/i);
     }
   });
 });
@@ -154,7 +177,14 @@ describe("buildFooterColumns", () => {
     }
     // Links must preserve the structural href + external flag.
     expect(cols[0].links[0].href).toBe("/login");
-    expect(cols[1].links[0].external).toBe(true);
+    expect(cols[0].links[3]).toEqual(
+      expect.objectContaining({
+        label: "translated:footer.columns.product.cmsConsole",
+        href: "http://localhost:3000",
+        external: true,
+        id: "footer-cms-console",
+      }),
+    );
   });
 
   it("preserves the structural href even if the translator returns a hostile string", () => {

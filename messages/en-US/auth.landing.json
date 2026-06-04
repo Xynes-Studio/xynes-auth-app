@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "Sign in to Xynes",
-    "description": "One account. Every Xynes workspace and console."
+    "title": "Xynes Workspace Admin",
+    "description": "Manage people, access, domains, and API keys across Xynes apps."
   },
   "nav": {
     "ariaLabel": "Primary",
@@ -10,31 +10,30 @@
     "signUp": "Sign up"
   },
   "hero": {
-    "ariaLabel": "Sign in to Xynes",
-    "headline": "Sign in to Xynes.",
-    "subhead": "One account, every Xynes workspace and console — no second password, no extra setup.",
+    "ariaLabel": "Xynes Workspace Admin",
+    "headline": "Xynes Workspace Admin",
+    "subhead": "Manage the people, access, domains, and API keys that connect your team’s Xynes apps.",
     "primaryCta": "Sign in",
     "secondaryCta": "Create an account",
-    "footnote": "No credit card required. No tracking cookies."
+    "footnote": "Session cookies only. No tracking cookies."
   },
   "features": {
-    "ariaLabel": "Why Xynes auth",
+    "ariaLabel": "What Workspace Admin does",
     "workspaceScoped": {
-      "headline": "Workspace-scoped access",
-      "body": "Sign in once, switch workspaces without losing context. Permissions follow the workspace, not the user."
+      "headline": "One Workspace, Clear Access",
+      "body": "Invite teammates, switch between workspaces, and keep permissions tied to the place where work actually happens."
     },
     "sso": {
-      "headline": "Single sign-on across Xynes apps",
-      "body": "Sign in here, land in the CMS, the storage console, or any future Xynes app without re-authenticating."
+      "headline": "A Doorway To Every Xynes App",
+      "body": "Start in Workspace Admin, then move into CMS Console and future Xynes apps with the same account and workspace context."
     },
     "openSource": {
-      "headline": "Open source, audited",
-      "body": "Every line of the auth flow is open source. Every release ships with a published security policy and a third-party audit cadence."
+      "headline": "Built In The Open",
+      "body": "Review the auth app, SDK, and security policy in public repositories before your team depends on them."
     }
   },
   "trust": {
-    "ariaLabel": "Trust and security",
-    "residency": "Hosted in the European Union."
+    "ariaLabel": "Trust and security"
   },
   "footer": {
     "ariaLabel": "Site footer",
@@ -44,7 +43,8 @@
         "heading": "Product",
         "signIn": "Sign in",
         "signUp": "Sign up",
-        "forgotPassword": "Forgot password"
+        "forgotPassword": "Forgot password",
+        "cmsConsole": "CMS Console"
       },
       "developers": {
         "heading": "Developers",

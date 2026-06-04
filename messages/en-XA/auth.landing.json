@@ -1,7 +1,7 @@
 {
   "meta": {
-    "title": "[SSiiggnn iinn ttoo XXyynneess]",
-    "description": "[OOnnee aaccccoouunntt. EEvveerryy XXyynneess wwoorrkkssppaaccee aanndd ccoonnssoollee.]"
+    "title": "[XXyynneess WWoorrkkssppaaccee AAddmmiinn]",
+    "description": "[MMaannaaggee ppeeooppllee, aacccceessss, ddoommaaiinnss, aanndd AAPPII kkeeyyss aaccrroossss XXyynneess aappppss.]"
   },
   "nav": {
     "ariaLabel": "[PPrriimmaarryy]",
@@ -10,31 +10,30 @@
     "signUp": "[SSiiggnn uupp]"
   },
   "hero": {
-    "ariaLabel": "[SSiiggnn iinn ttoo XXyynneess]",
-    "headline": "[SSiiggnn iinn ttoo XXyynneess.]",
-    "subhead": "[OOnnee aaccccoouunntt, eevveerryy XXyynneess wwoorrkkssppaaccee aanndd ccoonnssoollee — nnoo sseeccoonndd ppaasssswwoorrdd, nnoo eexxttrraa sseettuupp.]",
+    "ariaLabel": "[XXyynneess WWoorrkkssppaaccee AAddmmiinn]",
+    "headline": "[XXyynneess WWoorrkkssppaaccee AAddmmiinn]",
+    "subhead": "[MMaannaaggee tthhee ppeeooppllee, aacccceessss, ddoommaaiinnss, aanndd AAPPII kkeeyyss tthhaatt ccoonnnneecctt yyoouurr tteeaamm’ss XXyynneess aappppss.]",
     "primaryCta": "[SSiiggnn iinn]",
     "secondaryCta": "[CCrreeaattee aann aaccccoouunntt]",
-    "footnote": "[NNoo ccrreeddiitt ccaarrdd rreeqquuiirreedd. NNoo ttrraacckkiinngg ccooookkiieess.]"
+    "footnote": "[SSeessssiioonn ccooookkiieess oonnllyy. NNoo ttrraacckkiinngg ccooookkiieess.]"
   },
   "features": {
-    "ariaLabel": "[WWhhyy XXyynneess aauutthh]",
+    "ariaLabel": "[WWhhaatt WWoorrkkssppaaccee AAddmmiinn ddooeess]",
     "workspaceScoped": {
-      "headline": "[WWoorrkkssppaaccee-ssccooppeedd aacccceessss]",
-      "body": "[SSiiggnn iinn oonnccee, sswwiittcchh wwoorrkkssppaacceess wwiitthhoouutt lloossiinngg ccoonntteexxtt. PPeerrmmiissssiioonnss ffoollllooww tthhee wwoorrkkssppaaccee, nnoott tthhee uusseerr.]"
+      "headline": "[OOnnee WWoorrkkssppaaccee, CClleeaarr AAcccceessss]",
+      "body": "[IInnvviittee tteeaammmmaatteess, sswwiittcchh bbeettwweeeenn wwoorrkkssppaacceess, aanndd kkeeeepp ppeerrmmiissssiioonnss ttiieedd ttoo tthhee ppllaaccee wwhheerree wwoorrkk aaccttuuaallllyy hhaappppeennss.]"
     },
     "sso": {
-      "headline": "[SSiinnggllee ssiiggnn-oonn aaccrroossss XXyynneess aappppss]",
-      "body": "[SSiiggnn iinn hheerree, llaanndd iinn tthhee CCMMSS, tthhee ssttoorraaggee ccoonnssoollee, oorr aannyy ffuuttuurree XXyynneess aapppp wwiitthhoouutt rree-aauutthheennttiiccaattiinngg.]"
+      "headline": "[AA DDoooorrwwaayy TToo EEvveerryy XXyynneess AApppp]",
+      "body": "[SSttaarrtt iinn WWoorrkkssppaaccee AAddmmiinn, tthheenn mmoovvee iinnttoo CCMMSS CCoonnssoollee aanndd ffuuttuurree XXyynneess aappppss wwiitthh tthhee ssaammee aaccccoouunntt aanndd wwoorrkkssppaaccee ccoonntteexxtt.]"
     },
     "openSource": {
-      "headline": "[OOppeenn ssoouurrccee, aauuddiitteedd]",
-      "body": "[EEvveerryy lliinnee ooff tthhee aauutthh ffllooww iiss ooppeenn ssoouurrccee. EEvveerryy rreelleeaassee sshhiippss wwiitthh aa ppuubblliisshheedd sseeccuurriittyy ppoolliiccyy aanndd aa tthhiirrdd-ppaarrttyy aauuddiitt ccaaddeennccee.]"
+      "headline": "[BBuuiilltt IInn TThhee OOppeenn]",
+      "body": "[RReevviieeww tthhee aauutthh aapppp, SSDDKK, aanndd sseeccuurriittyy ppoolliiccyy iinn ppuubblliicc rreeppoossiittoorriieess bbeeffoorree yyoouurr tteeaamm ddeeppeennddss oonn tthheemm.]"
     }
   },
   "trust": {
-    "ariaLabel": "[TTrruusstt aanndd sseeccuurriittyy]",
-    "residency": "[HHoosstteedd iinn tthhee EEuurrooppeeaann UUnniioonn.]"
+    "ariaLabel": "[TTrruusstt aanndd sseeccuurriittyy]"
   },
   "footer": {
     "ariaLabel": "[SSiittee ffooootteerr]",
@@ -44,7 +43,8 @@
         "heading": "[PPrroodduucctt]",
         "signIn": "[SSiiggnn iinn]",
         "signUp": "[SSiiggnn uupp]",
-        "forgotPassword": "[FFoorrggoott ppaasssswwoorrdd]"
+        "forgotPassword": "[FFoorrggoott ppaasssswwoorrdd]",
+        "cmsConsole": "[CCMMSS CCoonnssoollee]"
       },
       "developers": {
         "heading": "[DDeevveellooppeerrss]",

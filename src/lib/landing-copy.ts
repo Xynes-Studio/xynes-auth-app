@@ -62,6 +62,32 @@ export const LANDING_COOKIE_POLICY_URL =
 /** Apex marketing site. The brand mark in the nav links here. */
 export const LANDING_BRAND_HREF = "https://xynes.com" as const;
 
+const CMS_CONSOLE_LOCAL_FALLBACK = "http://localhost:3000" as const;
+const CMS_CONSOLE_PRODUCTION_FALLBACK = "https://cms.xynes.com" as const;
+
+function normalizeSafeHttpUrl(value: string): string | null {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+    parsed.search = "";
+    parsed.hash = "";
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    return null;
+  }
+}
+
+export function buildCmsConsoleHref(): string {
+  const raw = process.env.NEXT_PUBLIC_CMS_CONSOLE_URL?.trim();
+  if (!raw) {
+    return CMS_CONSOLE_LOCAL_FALLBACK;
+  }
+  return normalizeSafeHttpUrl(raw) ?? CMS_CONSOLE_PRODUCTION_FALLBACK;
+}
+
 /** Internal auth-app destinations. */
 export const LANDING_INTERNAL_LINKS = Object.freeze({
   login: "/login",
@@ -130,7 +156,7 @@ export type LandingFooterColumnSpec = Readonly<{
     Readonly<{
       /** i18n key under `auth.landing.footer.columns.<col>`. */
       labelKey: string;
-      href: string;
+      href: string | { kind: "cmsConsole" };
       external?: boolean;
       /** Optional analytics-friendly id. */
       id?: string;
@@ -157,6 +183,12 @@ export const LANDING_FOOTER_COLUMNS: ReadonlyArray<LandingFooterColumnSpec> =
           labelKey: "footer.columns.product.forgotPassword",
           href: LANDING_INTERNAL_LINKS.forgotPassword,
           id: "footer-forgot",
+        } as const),
+        Object.freeze({
+          labelKey: "footer.columns.product.cmsConsole",
+          href: { kind: "cmsConsole" } as const,
+          external: true,
+          id: "footer-cms-console",
         } as const),
       ] as const),
     } as const),
@@ -236,7 +268,8 @@ export function buildFooterColumns(
     heading: translate(col.headingKey),
     links: col.links.map((link) => ({
       label: translate(link.labelKey),
-      href: link.href,
+      href:
+        typeof link.href === "string" ? link.href : buildCmsConsoleHref(),
       external: link.external,
       id: link.id,
     })),
