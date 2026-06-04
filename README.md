@@ -66,6 +66,34 @@ This is a Next.js 15 application that serves as the centralized authentication h
 - [x] Validation aligned with backend password constraints
 - [x] Tier 1 + Tier 2 coverage for new flows
 
+### LP-AUTH: Public Landing Page ✅
+
+- [x] Public landing splash at `/` for visitors who deep-link / bookmark `auth.xynes.com/`
+- [x] Already-authenticated visitors are server-side redirected to `/dashboard/apps` (or their validated `?redirect=` target)
+- [x] Hero + 3 feature cards + trust strip + 4-column footer + non-blocking cookie disclosure
+- [x] Lumia DS marketing primitives only (no inline custom marketing components)
+- [x] Full i18n catalog `auth.landing.*` + en-XA pseudo-locale
+- [x] `SECURITY.md` repo-root + mirrored at `public/SECURITY.md` (linked from the trust strip)
+- [x] No third-party analytics, no client-side data fetching, no login form on `/`
+- [x] All copy localized; no hard-coded strings; allowed-redirect-domain validation re-used
+
+### Public Routes
+
+The middleware in `src/middleware.ts` does NOT enforce auth on these routes — they are reachable without a valid session:
+
+| Route                | Owner                                | Purpose                                         |
+| -------------------- | ------------------------------------ | ----------------------------------------------- |
+| `/`                  | `src/app/page.tsx`                   | LP-AUTH landing splash                          |
+| `/login`             | `src/app/login/page.tsx`             | Email/password + OAuth sign-in                  |
+| `/signup`            | `src/app/signup/page.tsx`            | Account creation                                |
+| `/forgot-password`   | `src/app/forgot-password/page.tsx`   | Password-reset request                          |
+| `/reset-password`    | `src/app/reset-password/page.tsx`    | Password-reset completion                       |
+| `/callback`          | `src/app/callback/route.ts`          | OAuth callback (server-side exchange)           |
+| `/callback/client`   | `src/app/callback/client/page.tsx`   | OAuth callback (client-side implicit flow)     |
+| `/verify-email`      | `src/app/verify-email/page.tsx`      | Email verification                              |
+| `/invite/[token]`    | `src/app/invite/[token]/page.tsx`    | Invite-link entry point                         |
+| `/SECURITY.md`       | `public/SECURITY.md`                 | Static security policy (mirrors repo-root copy) |
+
 ## Getting Started
 
 ### Prerequisites

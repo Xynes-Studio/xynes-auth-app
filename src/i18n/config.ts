@@ -5,6 +5,7 @@ import enUsErrors from "../../messages/en-US/auth.errors.json";
 import enUsForgot from "../../messages/en-US/auth.forgot-password.json";
 import enUsIntegrations from "../../messages/en-US/auth.integrations.json";
 import enUsInvite from "../../messages/en-US/auth.invite.json";
+import enUsLanding from "../../messages/en-US/auth.landing.json";
 import enUsLogin from "../../messages/en-US/auth.login.json";
 import enUsOnboarding from "../../messages/en-US/auth.onboarding.json";
 import enUsProfile from "../../messages/en-US/auth.profile.json";
@@ -17,6 +18,7 @@ import enXaErrors from "../../messages/en-XA/auth.errors.json";
 import enXaForgot from "../../messages/en-XA/auth.forgot-password.json";
 import enXaIntegrations from "../../messages/en-XA/auth.integrations.json";
 import enXaInvite from "../../messages/en-XA/auth.invite.json";
+import enXaLanding from "../../messages/en-XA/auth.landing.json";
 import enXaLogin from "../../messages/en-XA/auth.login.json";
 import enXaOnboarding from "../../messages/en-XA/auth.onboarding.json";
 import enXaProfile from "../../messages/en-XA/auth.profile.json";
@@ -41,6 +43,7 @@ export type AuthMessages = {
     forgotPassword: typeof enUsForgot;
     resetPassword: typeof enUsReset;
     invite: typeof enUsInvite;
+    landing: typeof enUsLanding;
     onboarding: typeof enUsOnboarding;
     profile: typeof enUsProfile;
     integrations: typeof enUsIntegrations;
@@ -69,6 +72,7 @@ const AUTH_MESSAGES_BY_LOCALE: Record<Locale, AuthMessages> = {
       forgotPassword: enUsForgot,
       resetPassword: enUsReset,
       invite: enUsInvite,
+      landing: enUsLanding,
       onboarding: enUsOnboarding,
       profile: enUsProfile,
       integrations: enUsIntegrations,
@@ -85,6 +89,7 @@ const AUTH_MESSAGES_BY_LOCALE: Record<Locale, AuthMessages> = {
       forgotPassword: enXaForgot,
       resetPassword: enXaReset,
       invite: enXaInvite,
+      landing: enXaLanding,
       onboarding: enXaOnboarding,
       profile: enXaProfile,
       integrations: enXaIntegrations,

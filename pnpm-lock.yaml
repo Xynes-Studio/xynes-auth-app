@@ -28,6 +28,9 @@ importers:
       '@lumia-ui/layout':
         specifier: link:../lumia-ds/packages/layout
         version: link:../lumia-ds/packages/layout
+      '@lumia-ui/marketing':
+        specifier: link:../lumia-ds/packages/marketing
+        version: link:../lumia-ds/packages/marketing
       '@supabase/ssr':
         specifier: ^0.8.0
         version: 0.8.0(@supabase/supabase-js@2.89.0)
@@ -546,6 +549,40 @@ importers:
         specifier: link:../components
         version: link:../components
     devDependencies:
+      '@types/react':
+        specifier: ^18.3.12
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.1
+        version: 18.3.7(@types/react@18.3.28)
+      '@vitest/coverage-v8':
+        specifier: ^2.1.9
+        version: 2.1.9(vitest@2.1.9(@types/node@22.19.3)(happy-dom@20.0.11)(jsdom@25.0.1)(terser@5.46.0))
+      happy-dom:
+        specifier: ^20.0.10
+        version: 20.0.11
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(@swc/core@1.15.33)(jiti@1.21.7)(postcss@8.5.6)(typescript@5.9.3)
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@types/node@22.19.3)(happy-dom@20.0.11)(jsdom@25.0.1)(terser@5.46.0)
+
+  ../lumia-ds/packages/marketing:
+    dependencies:
+      '@lumia-ui/components':
+        specifier: link:../components
+        version: link:../components
+    devDependencies:
+      '@testing-library/react':
+        specifier: ^16.3.0
+        version: 16.3.1(@testing-library/dom@10.4.1)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@types/react':
         specifier: ^18.3.12
         version: 18.3.28
@@ -8382,11 +8419,11 @@ snapshots:
       lexical: 0.38.2
       yjs: 13.6.29
 
-  '@mdx-js/react@3.1.1(@types/react@18.3.28)(react@18.3.1)':
+  '@mdx-js/react@3.1.1(@types/react@18.3.28)(react@19.2.3)':
     dependencies:
       '@types/mdx': 2.0.13
       '@types/react': 18.3.28
-      react: 18.3.1
+      react: 19.2.3
 
   '@napi-rs/wasm-runtime@0.2.12':
     dependencies:
@@ -9084,12 +9121,12 @@ snapshots:
 
   '@storybook/addon-docs@8.6.14(@types/react@18.3.28)(storybook@8.6.15(prettier@3.8.1))':
     dependencies:
-      '@mdx-js/react': 3.1.1(@types/react@18.3.28)(react@18.3.1)
-      '@storybook/blocks': 8.6.14(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.15(prettier@3.8.1))
+      '@mdx-js/react': 3.1.1(@types/react@18.3.28)(react@19.2.3)
+      '@storybook/blocks': 8.6.14(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(storybook@8.6.15(prettier@3.8.1))
       '@storybook/csf-plugin': 8.6.14(storybook@8.6.15(prettier@3.8.1))
-      '@storybook/react-dom-shim': 8.6.14(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.15(prettier@3.8.1))
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
+      '@storybook/react-dom-shim': 8.6.14(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(storybook@8.6.15(prettier@3.8.1))
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
       storybook: 8.6.15(prettier@3.8.1)
       ts-dedent: 2.2.0
     transitivePeerDependencies:
@@ -9151,14 +9188,14 @@ snapshots:
       memoizerific: 1.11.3
       storybook: 8.6.15(prettier@3.8.1)
 
-  '@storybook/blocks@8.6.14(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.15(prettier@3.8.1))':
+  '@storybook/blocks@8.6.14(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(storybook@8.6.15(prettier@3.8.1))':
     dependencies:
-      '@storybook/icons': 1.6.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@storybook/icons': 1.6.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       storybook: 8.6.15(prettier@3.8.1)
       ts-dedent: 2.2.0
     optionalDependencies:
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
 
   '@storybook/builder-vite@8.6.15(storybook@8.6.15(prettier@3.8.1))(vite@6.4.1(@types/node@22.19.3)(jiti@1.21.7)(terser@5.46.0))':
     dependencies:
@@ -9250,10 +9287,10 @@ snapshots:
 
   '@storybook/global@5.0.0': {}
 
-  '@storybook/icons@1.6.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@storybook/icons@1.6.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
-      react: 18.3.1
-      react-dom: 18.3.1(react@18.3.1)
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
 
   '@storybook/instrumenter@8.6.14(storybook@8.6.15(prettier@3.8.1))':
     dependencies:
@@ -9327,6 +9364,12 @@ snapshots:
     dependencies:
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
+      storybook: 8.6.15(prettier@3.8.1)
+
+  '@storybook/react-dom-shim@8.6.14(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(storybook@8.6.15(prettier@3.8.1))':
+    dependencies:
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
       storybook: 8.6.15(prettier@3.8.1)
 
   '@storybook/react-dom-shim@8.6.15(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(storybook@8.6.15(prettier@3.8.1))':

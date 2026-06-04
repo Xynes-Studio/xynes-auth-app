@@ -1,0 +1,73 @@
+{
+  "meta": {
+    "title": "Sign in to Xynes",
+    "description": "One account. Every Xynes workspace and console."
+  },
+  "nav": {
+    "ariaLabel": "Primary",
+    "brandLabel": "xynes home",
+    "signIn": "Sign in",
+    "signUp": "Sign up"
+  },
+  "hero": {
+    "ariaLabel": "Sign in to Xynes",
+    "headline": "Sign in to Xynes.",
+    "subhead": "One account, every Xynes workspace and console — no second password, no extra setup.",
+    "primaryCta": "Sign in",
+    "secondaryCta": "Create an account",
+    "footnote": "No credit card required. No tracking cookies."
+  },
+  "features": {
+    "ariaLabel": "Why Xynes auth",
+    "workspaceScoped": {
+      "headline": "Workspace-scoped access",
+      "body": "Sign in once, switch workspaces without losing context. Permissions follow the workspace, not the user."
+    },
+    "sso": {
+      "headline": "Single sign-on across Xynes apps",
+      "body": "Sign in here, land in the CMS, the storage console, or any future Xynes app without re-authenticating."
+    },
+    "openSource": {
+      "headline": "Open source, audited",
+      "body": "Every line of the auth flow is open source. Every release ships with a published security policy and a third-party audit cadence."
+    }
+  },
+  "trust": {
+    "ariaLabel": "Trust and security",
+    "residency": "Hosted in the European Union."
+  },
+  "footer": {
+    "ariaLabel": "Site footer",
+    "copyright": "© 2026 Xynes Studio. Built in the open.",
+    "columns": {
+      "product": {
+        "heading": "Product",
+        "signIn": "Sign in",
+        "signUp": "Sign up",
+        "forgotPassword": "Forgot password"
+      },
+      "developers": {
+        "heading": "Developers",
+        "authSdk": "auth-sdk on GitHub",
+        "docs": "Docs"
+      },
+      "company": {
+        "heading": "Company",
+        "website": "xynes.com",
+        "status": "Status"
+      },
+      "legal": {
+        "heading": "Legal",
+        "privacy": "Privacy",
+        "terms": "Terms",
+        "cookies": "Cookies",
+        "security": "Security"
+      }
+    }
+  },
+  "cookie": {
+    "message": "We use a session cookie for sign-in. No tracking cookies.",
+    "policyLabel": "Cookie policy",
+    "dismissLabel": "Got it"
+  }
+}
