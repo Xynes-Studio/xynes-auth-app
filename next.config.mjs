@@ -15,6 +15,8 @@ const nextConfig = {
     "@lumia-ui/components",
     "@lumia-ui/forms",
     "@lumia-ui/icons",
+    "@lumia-ui/layout",
+    "@lumia-ui/marketing",
   ],
   // Allow cross-origin requests for OAuth callbacks
   async headers() {

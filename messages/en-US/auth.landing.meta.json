@@ -1,0 +1,90 @@
+{
+  "_meta": {
+    "description": "Translator-context sidecar for auth.landing. Covers the public landing page at `/` (LP-AUTH). The page is a one-screen splash visitors see when they deep-link / bookmark `https://auth.xynes.com/`.",
+    "audience": "First-time visitors landing on the auth-app root URL — most have arrived via a password manager, a bookmark, or a deep-link from another Xynes app.",
+    "tone": "Direct and confident. Avoid marketing fluff. Concrete verbs and concrete numbers only.",
+    "owners": ["xynes-front-end/xynes-auth-app"],
+    "security": "All copy renders as plain text via `next-intl` — never with `dangerouslySetInnerHTML`. CTAs land on `/login` and `/signup` (auth-internal). The `auth-sdk on GitHub` link is external. Translation values MUST NOT carry raw secrets, tokens, internal IDs, or stack traces."
+  },
+  "meta": {
+    "_use": "HTML `<title>` + `<meta name=\"description\">`. Visible in search results and browser tabs.",
+    "title": "Browser-tab title. Keep ≤ 60 characters after translation.",
+    "description": "Search-engine meta description. Keep ≤ 155 characters after translation."
+  },
+  "nav": {
+    "_use": "Top sticky nav rendered by `<MarketingNav>` from `@lumia-ui/marketing`.",
+    "ariaLabel": "Accessible label for the `<nav>` landmark. Defaults to `Primary` per LP-DS contract; translate as the screen-reader equivalent of \"main navigation\".",
+    "brandLabel": "Accessible label for the brand mark link in the nav. Reads to a screen reader as e.g. \"xynes home — link\".",
+    "signIn": "Primary CTA label. Lands on `/login`.",
+    "signUp": "Secondary CTA label. Lands on `/signup`."
+  },
+  "hero": {
+    "_use": "Hero block at the top of the page. The headline is the only `<h1>` on `/`.",
+    "ariaLabel": "Accessible label for the `<section>` landmark (used when the headline is rendered as a wordmark brand mark rather than text).",
+    "headline": "Primary headline. Should fit on one line at 1440 × 900 viewport.",
+    "subhead": "One-sentence positioning copy under the headline. Plain text; no rich content.",
+    "primaryCta": "Primary CTA — lands on `/login`. Use a verb (\"Sign in\" / \"Log in\").",
+    "secondaryCta": "Secondary CTA — lands on `/signup`. Use an active phrase that signals account creation.",
+    "footnote": "Small trust line under the CTA row. Keep neutral and factual; do not promise features the product does not have."
+  },
+  "features": {
+    "_use": "Three-column feature grid rendered by `<MarketingFeatureGrid columns={3}>`. Each card carries an icon + headline + 2-line body.",
+    "ariaLabel": "Accessible label for the `<section>` landmark when no visible heading is rendered.",
+    "workspaceScoped": {
+      "_use": "First card. Icon: shield-check. Speaks to the workspace-as-permission-boundary model.",
+      "headline": "2-3 words. \"Workspace-scoped access\" is the canonical phrasing.",
+      "body": "≤ 2 lines on desktop. Explain that switching workspaces preserves session and permissions follow the workspace."
+    },
+    "sso": {
+      "_use": "Second card. Icon: globe. Speaks to single sign-on across Xynes apps.",
+      "headline": "2-4 words. Should signal cross-app sign-in.",
+      "body": "≤ 2 lines on desktop. Mention concrete destinations (CMS, storage console) so the value is tangible."
+    },
+    "openSource": {
+      "_use": "Third card. Icon: code. Speaks to the open-source posture and the audit cadence.",
+      "headline": "2-3 words. \"Open source, audited\" is the canonical phrasing.",
+      "body": "≤ 2 lines on desktop. Mention both the OSS posture AND the audit cadence — they reinforce each other."
+    }
+  },
+  "trust": {
+    "_use": "Trust strip rendered by `<MarketingTrustStrip>`. Lives between the feature grid and the footer.",
+    "ariaLabel": "Accessible label for the `<aside>` landmark. Translate as the screen-reader equivalent of \"trust and security signals\".",
+    "residency": "One-line residency statement. Must reflect the actual hosting region. Keep neutral — do not invent compliance claims."
+  },
+  "footer": {
+    "_use": "Site footer rendered by `<MarketingFooter>` with 4 columns: Product / Developers / Company / Legal.",
+    "ariaLabel": "Accessible label for the `<footer>` landmark.",
+    "copyright": "Bottom-row copyright string. Keep year stable (manually updated in catalog) — do not interpolate the current year at runtime so all SSR replicas render the same string.",
+    "columns": {
+      "product": {
+        "heading": "Column heading rendered as `<h3>`.",
+        "signIn": "Link label — same destination as the hero primary CTA.",
+        "signUp": "Link label — same destination as the hero secondary CTA.",
+        "forgotPassword": "Link label — lands on `/forgot-password`."
+      },
+      "developers": {
+        "heading": "Column heading rendered as `<h3>`.",
+        "authSdk": "External link to the public auth-sdk repo on GitHub.",
+        "docs": "External link to the public docs site (https://docs.xynes.com)."
+      },
+      "company": {
+        "heading": "Column heading rendered as `<h3>`.",
+        "website": "External link to the apex marketing site (https://xynes.com).",
+        "status": "External link to the public status page (https://status.xynes.com)."
+      },
+      "legal": {
+        "heading": "Column heading rendered as `<h3>`.",
+        "privacy": "External link to https://xynes.com/legal/privacy. The legal copy itself lives on the apex; this page only links.",
+        "terms": "External link to https://xynes.com/legal/terms.",
+        "cookies": "External link to https://xynes.com/legal/cookies.",
+        "security": "Relative link to /SECURITY.md, served by the auth-app's public root."
+      }
+    }
+  },
+  "cookie": {
+    "_use": "Non-blocking sticky cookie disclosure rendered by `<CookieDisclosure>`. NOT a modal. Dismissal persists in `localStorage`, not in a cookie.",
+    "message": "Disclosure body. Must accurately describe the cookies the product actually sets. Today only a session cookie is set on sign-in.",
+    "policyLabel": "Link label that takes the visitor to the cookie policy page on the apex.",
+    "dismissLabel": "Button label that dismisses the disclosure. Translate as the screen-reader equivalent of \"acknowledge\"."
+  }
+}
