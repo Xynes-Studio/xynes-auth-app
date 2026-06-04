@@ -7,10 +7,14 @@ import enUsLanding from "../../../messages/en-US/auth.landing.json";
 afterEach(() => cleanup());
 
 describe("LP-AUTH <LandingScreen>", () => {
-  const renderScreen = (props?: { signupRedirect?: string }) =>
+  const renderScreen = (props?: {
+    postAuthRedirect?: string;
+    redirectIsExplicit?: boolean;
+  }) =>
     render(
       <LandingScreen
-        signupRedirect={props?.signupRedirect ?? "/dashboard/apps"}
+        postAuthRedirect={props?.postAuthRedirect ?? "/dashboard/apps"}
+        redirectIsExplicit={props?.redirectIsExplicit ?? false}
       />,
     );
 
@@ -47,8 +51,9 @@ describe("LP-AUTH <LandingScreen>", () => {
 
   it("renders the primary and secondary CTAs as anchors, not buttons", () => {
     renderScreen();
-    // Primary CTA → /login. There may be multiple "Sign in" labels (nav +
-    // hero + footer); we narrow to the one inside the hero <section>.
+    // Primary CTA → bare /login (no `?redirect=` query when the visitor did
+    // not supply an explicit redirect — appending the default destination
+    // would trip the login redirect-loop guard).
     const heroSection = screen
       .getByRole("heading", { level: 1 })
       .closest("section");
@@ -58,18 +63,62 @@ describe("LP-AUTH <LandingScreen>", () => {
       name: new RegExp(enUsLanding.hero.primaryCta, "i"),
     });
     expect(primaryCta).toHaveAttribute("href", "/login");
-    // Secondary CTA → /signup with the validated redirect param.
+    // Secondary CTA → bare /signup for the same reason.
     const secondaryCta = inHero.getByRole("link", {
       name: new RegExp(enUsLanding.hero.secondaryCta, "i"),
     });
-    expect(secondaryCta).toHaveAttribute(
-      "href",
-      "/signup?redirect=%2Fdashboard%2Fapps",
-    );
+    expect(secondaryCta).toHaveAttribute("href", "/signup");
   });
 
-  it("encodes the signupRedirect query parameter safely", () => {
-    renderScreen({ signupRedirect: "https://cms.xynes.com/dashboard?x=1" });
+  it("preserves an explicit redirect on BOTH sign-in AND sign-up CTAs (Codex P2 #1)", () => {
+    renderScreen({
+      postAuthRedirect: "https://cms.xynes.com/dashboard",
+      redirectIsExplicit: true,
+    });
+    const heroSection = screen
+      .getByRole("heading", { level: 1 })
+      .closest("section");
+    const inHero = within(heroSection as HTMLElement);
+    const encoded = encodeURIComponent("https://cms.xynes.com/dashboard");
+    // Sign-in CTA (primary) must now carry the validated deep link.
+    expect(
+      inHero.getByRole("link", {
+        name: new RegExp(enUsLanding.hero.primaryCta, "i"),
+      }),
+    ).toHaveAttribute("href", `/login?redirect=${encoded}`);
+    // Sign-up CTA (secondary) preserves it too.
+    expect(
+      inHero.getByRole("link", {
+        name: new RegExp(enUsLanding.hero.secondaryCta, "i"),
+      }),
+    ).toHaveAttribute("href", `/signup?redirect=${encoded}`);
+  });
+
+  it("preserves the same explicit redirect on the nav CTAs", () => {
+    renderScreen({
+      postAuthRedirect: "https://cms.xynes.com/dashboard",
+      redirectIsExplicit: true,
+    });
+    const nav = screen.getByRole("navigation", { name: /primary/i });
+    const inNav = within(nav);
+    const encoded = encodeURIComponent("https://cms.xynes.com/dashboard");
+    expect(
+      inNav.getByRole("link", {
+        name: new RegExp(enUsLanding.nav.signIn, "i"),
+      }),
+    ).toHaveAttribute("href", `/login?redirect=${encoded}`);
+    expect(
+      inNav.getByRole("link", {
+        name: new RegExp(enUsLanding.nav.signUp, "i"),
+      }),
+    ).toHaveAttribute("href", `/signup?redirect=${encoded}`);
+  });
+
+  it("encodes the postAuthRedirect query parameter safely", () => {
+    renderScreen({
+      postAuthRedirect: "https://cms.xynes.com/dashboard?x=1",
+      redirectIsExplicit: true,
+    });
     const heroSection = screen
       .getByRole("heading", { level: 1 })
       .closest("section");

@@ -33,7 +33,26 @@ vi.mock("@/lib/redirect", async () => {
   };
 });
 
-import Home from "@/app/page";
+// Mock the Next.js server-runtime headers/cookies helpers used by
+// `generateMetadata` so the locale-resolution path runs deterministically.
+const cookieGetMock = vi.fn<(name: string) => { value: string } | undefined>(
+  () => undefined,
+);
+const headerGetMock = vi.fn<(name: string) => string | null>(() => null);
+vi.mock("next/headers", () => ({
+  cookies: () =>
+    Promise.resolve({
+      get: (name: string) => cookieGetMock(name),
+    }),
+  headers: () =>
+    Promise.resolve({
+      get: (name: string) => headerGetMock(name),
+    }),
+}));
+
+import Home, { generateMetadata } from "@/app/page";
+import enUsLanding from "../../messages/en-US/auth.landing.json";
+import enXaLanding from "../../messages/en-XA/auth.landing.json";
 
 async function callPage(searchParams?: Record<string, string | string[]>) {
   const params: Record<string, string | string[]> = searchParams ?? {};
@@ -43,6 +62,10 @@ async function callPage(searchParams?: Record<string, string | string[]>) {
 beforeEach(() => {
   redirectMock.mockClear();
   getUserMock.mockReset();
+  cookieGetMock.mockReset();
+  headerGetMock.mockReset();
+  cookieGetMock.mockReturnValue(undefined);
+  headerGetMock.mockReturnValue(null);
 });
 
 describe("LP-AUTH `/` page (RSC)", () => {
@@ -66,48 +89,67 @@ describe("LP-AUTH `/` page (RSC)", () => {
       ).toBe("LandingScreen");
     });
 
-    it("forwards the default destination to LandingScreen when no redirect is supplied", async () => {
+    it("forwards the default destination + redirectIsExplicit=false when no redirect is supplied", async () => {
       const element = (await callPage()) as unknown as {
-        props: { signupRedirect: string };
+        props: { postAuthRedirect: string; redirectIsExplicit: boolean };
       };
-      expect(element.props.signupRedirect).toBe("/dashboard/apps");
+      expect(element.props.postAuthRedirect).toBe("/dashboard/apps");
+      expect(element.props.redirectIsExplicit).toBe(false);
     });
 
-    it("forwards an allowlisted ?redirect= to LandingScreen", async () => {
+    it("forwards an allowlisted ?redirect= AND flags it explicit (Codex P2 #1)", async () => {
       const element = (await callPage({
         redirect: "https://cms.xynes.com/dashboard",
-      })) as unknown as { props: { signupRedirect: string } };
-      expect(element.props.signupRedirect).toBe(
+      })) as unknown as {
+        props: { postAuthRedirect: string; redirectIsExplicit: boolean };
+      };
+      expect(element.props.postAuthRedirect).toBe(
         "https://cms.xynes.com/dashboard",
       );
+      expect(element.props.redirectIsExplicit).toBe(true);
     });
 
-    it("falls closed to the default destination for a hostile ?redirect=", async () => {
+    it("falls closed to the default destination for a hostile ?redirect= AND clears the explicit flag", async () => {
       const element = (await callPage({
         redirect: "javascript:alert(1)",
-      })) as unknown as { props: { signupRedirect: string } };
-      expect(element.props.signupRedirect).toBe("/dashboard/apps");
+      })) as unknown as {
+        props: { postAuthRedirect: string; redirectIsExplicit: boolean };
+      };
+      expect(element.props.postAuthRedirect).toBe("/dashboard/apps");
+      // Hostile inputs collapse to the default and MUST NOT be treated as
+      // explicit — otherwise the login CTA would carry
+      // `?redirect=/dashboard/apps` and trip the redirect-loop guard.
+      expect(element.props.redirectIsExplicit).toBe(false);
     });
 
     it("falls closed to the default destination for an unallowed external host", async () => {
       const element = (await callPage({
         redirect: "https://attacker.example.com/steal",
-      })) as unknown as { props: { signupRedirect: string } };
-      expect(element.props.signupRedirect).toBe("/dashboard/apps");
+      })) as unknown as {
+        props: { postAuthRedirect: string; redirectIsExplicit: boolean };
+      };
+      expect(element.props.postAuthRedirect).toBe("/dashboard/apps");
+      expect(element.props.redirectIsExplicit).toBe(false);
     });
 
     it("falls closed for a protocol-relative ?redirect=", async () => {
       const element = (await callPage({
         redirect: "//attacker.com/steal",
-      })) as unknown as { props: { signupRedirect: string } };
-      expect(element.props.signupRedirect).toBe("/dashboard/apps");
+      })) as unknown as {
+        props: { postAuthRedirect: string; redirectIsExplicit: boolean };
+      };
+      expect(element.props.postAuthRedirect).toBe("/dashboard/apps");
+      expect(element.props.redirectIsExplicit).toBe(false);
     });
 
     it("ignores an array-valued ?redirect= with all-empty entries", async () => {
       const element = (await callPage({
         redirect: ["", "  "],
-      })) as unknown as { props: { signupRedirect: string } };
-      expect(element.props.signupRedirect).toBe("/dashboard/apps");
+      })) as unknown as {
+        props: { postAuthRedirect: string; redirectIsExplicit: boolean };
+      };
+      expect(element.props.postAuthRedirect).toBe("/dashboard/apps");
+      expect(element.props.redirectIsExplicit).toBe(false);
     });
   });
 
@@ -134,6 +176,54 @@ describe("LP-AUTH `/` page (RSC)", () => {
       await expect(
         callPage({ redirect: "javascript:alert(1)" }),
       ).rejects.toThrow("__REDIRECT__:/dashboard/apps");
+    });
+  });
+
+  describe("generateMetadata (Codex P2 #2)", () => {
+    it("returns en-US localized title + description by default", async () => {
+      const metadata = await generateMetadata();
+      expect(metadata.title).toBe(enUsLanding.meta.title);
+      expect(metadata.description).toBe(enUsLanding.meta.description);
+    });
+
+    it("uses the en-XA pseudo-locale catalog when the cookie selects it", async () => {
+      cookieGetMock.mockImplementation((name: string) =>
+        name === "xynes_locale" ? { value: "en-XA" } : undefined,
+      );
+      const metadata = await generateMetadata();
+      expect(metadata.title).toBe(enXaLanding.meta.title);
+      expect(metadata.description).toBe(enXaLanding.meta.description);
+    });
+
+    it("falls closed to en-US for a hostile / unsupported cookie value", async () => {
+      // negotiateLocale is built to fail-closed on path-traversal style
+      // cookies (`../../etc/passwd`), `javascript:` URIs, etc.
+      cookieGetMock.mockImplementation((name: string) =>
+        name === "xynes_locale" ? { value: "../../etc/passwd" } : undefined,
+      );
+      const metadata = await generateMetadata();
+      expect(metadata.title).toBe(enUsLanding.meta.title);
+      expect(metadata.description).toBe(enUsLanding.meta.description);
+    });
+
+    it("honours `accept-language` when the cookie is absent", async () => {
+      headerGetMock.mockImplementation((name: string) =>
+        name === "accept-language" ? "en-XA,en;q=0.9" : null,
+      );
+      const metadata = await generateMetadata();
+      expect(metadata.title).toBe(enXaLanding.meta.title);
+    });
+
+    it("never leaks raw catalog key paths or secrets into metadata", async () => {
+      const metadata = await generateMetadata();
+      const serialized = JSON.stringify(metadata);
+      // The metadata MUST resolve to actual strings — never a literal
+      // catalog key path like `auth.landing.meta.title`.
+      expect(serialized).not.toMatch(/auth\.landing\.meta/);
+      // Same hostile-pattern sweep used by `src/i18n/config.test.ts`.
+      expect(serialized).not.toMatch(/xynes_live_/i);
+      expect(serialized).not.toMatch(/AKIA[A-Z0-9]+/);
+      expect(serialized).not.toMatch(/key_hash/i);
     });
   });
 });

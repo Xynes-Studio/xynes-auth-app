@@ -159,14 +159,21 @@ describe("buildFooterColumns", () => {
 
   it("preserves the structural href even if the translator returns a hostile string", () => {
     // Defense in depth: a hostile catalog (translator returns javascript:)
-    // must NEVER mutate the structural href.
+    // must NEVER mutate the structural href. We check the full
+    // dangerous-scheme triad here (javascript: / data: / vbscript:) plus
+    // protocol-relative URLs, matching the CodeQL `js/incomplete-url-scheme-check`
+    // requirement (alert #12 on the PR).
     const hostile = () => "javascript:alert(1)";
     const cols = buildFooterColumns(hostile);
     for (const col of cols) {
       for (const link of col.links) {
         // The structural href is the literal we control — never the
         // translator output.
-        expect(link.href.startsWith("javascript:")).toBe(false);
+        const href = link.href.toLowerCase().trim();
+        expect(href.startsWith("javascript:")).toBe(false);
+        expect(href.startsWith("data:")).toBe(false);
+        expect(href.startsWith("vbscript:")).toBe(false);
+        expect(href.startsWith("//")).toBe(false);
       }
     }
   });

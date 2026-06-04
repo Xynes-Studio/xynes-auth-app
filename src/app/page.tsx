@@ -1,14 +1,42 @@
 import type { Metadata } from "next";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { getAllowedRedirectDomains, getSafeRedirectUrl } from "@/lib/redirect";
 import { LandingScreen } from "@/components/landing/LandingScreen";
+import {
+  AUTH_LOCALE_COOKIE,
+  getAuthMessages,
+  resolveAuthLocale,
+} from "@/i18n/config";
 
-export const metadata: Metadata = {
-  title: "Sign in to Xynes",
-  description: "One account. Every Xynes workspace and console.",
-};
+/**
+ * Localized `<head>` metadata for the LP-AUTH landing page.
+ *
+ * Reuses the same locale-resolution path the app's root layout already runs
+ * (`AUTH_LOCALE_COOKIE` + `accept-language` → `resolveAuthLocale` →
+ * `getAuthMessages`) so the resolved metadata locale ALWAYS matches the
+ * locale rendered inside `<LandingScreen>`. Hostile / unsupported locale
+ * inputs collapse to `en-US` via `negotiateLocale`'s fail-closed branch — no
+ * unvalidated string drives this code path.
+ *
+ * Returning `Metadata` from `generateMetadata` is documented as Next.js's
+ * canonical way to localize `<title>` + `<meta name="description">` per
+ * request without flipping the page to a client component.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
+  const locale = resolveAuthLocale({
+    cookieLocale: cookieStore.get(AUTH_LOCALE_COOKIE)?.value,
+    acceptLanguage: headerList.get("accept-language"),
+  });
+  const messages = getAuthMessages(locale);
+  return {
+    title: messages.auth.landing.meta.title,
+    description: messages.auth.landing.meta.description,
+  };
+}
 
 /**
  * Public landing page (LP-AUTH).
@@ -25,9 +53,12 @@ export const metadata: Metadata = {
  *      lands on their dashboard.
  *
  *   2. Anonymous visitors see `<LandingScreen>`. The validated `?redirect=`
- *      query (if any) is forwarded into the signup CTA as
+ *      query (if any) is forwarded into BOTH the sign-in AND sign-up CTAs as
  *      `?redirect=<encoded>` so a returning visitor's intended destination
- *      survives the sign-up handshake.
+ *      survives the auth handshake. When no explicit redirect is supplied,
+ *      the CTAs go to bare `/login` / `/signup` and the auth pages apply
+ *      their own default destination (`/dashboard/apps`) — appending the
+ *      default explicitly would trip the login redirect-loop guard.
  *
  *   3. Hostile or unallowlisted `?redirect=` values fail closed to
  *      `/dashboard/apps` — same posture as `getSafeRedirectUrl` everywhere
@@ -87,6 +118,14 @@ export default async function Home({
         allowedDomains,
       )
     : DEFAULT_POST_AUTH_DESTINATION;
+  // `redirectIsExplicit` is true ONLY when the visitor supplied an
+  // allowlisted redirect that resolves to a non-default destination. We use
+  // it to decide whether the sign-in / sign-up CTAs should carry the
+  // `?redirect=` query — when the resolved value is the documented default
+  // (`/dashboard/apps`), appending the query is a no-op for the auth pages
+  // and would trip the login redirect-loop guard.
+  const redirectIsExplicit =
+    rawRedirect !== undefined && safeRedirect !== DEFAULT_POST_AUTH_DESTINATION;
 
   // Server-side auth check. When a session exists, skip the landing splash
   // and send the visitor straight to their dashboard (or to the validated
@@ -100,5 +139,10 @@ export default async function Home({
     redirect(safeRedirect);
   }
 
-  return <LandingScreen signupRedirect={safeRedirect} />;
+  return (
+    <LandingScreen
+      postAuthRedirect={safeRedirect}
+      redirectIsExplicit={redirectIsExplicit}
+    />
+  );
 }

@@ -39,19 +39,56 @@ import {
  *     itself, the RSC has already validated it via `getAllowedRedirectDomains`
  *     and forwards the validated value here so the CTAs preserve the intent.
  *
- * @param signupRedirect — Validated `?redirect=<url>` value (or `/dashboard/apps`
- *   if none was supplied). Always already-safe.
+ * @param postAuthRedirect — Validated `?redirect=<url>` value (or
+ *   `/dashboard/apps` if none was supplied). Always already-safe — the RSC has
+ *   run it through `getSafeRedirectUrl` against the allowed-domain allowlist
+ *   before passing it down.
+ * @param redirectIsExplicit — `true` when the visitor supplied an allowlisted
+ *   `?redirect=<url>` on `/` itself (we forward it to BOTH `/login` and
+ *   `/signup` CTAs so the cross-app deep link survives the auth handshake).
+ *   `false` when `postAuthRedirect` is the default `/dashboard/apps` (we omit
+ *   the `?redirect=` query so the login + signup pages use their own default
+ *   destination without an extra param, which keeps the login redirect-loop
+ *   guard from triggering on `?redirect=/dashboard/apps`).
  */
 export type LandingScreenProps = Readonly<{
-  signupRedirect: string;
+  postAuthRedirect: string;
+  redirectIsExplicit: boolean;
 }>;
 
 const FEATURE_ICON_SIZE_PX = 28;
 
-export function LandingScreen({ signupRedirect }: LandingScreenProps) {
+/**
+ * Compose an auth handshake URL. Only attaches a `redirect=` query when the
+ * caller had an explicit deep link — appending the default destination would
+ * pollute the URL with no behavioural difference (auth pages already default
+ * to `/dashboard/apps`) and could trip the login redirect-loop guard.
+ */
+function withRedirectQuery(
+  authPath: string,
+  redirect: string,
+  isExplicit: boolean,
+): string {
+  if (!isExplicit) return authPath;
+  return `${authPath}?redirect=${encodeURIComponent(redirect)}`;
+}
+
+export function LandingScreen({
+  postAuthRedirect,
+  redirectIsExplicit,
+}: LandingScreenProps) {
   const t = useTranslations("auth.landing");
 
-  const signupHref = `${LANDING_INTERNAL_LINKS.signup}?redirect=${encodeURIComponent(signupRedirect)}`;
+  const loginHref = withRedirectQuery(
+    LANDING_INTERNAL_LINKS.login,
+    postAuthRedirect,
+    redirectIsExplicit,
+  );
+  const signupHref = withRedirectQuery(
+    LANDING_INTERNAL_LINKS.signup,
+    postAuthRedirect,
+    redirectIsExplicit,
+  );
 
   return (
     <Flex direction="col" className="min-h-dvh w-full bg-background">
@@ -66,7 +103,7 @@ export function LandingScreen({ signupRedirect }: LandingScreenProps) {
           {
             id: "nav-signin",
             label: t("nav.signIn"),
-            href: LANDING_INTERNAL_LINKS.login,
+            href: loginHref,
             variant: "ghost",
           },
           {
@@ -86,7 +123,7 @@ export function LandingScreen({ signupRedirect }: LandingScreenProps) {
           primaryCta={{
             id: "hero-signin",
             label: t("hero.primaryCta"),
-            href: LANDING_INTERNAL_LINKS.login,
+            href: loginHref,
             variant: "primary",
           }}
           secondaryCta={{
