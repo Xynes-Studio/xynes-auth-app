@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -50,22 +50,69 @@ describe("LP-AUTH landing-copy (structural)", () => {
   });
 
   it("builds a safe CMS Console link with localhost and production fallbacks", () => {
-    const original = process.env.NEXT_PUBLIC_CMS_CONSOLE_URL;
     try {
-      delete process.env.NEXT_PUBLIC_CMS_CONSOLE_URL;
+      // Tier 3 (non-production fallback): both env vars unset → localhost.
+      vi.stubEnv("NEXT_PUBLIC_CMS_CONSOLE_URL", "");
+      vi.stubEnv("NEXT_PUBLIC_CONSOLE_URL", "");
       expect(buildCmsConsoleHref()).toBe("http://localhost:3000");
 
-      process.env.NEXT_PUBLIC_CMS_CONSOLE_URL = "https://cms.xynes.com///";
+      // Tier 1 hit: the explicit LP-AUTH override is honoured.
+      vi.stubEnv("NEXT_PUBLIC_CMS_CONSOLE_URL", "https://cms.xynes.com///");
       expect(buildCmsConsoleHref()).toBe("https://cms.xynes.com");
 
-      process.env.NEXT_PUBLIC_CMS_CONSOLE_URL = "javascript:alert(1)";
+      // Tier 1 falls through to Tier 2 when the explicit value is a
+      // hostile / non-http(s) scheme. The canonical var below must win.
+      vi.stubEnv("NEXT_PUBLIC_CMS_CONSOLE_URL", "javascript:alert(1)");
+      vi.stubEnv("NEXT_PUBLIC_CONSOLE_URL", "https://cms.staging.xynes.com");
+      expect(buildCmsConsoleHref()).toBe("https://cms.staging.xynes.com");
+
+      // Tier 1 falls all the way through to Tier 3 when both env vars are
+      // hostile (Codex P2 defense in depth — no scheme leak).
+      vi.stubEnv("NEXT_PUBLIC_CMS_CONSOLE_URL", "javascript:alert(1)");
+      vi.stubEnv("NEXT_PUBLIC_CONSOLE_URL", "data:text/html,evil");
+      vi.stubEnv("NODE_ENV", "production");
       expect(buildCmsConsoleHref()).toBe("https://cms.xynes.com");
     } finally {
-      if (original === undefined) {
-        delete process.env.NEXT_PUBLIC_CMS_CONSOLE_URL;
-      } else {
-        process.env.NEXT_PUBLIC_CMS_CONSOLE_URL = original;
-      }
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("falls back to NEXT_PUBLIC_CONSOLE_URL when the explicit override is unset (Codex P2)", () => {
+    // The auth-app's repo-wide convention is `NEXT_PUBLIC_CONSOLE_URL`
+    // (used by WorkspaceSwitcher, InvitePreview, login, invites,
+    // CreateWorkspaceForm, etc.). A hosted deployment that already sets
+    // the canonical var must NOT need a second `NEXT_PUBLIC_CMS_CONSOLE_URL`
+    // just to point the landing-page footer link at the right console.
+    try {
+      vi.stubEnv("NEXT_PUBLIC_CMS_CONSOLE_URL", "");
+      vi.stubEnv("NEXT_PUBLIC_CONSOLE_URL", "https://cms.xynes.com/");
+      expect(buildCmsConsoleHref()).toBe("https://cms.xynes.com");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("uses the production fallback when NODE_ENV=production and both env vars are unset (Codex P2)", () => {
+    // Closes the exact Codex P2 regression: hosted visitors must NEVER be
+    // sent to `http://localhost:3000` when the CMS console env vars are
+    // unset. The production literal is the only safe fallback.
+    try {
+      vi.stubEnv("NEXT_PUBLIC_CMS_CONSOLE_URL", "");
+      vi.stubEnv("NEXT_PUBLIC_CONSOLE_URL", "");
+      vi.stubEnv("NODE_ENV", "production");
+      expect(buildCmsConsoleHref()).toBe("https://cms.xynes.com");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("explicit NEXT_PUBLIC_CMS_CONSOLE_URL wins over canonical NEXT_PUBLIC_CONSOLE_URL", () => {
+    try {
+      vi.stubEnv("NEXT_PUBLIC_CMS_CONSOLE_URL", "https://cms.preview.xynes.com");
+      vi.stubEnv("NEXT_PUBLIC_CONSOLE_URL", "https://cms.xynes.com");
+      expect(buildCmsConsoleHref()).toBe("https://cms.preview.xynes.com");
+    } finally {
+      vi.unstubAllEnvs();
     }
   });
 

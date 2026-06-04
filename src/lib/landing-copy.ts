@@ -80,12 +80,60 @@ function normalizeSafeHttpUrl(value: string): string | null {
   }
 }
 
+/**
+ * Resolve the CMS Console origin for the footer cross-product link.
+ *
+ * Resolution order (highest precedence first):
+ *
+ *   1. `NEXT_PUBLIC_CMS_CONSOLE_URL` — LP-AUTH explicit override. Honoured
+ *      when set so an operator can point the landing page at a specific
+ *      CMS console deployment without touching the rest of the auth-app's
+ *      env contract.
+ *   2. `NEXT_PUBLIC_CONSOLE_URL` — the **canonical** repo-wide CMS console
+ *      env var. Used everywhere else in this repo (WorkspaceSwitcher,
+ *      InvitePreview, login/signup redirects, CreateWorkspaceForm). The
+ *      infra `with-env.mjs` mapping also populates this from the canonical
+ *      `CMS_CONSOLE_URL` infra env, so a properly-configured local dev
+ *      stack always sets it. Falling back to it here means a hosted
+ *      deployment that already sets `NEXT_PUBLIC_CONSOLE_URL` for the rest
+ *      of the auth-app does NOT need a separate `NEXT_PUBLIC_CMS_CONSOLE_URL`
+ *      just for the landing-page footer link.
+ *   3. Environment-aware fallback:
+ *        - In non-production (NODE_ENV !== "production") → `http://localhost:3000`
+ *          (the default `CMS_CONSOLE_PORT` per `xynes-front-end/infra/.env.example`).
+ *        - In production → `https://cms.xynes.com`. This avoids the
+ *          Codex P2 bug where a hosted visitor would be sent to their own
+ *          machine when the explicit env var is unset.
+ *
+ * In all cases the resolved string is run through `normalizeSafeHttpUrl`
+ * so a malformed or hostile-scheme value (e.g. `javascript:alert(1)`)
+ * never escapes into the rendered DOM — it falls through to the next
+ * tier of the resolution chain.
+ */
 export function buildCmsConsoleHref(): string {
-  const raw = process.env.NEXT_PUBLIC_CMS_CONSOLE_URL?.trim();
-  if (!raw) {
-    return CMS_CONSOLE_LOCAL_FALLBACK;
+  // Tier 1: LP-AUTH explicit override.
+  const explicit = process.env.NEXT_PUBLIC_CMS_CONSOLE_URL?.trim();
+  if (explicit) {
+    const normalized = normalizeSafeHttpUrl(explicit);
+    if (normalized) {
+      return normalized;
+    }
   }
-  return normalizeSafeHttpUrl(raw) ?? CMS_CONSOLE_PRODUCTION_FALLBACK;
+
+  // Tier 2: canonical repo-wide CMS console env var.
+  const canonical = process.env.NEXT_PUBLIC_CONSOLE_URL?.trim();
+  if (canonical) {
+    const normalized = normalizeSafeHttpUrl(canonical);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  // Tier 3: environment-aware fallback. Production must NEVER point at
+  // localhost — that would send visitors to their own machine.
+  return process.env.NODE_ENV === "production"
+    ? CMS_CONSOLE_PRODUCTION_FALLBACK
+    : CMS_CONSOLE_LOCAL_FALLBACK;
 }
 
 /** Internal auth-app destinations. */
