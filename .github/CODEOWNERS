@@ -1,0 +1,12 @@
+# Default reviewers for everything
+*                                          @REPLACE_WITH_PLATFORM_TEAM
+
+# Specific paths (uncomment what applies)
+# /src/lib/auth/                               @REPLACE_WITH_SECURITY_TEAM
+# /src/components/workspace/                   @REPLACE_WITH_PLATFORM_TEAM
+# /src/lib/integrations/                       @REPLACE_WITH_SECURITY_TEAM
+# /src/middleware.ts                           @REPLACE_WITH_SECURITY_TEAM
+# /src/i18n/                                   @REPLACE_WITH_PLATFORM_TEAM
+# /src/app/                                    @REPLACE_WITH_PLATFORM_TEAM
+# /src/components/                             @REPLACE_WITH_PLATFORM_TEAM
+# /.github/                                    @REPLACE_WITH_PLATFORM_TEAM
