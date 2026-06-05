@@ -1,12 +1,12 @@
 # Default reviewers for everything
-*                                          @REPLACE_WITH_PLATFORM_TEAM
+*                                          @archan96
 
 # Specific paths (uncomment what applies)
-# /src/lib/auth/                               @REPLACE_WITH_SECURITY_TEAM
-# /src/components/workspace/                   @REPLACE_WITH_PLATFORM_TEAM
-# /src/lib/integrations/                       @REPLACE_WITH_SECURITY_TEAM
-# /src/middleware.ts                           @REPLACE_WITH_SECURITY_TEAM
-# /src/i18n/                                   @REPLACE_WITH_PLATFORM_TEAM
-# /src/app/                                    @REPLACE_WITH_PLATFORM_TEAM
-# /src/components/                             @REPLACE_WITH_PLATFORM_TEAM
-# /.github/                                    @REPLACE_WITH_PLATFORM_TEAM
+# /src/lib/auth/                               @archan96
+# /src/components/workspace/                   @archan96
+# /src/lib/integrations/                       @archan96
+# /src/middleware.ts                           @archan96
+# /src/i18n/                                   @archan96
+# /src/app/                                    @archan96
+# /src/components/                             @archan96
+# /.github/                                    @archan96
