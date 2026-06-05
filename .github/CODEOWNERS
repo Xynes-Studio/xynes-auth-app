@@ -1,0 +1,12 @@
+# Default reviewers for everything
+*                                          @archan96
+
+# Specific paths (uncomment what applies)
+# /src/lib/auth/                               @archan96
+# /src/components/workspace/                   @archan96
+# /src/lib/integrations/                       @archan96
+# /src/middleware.ts                           @archan96
+# /src/i18n/                                   @archan96
+# /src/app/                                    @archan96
+# /src/components/                             @archan96
+# /.github/                                    @archan96
