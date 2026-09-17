@@ -1,7 +1,12 @@
 import "@testing-library/jest-dom/vitest";
+import { configure } from "@testing-library/react";
 import { createElement } from "react";
 import { vi } from "vitest";
 import type { ImgHTMLAttributes } from "react";
+
+// Full-suite runs exercise many happy-dom files concurrently. Keep async UI
+// assertions tolerant of scheduler contention without weakening expectations.
+configure({ asyncUtilTimeout: 5_000 });
 
 // Mock environment variables
 process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";

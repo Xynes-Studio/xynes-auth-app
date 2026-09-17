@@ -112,7 +112,10 @@ describe("ResetPasswordPage", () => {
       expect(mockExchangeCodeForSession).toHaveBeenCalledWith("test-code");
     });
 
-    await user.type(screen.getByLabelText(/^new password$/i), "ValidPass123");
+    await user.type(
+      await screen.findByLabelText(/^new password$/i),
+      "ValidPass123"
+    );
     await user.type(
       screen.getByLabelText(/confirm new password/i),
       "ValidPass123"

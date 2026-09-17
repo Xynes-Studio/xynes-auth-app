@@ -9,6 +9,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "happy-dom",
+    maxWorkers: 4,
+    minWorkers: 1,
+    testTimeout: 30_000,
     setupFiles: ["./src/test/setup.ts"],
     coverage: {
       provider: "v8",
