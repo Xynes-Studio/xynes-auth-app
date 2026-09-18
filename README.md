@@ -98,7 +98,7 @@ The middleware in `src/middleware.ts` does NOT enforce auth on these routes — 
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - pnpm 8+
 - Supabase instance (self-hosted or cloud)
 
