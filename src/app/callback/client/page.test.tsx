@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 
 // Mock next/navigation
 const mockParams = {
@@ -63,6 +64,30 @@ vi.mock("@/lib/redirect/storage", () => ({
 
 import OAuthClientCallbackPage from "./page";
 
+function replaceWindowLocation(hash = "") {
+  const originalLocation = window.location;
+  const mockLocation = {
+    href: "",
+    hash,
+    pathname: "/callback/client",
+    search: "",
+  };
+  Object.defineProperty(window, "location", {
+    value: mockLocation,
+    writable: true,
+  });
+
+  return {
+    mockLocation,
+    restore: () => {
+      Object.defineProperty(window, "location", {
+        value: originalLocation,
+        writable: true,
+      });
+    },
+  };
+}
+
 describe("OAuthClientCallbackPage error handling", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -105,6 +130,211 @@ describe("OAuthClientCallbackPage error handling", () => {
         screen.getByRole("link", { name: /contact support/i }),
       ).toBeInTheDocument();
     });
+  });
+
+  it("uses the validated retry target and supports both error actions", async () => {
+    mockParams.error = "access_denied";
+    mockParams.redirect = "/dashboard/apps";
+    const { mockLocation, restore } = replaceWindowLocation();
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/unable to complete sign-in/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+    expect(mockLocation.href).toBe(
+      "/login?redirect=%2Fdashboard%2Fapps",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /go to login/i }));
+    expect(mockLocation.href).toBe("/login");
+    restore();
+  });
+
+  it("rejects an implicit callback that is missing OAuth tokens", async () => {
+    const { restore } = replaceWindowLocation("");
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/unable to complete sign-in/i)).toBeInTheDocument();
+    });
+    expect(mockSetSession).not.toHaveBeenCalled();
+    restore();
+  });
+
+  it("reports an implicit callback session error", async () => {
+    mockSetSession.mockResolvedValue({
+      data: null,
+      error: { message: "session rejected" },
+    });
+    const { restore } = replaceWindowLocation(
+      "access_token=abc&refresh_token=def",
+    );
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/unable to complete sign-in/i)).toBeInTheDocument();
+    });
+    expect(mockSetSession).toHaveBeenCalledWith({
+      access_token: "abc",
+      refresh_token: "def",
+    });
+    restore();
+  });
+
+  it("falls back to the supplied implicit access token", async () => {
+    mockSetSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+    mockReadPersistedOAuthRedirect.mockReturnValue("/dashboard/apps");
+    const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "";
+    const { mockLocation, restore } = replaceWindowLocation(
+      "access_token=abc&refresh_token=def",
+    );
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(mockLocation.href).toBe("/onboarding");
+    });
+
+    restore();
+    process.env.NEXT_PUBLIC_API_URL = previousApiUrl;
+  });
+
+  it("reports a code exchange that returns no access token", async () => {
+    mockParams.code = "code-without-session";
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: null },
+      error: null,
+    });
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/unable to complete sign-in/i)).toBeInTheDocument();
+    });
+  });
+
+  it("uses the safe new-user fallback when the workspace response is not ok", async () => {
+    mockParams.code = "good-code";
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+    const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:4100";
+    const { mockLocation, restore } = replaceWindowLocation();
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(mockLocation.href).toBe("/onboarding");
+    });
+
+    restore();
+    process.env.NEXT_PUBLIC_API_URL = previousApiUrl;
+    vi.unstubAllGlobals();
+  });
+
+  it("treats malformed workspace data as an empty new-user response", async () => {
+    mockParams.code = "good-code";
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: { user: null, workspaces: "invalid" } }),
+      }),
+    );
+    const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:4100";
+    const { restore } = replaceWindowLocation();
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(mockResolveOAuthRedirect).toHaveBeenCalledWith(
+        null,
+        null,
+        "/onboarding",
+        ["xynes.com", "localhost:3000"],
+      );
+    });
+
+    restore();
+    process.env.NEXT_PUBLIC_API_URL = previousApiUrl;
+    vi.unstubAllGlobals();
+  });
+
+  it("continues safely when loading workspaces throws", async () => {
+    mockParams.code = "good-code";
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("gateway down")));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:4100";
+    const { mockLocation, restore } = replaceWindowLocation();
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(mockLocation.href).toBe("/onboarding");
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Failed to load workspaces",
+      expect.any(Error),
+    );
+
+    restore();
+    process.env.NEXT_PUBLIC_API_URL = previousApiUrl;
+    consoleErrorSpy.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it("continues without logging when the workspace request is aborted", async () => {
+    mockParams.code = "good-code";
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new DOMException("aborted", "AbortError")),
+    );
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:4100";
+    const { mockLocation, restore } = replaceWindowLocation();
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(mockLocation.href).toBe("/onboarding");
+    });
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+    restore();
+    process.env.NEXT_PUBLIC_API_URL = previousApiUrl;
+    consoleErrorSpy.mockRestore();
+    vi.unstubAllGlobals();
   });
 
   it("clears stored redirect on error", async () => {
@@ -156,6 +386,73 @@ describe("OAuthClientCallbackPage error handling", () => {
     });
     process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
     replaceStateSpy.mockRestore();
+  });
+
+  it("processes an implicit OAuth callback only once under Strict Mode", async () => {
+    mockReadPersistedOAuthRedirect.mockReturnValue(
+      "http://localhost:3300/dashboard",
+    );
+    mockSetSession
+      .mockResolvedValueOnce({
+        data: { session: { access_token: "token" } },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: "refresh token already consumed" },
+      });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          user: {
+            id: "user-1",
+            email: "user-1@example.com",
+            displayName: "User One",
+          },
+          workspaces: [{ id: "ws-1", slug: "xynes" }],
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:4100";
+
+    const originalLocation = window.location;
+    const mockLocation = {
+      href: "",
+      hash: "#access_token=abc&refresh_token=def",
+      pathname: "/callback/client",
+      search: "",
+    };
+    Object.defineProperty(window, "location", {
+      value: mockLocation,
+      writable: true,
+    });
+
+    render(
+      <StrictMode>
+        <OAuthClientCallbackPage />
+      </StrictMode>,
+    );
+
+    await waitFor(() => {
+      expect(mockLocation.href).toBe("http://localhost:3300/dashboard");
+    });
+
+    expect(mockSetSession).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByText(/unable to complete sign-in/i),
+    ).not.toBeInTheDocument();
+
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      writable: true,
+    });
+    process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
+    vi.unstubAllGlobals();
   });
 
   it("redirects existing users to dashboard users by default", async () => {
@@ -266,6 +563,46 @@ describe("OAuthClientCallbackPage error handling", () => {
       writable: true,
     });
     process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
+    vi.unstubAllGlobals();
+  });
+
+  it("does not persist a workspace selection when the response has no usable id", async () => {
+    mockParams.code = "good-code";
+    mockExchangeCodeForSession.mockResolvedValue({
+      data: { session: { access_token: "token" } },
+      error: null,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: {
+            user: { displayName: "User One" },
+            workspaces: [{ slug: "workspace-without-id" }],
+          },
+        }),
+      }),
+    );
+    const previousApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    process.env.NEXT_PUBLIC_API_URL = "http://localhost:4100";
+    window.localStorage.removeItem("xynes_workspace_id");
+    const { restore } = replaceWindowLocation();
+
+    render(<OAuthClientCallbackPage />);
+
+    await waitFor(() => {
+      expect(mockResolveOAuthRedirect).toHaveBeenCalledWith(
+        null,
+        null,
+        "/dashboard/apps",
+        ["xynes.com", "localhost:3000"],
+      );
+    });
+    expect(window.localStorage.getItem("xynes_workspace_id")).toBeNull();
+
+    restore();
+    process.env.NEXT_PUBLIC_API_URL = previousApiUrl;
     vi.unstubAllGlobals();
   });
 

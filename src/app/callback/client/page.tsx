@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@lumia-ui/components";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
@@ -29,35 +29,45 @@ export default function OAuthClientCallbackPage() {
   const [state, setState] = useState<CallbackState>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [storedRedirect, setStoredRedirect] = useState<string | null>(null);
+  const callbackStartedRef = useRef(false);
+  const callbackActiveRef = useRef(false);
+  const oauthError = searchParams.get("error");
+  const code = searchParams.get("code");
+  const redirectParam = searchParams.get("redirect");
 
   useEffect(() => {
-    let isMounted = true;
+    callbackActiveRef.current = true;
+
+    if (callbackStartedRef.current) {
+      return () => {
+        callbackActiveRef.current = false;
+      };
+    }
+
+    callbackStartedRef.current = true;
 
     const setErrorState = (message: string) => {
       if (typeof window !== "undefined") {
         clearPersistedOAuthRedirect(window.localStorage);
       }
-      if (!isMounted) return;
+      if (!callbackActiveRef.current) return;
       setErrorMessage(message);
       setState("error");
     };
 
     async function handleCallback() {
       try {
-        const oauthError = searchParams.get("error");
         if (oauthError) {
           setErrorState(getOAuthErrorMessage(oauthError));
           return;
         }
 
         const supabase = createBrowserClient();
-        const redirectParam = searchParams.get("redirect");
         const storedParam =
           typeof window !== "undefined"
             ? readPersistedOAuthRedirect(window.localStorage)
             : null;
         setStoredRedirect(storedParam);
-        const code = searchParams.get("code");
 
         let accessToken: string | undefined;
 
@@ -188,7 +198,7 @@ export default function OAuthClientCallbackPage() {
           requiresProfileCompletion,
         });
 
-        if (!isMounted) return;
+        if (!callbackActiveRef.current) return;
         if (typeof window !== "undefined") {
           if (window.location.hash) {
             window.history.replaceState(
@@ -201,7 +211,7 @@ export default function OAuthClientCallbackPage() {
         }
         window.location.href = finalRedirect;
       } catch (err) {
-        if (!isMounted) return;
+        if (!callbackActiveRef.current) return;
         console.error("OAuth callback failed", err);
         setErrorState(getOAuthErrorMessage("auth_callback_error"));
       }
@@ -210,11 +220,10 @@ export default function OAuthClientCallbackPage() {
     void handleCallback();
 
     return () => {
-      isMounted = false;
+      callbackActiveRef.current = false;
     };
-  }, [searchParams]);
+  }, [code, oauthError, redirectParam]);
 
-  const redirectParam = searchParams.get("redirect");
   const allowedDomains = getAllowedRedirectDomains();
   const safeRetryRedirect = resolveOAuthRedirect(
     redirectParam,
