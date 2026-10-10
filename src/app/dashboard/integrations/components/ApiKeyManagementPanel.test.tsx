@@ -198,6 +198,7 @@ function defaultProps(
     isLoading: false,
     onCreateApiKey: vi.fn().mockResolvedValue(undefined),
     onRevokeApiKey: vi.fn().mockResolvedValue(undefined),
+    onReadApiKeyScopes: vi.fn().mockResolvedValue([]),
     pendingRawKey: null as null | { keyId: string; rawKey: string },
     onDismissRawKey: vi.fn(),
     ...overrides,
@@ -209,6 +210,14 @@ beforeEach(() => {
 });
 
 describe("ApiKeyManagementPanel", () => {
+  it("shows an elapsed active key as expired while retaining the explicit revoke action", () => {
+    const key = { ...activeKey, expiresAt: "2000-01-01T00:00:00Z" };
+    render(<ApiKeyManagementPanel {...defaultProps({ apiKeys: [key] })} />);
+    const row = screen.getByTestId(`api-key-row-${key.id}`);
+    expect(within(row).getByText("Expired")).toBeInTheDocument();
+    expect(within(row).queryByText("Active")).not.toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: /revoke api key/i })).toBeEnabled();
+  });
   it("invites the workspace owner to create an API key when the list is empty", () => {
     render(<ApiKeyManagementPanel {...defaultProps()} />);
 

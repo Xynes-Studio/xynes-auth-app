@@ -51,6 +51,7 @@ import {
   type WorkspaceApiKeyStatus,
 } from "@/lib/integrations/workspace-integrations-types";
 import { CopyButton } from "./CopyButton";
+import { ApiKeyScopeDetails, type ReadApiKeyScopes } from "./ApiKeyScopeDetails";
 
 export interface PendingWorkspaceRawApiKey {
   /** ID of the key the raw value belongs to. */
@@ -77,6 +78,7 @@ export interface ApiKeyManagementPanelProps {
   onCreateApiKey: (input: ApiKeyManagementPanelCreateInput) => Promise<void>;
   /** Revoke an active API key. */
   onRevokeApiKey: (keyId: string) => Promise<void>;
+  onReadApiKeyScopes: ReadApiKeyScopes;
   /**
    * One-time raw key reveal for the most-recently-created key. The server
    * returns this exactly once and stores only its Argon2id hash; the panel
@@ -124,6 +126,14 @@ function statusLabel(status: WorkspaceApiKeyStatus): string {
   }
 }
 
+function displayedStatus(apiKey: WorkspaceApiKey): WorkspaceApiKeyStatus {
+  if (apiKey.status === "active" && apiKey.expiresAt) {
+    const expiry = Date.parse(apiKey.expiresAt);
+    if (Number.isFinite(expiry) && expiry <= Date.now()) return "expired";
+  }
+  return apiKey.status;
+}
+
 // Preset presentation
 
 const PRESET_LABELS: Record<WorkspaceApiKeyPresetKey, string> = {
@@ -158,6 +168,7 @@ export function ApiKeyManagementPanel({
   isLoading,
   onCreateApiKey,
   onRevokeApiKey,
+  onReadApiKeyScopes,
   pendingRawKey,
   onDismissRawKey,
   initialPresetKey,
@@ -332,6 +343,9 @@ export function ApiKeyManagementPanel({
         ) : null}
       </form>
 
+      <p className="text-sm text-muted-foreground">{t("apiKeys.scopeHint")}</p>
+      {presetInput === "cms_publisher" ? <p className="text-sm text-muted-foreground">{t("apiKeys.publisherDescription")}</p> : null}
+
       {apiKeys.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No API keys yet. Create one to grant scoped, revocable access to this
@@ -341,6 +355,7 @@ export function ApiKeyManagementPanel({
         <ul className="flex flex-col gap-3" aria-label="Workspace API keys">
           {apiKeys.map((apiKey) => {
             const isRowPending = pendingActionKeyId === apiKey.id;
+            const status = displayedStatus(apiKey);
             const canRevoke = apiKey.status === "active";
             const presetLabelText = presetLabel(apiKey.presetKey);
             const lastUsedText = formatDate(apiKey.lastUsedAt);
@@ -364,8 +379,8 @@ export function ApiKeyManagementPanel({
                         {apiKey.name}
                       </span>
                     </span>
-                    <StatusPill variant={statusVariant(apiKey.status)}>
-                      {statusLabel(apiKey.status)}
+                    <StatusPill variant={statusVariant(status)}>
+                      {statusLabel(status)}
                     </StatusPill>
                   </Flex>
 
@@ -389,6 +404,9 @@ export function ApiKeyManagementPanel({
                       </p>
                     ) : null}
                   </Flex>
+
+                  <ApiKeyScopeDetails keyId={apiKey.id} name={apiKey.name}
+                    onReadScopes={onReadApiKeyScopes} disabled={isLoading} />
 
                   {canRevoke ? (
                     <Flex gap="sm" wrap="wrap">

@@ -30,6 +30,7 @@ const mockRegenerateWorkspaceDomainVerification = vi.fn();
 const mockDeleteWorkspaceDomain = vi.fn();
 const mockCreateWorkspaceApiKey = vi.fn();
 const mockRevokeWorkspaceApiKey = vi.fn();
+const mockReadWorkspaceApiKeyScopes = vi.fn();
 
 const workspaceState = vi.hoisted(() => ({
   currentWorkspace: {
@@ -88,6 +89,7 @@ vi.mock("@/lib/integrations/workspace-integrations-client", () => {
       mockCreateWorkspaceApiKey(...args),
     revokeWorkspaceApiKey: (...args: unknown[]) =>
       mockRevokeWorkspaceApiKey(...args),
+    readWorkspaceApiKeyScopes: (...args: unknown[]) => mockReadWorkspaceApiKeyScopes(...args),
   };
 });
 
@@ -344,6 +346,8 @@ beforeEach(() => {
   mockDeleteWorkspaceDomain.mockReset();
   mockCreateWorkspaceApiKey.mockReset();
   mockRevokeWorkspaceApiKey.mockReset();
+  mockReadWorkspaceApiKeyScopes.mockReset();
+  mockReadWorkspaceApiKeyScopes.mockResolvedValue(["cms.delivery.getById"]);
   mockListWorkspaceDomains.mockResolvedValue([sampleDomain]);
   mockListWorkspaceApiKeys.mockResolvedValue([sampleApiKey]);
   mockRegisterWorkspaceDomain.mockResolvedValue({
@@ -1556,5 +1560,30 @@ describe("WorkspaceIntegrationsDashboard", () => {
       await screen.findByText(/Couldn’t remove domain/i);
       expect(screen.getByText(/server hit a problem/i)).toBeInTheDocument();
     });
+  });
+});
+
+
+describe("workspace-scoped persisted capabilities", () => {
+  it("uses the current human session and workspace to inspect an actual key", async () => {
+    searchParamsState.query = "tab=api-keys";
+    render(<WorkspaceIntegrationsDashboard />);
+    await userEvent.click(await screen.findByRole("button", { name: "Show scopes for API key Test key" }));
+    await screen.findByText("cms.delivery.getById");
+    expect(mockReadWorkspaceApiKeyScopes).toHaveBeenCalledWith(expect.objectContaining({ workspaceId: "ws-1", keyId: "key-1", signal: expect.any(AbortSignal) }));
+    const options = mockReadWorkspaceApiKeyScopes.mock.calls[0][0];
+    expect(await options.getAccessToken()).toBe("token");
+    expect(options.signal.aborted).toBe(false);
+  });
+  it("aborts and removes old capability details when switching workspaces", async () => {
+    searchParamsState.query = "tab=api-keys";
+    mockReadWorkspaceApiKeyScopes.mockReturnValue(new Promise<readonly string[]>(() => {}));
+    const view = render(<WorkspaceIntegrationsDashboard />);
+    await userEvent.click(await screen.findByRole("button", { name: "Show scopes for API key Test key" }));
+    const signal: AbortSignal = mockReadWorkspaceApiKeyScopes.mock.calls[0][0].signal;
+    workspaceState.currentWorkspace = { id: "ws-2", name: "Other workspace", slug: "other" };
+    view.rerender(<WorkspaceIntegrationsDashboard />);
+    await waitFor(() => expect(signal.aborted).toBe(true));
+    expect(screen.queryByText("cms.delivery.getById")).not.toBeInTheDocument();
   });
 });

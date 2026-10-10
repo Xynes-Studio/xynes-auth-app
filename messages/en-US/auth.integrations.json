@@ -15,7 +15,9 @@
   },
   "apiKeys": {
     "heading": "Workspace API keys",
-    "description": "Programmatic access scoped to a single workspace. Raw keys are shown once on creation and never stored client-side."
+    "description": "Programmatic access scoped to a single workspace. Raw keys are shown once on creation and never stored client-side.",
+    "scopeHint": "Preset labels record the issuance choice. Existing keys keep their original scopes; inspect actual allowed actions before using them for delivery.",
+    "publisherDescription": "New CMS Publisher keys include published reads, draft authoring, publication and scheduling."
   },
   "common": {
     "copy": "Copy",
@@ -44,5 +46,13 @@
   },
   "loading": {
     "message": "Loading workspace integrations…"
+  },
+  "scopes": {
+    "show": "Show actual scopes",
+    "showAria": "Show scopes for API key {name}",
+    "loading": "Loading allowed actions…",
+    "error": "Couldn’t load allowed actions. Try again.",
+    "heading": "Actual allowed actions",
+    "none": "This key has no allowed actions."
   }
 }

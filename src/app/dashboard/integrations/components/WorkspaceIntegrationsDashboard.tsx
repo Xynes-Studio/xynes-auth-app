@@ -54,6 +54,7 @@ import {
   registerWorkspaceDomain,
   regenerateWorkspaceDomainVerification,
   revokeWorkspaceApiKey,
+  readWorkspaceApiKeyScopes,
   verifyWorkspaceDomain,
 } from "@/lib/integrations/workspace-integrations-client";
 import type {
@@ -570,6 +571,14 @@ export function WorkspaceIntegrationsDashboard() {
     setPendingRawApiKey(null);
   }, []);
 
+  const handleReadApiKeyScopes = useCallback(
+    (keyId: string, signal: AbortSignal) => readWorkspaceApiKeyScopes({
+      apiBaseUrl, workspaceId, keyId, signal,
+      getAccessToken: () => getAccessTokenRef.current(),
+    }),
+    [apiBaseUrl, workspaceId],
+  );
+
   const handleDismissActionError = useCallback(() => {
     setActionError(null);
   }, []);
@@ -924,10 +933,12 @@ export function WorkspaceIntegrationsDashboard() {
               {apiKeys.length}
             </span>
             <ApiKeyManagementPanel
+              key={workspaceId}
               apiKeys={apiKeys}
               isLoading={isLoading}
               onCreateApiKey={handleCreateApiKey}
               onRevokeApiKey={handleRevokeApiKey}
+              onReadApiKeyScopes={handleReadApiKeyScopes}
               pendingRawKey={pendingRawApiKey}
               onDismissRawKey={handleDismissRawApiKey}
               initialPresetKey={initialPresetKey}
