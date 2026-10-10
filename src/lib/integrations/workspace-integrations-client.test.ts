@@ -484,7 +484,7 @@ describe("regenerateWorkspaceDomainVerification", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:4100/workspaces/ws-1/domains/d1/regenerate-verification",
-      expect.objectContaining({ method: "POST", body: "{}" }),
+      expect.objectContaining({ method: "POST", body: "{}", headers: expect.objectContaining({"Content-Type": "application/json"}) }),
     );
     expect(result.domain.status).toBe("pending");
     expect(result.verificationValue).toBe("xynes-verify-newvalue");
@@ -1034,7 +1034,7 @@ describe("bodyless mutation methods carry an empty JSON body (gateway 411 regres
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ method: "POST", body: "{}" }),
+      expect.objectContaining({ method: "POST", body: "{}", headers: expect.objectContaining({"Content-Type": "application/json"}) }),
     );
   });
 
@@ -1047,7 +1047,7 @@ describe("bodyless mutation methods carry an empty JSON body (gateway 411 regres
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ method: "DELETE", body: "{}" }),
+      expect.objectContaining({ method: "DELETE", body: "{}", headers: expect.objectContaining({"Content-Type": "application/json"}) }),
     );
   });
 
@@ -1071,7 +1071,7 @@ describe("bodyless mutation methods carry an empty JSON body (gateway 411 regres
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.any(String),
-      expect.objectContaining({ method: "POST", body: "{}" }),
+      expect.objectContaining({ method: "POST", body: "{}", headers: expect.objectContaining({"Content-Type": "application/json"}) }),
     );
   });
 });

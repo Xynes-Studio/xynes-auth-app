@@ -15,7 +15,9 @@
   },
   "apiKeys": {
     "heading": "[WWoorrkkssppaaccee AAPPII kkeeyyss]",
-    "description": "[PPrrooggrraammmmaattiicc aacccceessss ssccooppeedd ttoo aa ssiinnggllee wwoorrkkssppaaccee. RRaaww kkeeyyss aarree sshhoowwnn oonnccee oonn ccrreeaattiioonn aanndd nneevveerr ssttoorreedd cclliieenntt-ssiiddee.]"
+    "description": "[PPrrooggrraammmmaattiicc aacccceessss ssccooppeedd ttoo aa ssiinnggllee wwoorrkkssppaaccee. RRaaww kkeeyyss aarree sshhoowwnn oonnccee oonn ccrreeaattiioonn aanndd nneevveerr ssttoorreedd cclliieenntt-ssiiddee.]",
+    "scopeHint": "[PPrreesseett llaabbeellss rreeccoorrdd tthhee iissssuuaannccee cchhooiiccee. EExxiissttiinngg kkeeyyss kkeeeepp tthheeiirr oorriiggiinnaall ssccooppeess; iinnssppeecctt aaccttuuaall aalllloowweedd aaccttiioonnss bbeeffoorree uussiinngg tthheemm ffoorr ddeelliivveerryy.]",
+    "publisherDescription": "[NNeeww CCMMSS PPuubblliisshheerr kkeeyyss iinncclluuddee ppuubblliisshheedd rreeaaddss, ddrraafftt aauutthhoorriinngg, ppuubblliiccaattiioonn aanndd sscchheedduulliinngg.]"
   },
   "common": {
     "copy": "[CCooppyy]",
@@ -44,5 +46,13 @@
   },
   "loading": {
     "message": "[LLooaaddiinngg wwoorrkkssppaaccee iinntteeggrraattiioonnss…]"
+  },
+  "scopes": {
+    "show": "[SShhooww aaccttuuaall ssccooppeess]",
+    "showAria": "[SShhooww ssccooppeess ffoorr AAPPII kkeeyy {name}]",
+    "loading": "[LLooaaddiinngg aalllloowweedd aaccttiioonnss…]",
+    "error": "[CCoouullddnn’tt llooaadd aalllloowweedd aaccttiioonnss. TTrryy aaggaaiinn.]",
+    "heading": "[AAccttuuaall aalllloowweedd aaccttiioonnss]",
+    "none": "[TThhiiss kkeeyy hhaass nnoo aalllloowweedd aaccttiioonnss.]"
   }
 }

@@ -299,6 +299,32 @@ function normalizeApiKeyList(value: unknown): WorkspaceApiKey[] {
     .filter((k): k is WorkspaceApiKey => k !== null);
 }
 
+/** Authorized, persisted action scopes; a preset label is not a capability check. */
+export async function readWorkspaceApiKeyScopes(
+  args: BaseClientArgs & { keyId: string },
+): Promise<readonly string[]> {
+  const baseUrl = ensureBaseUrl(args.apiBaseUrl);
+  const workspaceId = ensureWorkspaceId(args.workspaceId);
+  const keyId = ensurePathParam(args.keyId, "API key ID");
+  const headers = await buildAuthHeaders(args.getAccessToken);
+  const response = await fetch(
+    `${baseUrl}/workspaces/${encodeURIComponent(workspaceId)}/api-keys/${encodeURIComponent(keyId)}/usage`,
+    { method: "GET", headers, signal: args.signal },
+  );
+  const body = await parseJson(response);
+  await failIfNotOk(response, body);
+  const value = asRecord(unwrapGatewayEnvelope(body));
+  const scopes: unknown = value?.scopes;
+  if (
+    value?.keyId !== keyId || !Array.isArray(scopes) || scopes.length > 200 ||
+    !scopes.every((scope): scope is string => typeof scope === "string" && scope.length <= 120 && /^[a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+$/.test(scope)) ||
+    new Set(scopes).size !== scopes.length
+  ) {
+    throw new WorkspaceIntegrationsApiError(500, "Unexpected response while reading API key scopes");
+  }
+  return [...scopes];
+}
+
 // ── Domains: list ───────────────────────────────────────────────
 
 export async function listWorkspaceDomains(
@@ -382,7 +408,7 @@ export async function verifyWorkspaceDomain(
   const domainId = ensurePathParam(args.domainId, "Domain id");
   const baseUrl = ensureBaseUrl(args.apiBaseUrl);
   const workspaceId = ensureWorkspaceId(args.workspaceId);
-  const headers = await buildAuthHeaders(args.getAccessToken);
+  const headers = await buildAuthHeaders(args.getAccessToken, true);
 
   const response = await fetch(
     `${baseUrl}/workspaces/${encodeURIComponent(workspaceId)}/domains/${encodeURIComponent(domainId)}/verify`,
@@ -484,7 +510,7 @@ export async function deleteWorkspaceDomain(
   const domainId = ensurePathParam(args.domainId, "Domain id");
   const baseUrl = ensureBaseUrl(args.apiBaseUrl);
   const workspaceId = ensureWorkspaceId(args.workspaceId);
-  const headers = await buildAuthHeaders(args.getAccessToken);
+  const headers = await buildAuthHeaders(args.getAccessToken, true);
 
   const response = await fetch(
     `${baseUrl}/workspaces/${encodeURIComponent(workspaceId)}/domains/${encodeURIComponent(domainId)}`,
@@ -616,7 +642,7 @@ export async function revokeWorkspaceApiKey(
   const keyId = ensurePathParam(args.keyId, "API key id");
   const baseUrl = ensureBaseUrl(args.apiBaseUrl);
   const workspaceId = ensureWorkspaceId(args.workspaceId);
-  const headers = await buildAuthHeaders(args.getAccessToken);
+  const headers = await buildAuthHeaders(args.getAccessToken, true);
 
   const response = await fetch(
     `${baseUrl}/workspaces/${encodeURIComponent(workspaceId)}/api-keys/${encodeURIComponent(keyId)}/revoke`,
