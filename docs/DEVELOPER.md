@@ -6,6 +6,21 @@ This document captures the global engineering standards for the auth app, with e
 
 ## Architecture (Global Standards)
 
+### Lumia semantic themes
+
+`src/app/globals.css` imports `@lumia-ui/components/semantic.css` once. Shared
+Lumia variables own system light/dark colors; the Auth Tailwind mappings consume
+them with legacy fallbacks. Tailwind 3 primary opacity variants use `color-mix`
+so Lumia Button's hover and pressed styles remain available. Do not copy the
+shared palette into this app. `src/test/lumia-theme.test.ts` checks the compiled
+utilities, and CI/release workflows pin the merged Lumia source immutably.
+
+Existing dev images also need the new stylesheet and components `package.json`
+export available inside `/app/lumia-ds/packages/components`. Rebuilding an image
+includes both; local read-only bind mounts can refresh them without reinstalling
+dependencies. Include that local override after the frontend dev Compose
+definitions when recreating an existing image.
+
 ### Next.js (App Router)
 - Use App Router (`src/app`) with server components by default.
 - Add `"use client"` only when required (hooks, browser APIs, client-only libs).
@@ -1014,4 +1029,3 @@ Verify with `docker exec xynes-auth-app ls /app/xynes-auth-app/node_modules/@lum
 - Login form on `/` (would violate the §6 single-form invariant).
 - A `/about` route.
 - "What's new" changelog teaser.
-

@@ -9,10 +9,14 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        background: "var(--colors-background, var(--background))",
+        foreground: "var(--colors-foreground, var(--foreground))",
         primary: {
-          DEFAULT: "#0f172a",
+          foreground: "var(--colors-on-primary, #ffffff)",
+          DEFAULT: ({ opacityValue }) =>
+            opacityValue === undefined
+              ? "var(--colors-primary, #0f172a)"
+              : `color-mix(in srgb, var(--colors-primary, #0f172a) calc(${opacityValue} * 100%), transparent)`,
           50: "#eef2ff",
           100: "#e0e7ff",
           200: "#c7d2fe",
